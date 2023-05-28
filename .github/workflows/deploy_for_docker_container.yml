@@ -35,8 +35,8 @@ jobs:
       - name: "Global env"
         id: global_env
         run: |
-          echo "IMAGE_NAME=${${{ inputs.repository }}#*/}" >> $GITHUB_OUTPUT
-          echo "DOCKERHUB_IMAGE_NAME=docker.pkg.github.com/${{ inputs.repository }}/${${{ inputs.repository }}#*/}" >> $GITHUB_OUTPUT
+          echo "IMAGE_NAME=${{ inputs.repository }}" >> $GITHUB_OUTPUT
+          echo "DOCKERHUB_IMAGE_NAME=docker.pkg.github.com/${{ inputs.github_user }}/${{ inputs.repository }}/${{ inputs.repository }}" >> $GITHUB_OUTPUT
 
       - name: "Determining the version"
         id: version
@@ -55,11 +55,9 @@ jobs:
           docker build -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:latest" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}" .
 
       - name: "docker login"
-        run: docker login docker.pkg.github.com -u ${{ inputs.github_user}} -p ${{ secrets.GITHUB_TOKEN }}
+        run: docker login docker.pkg.github.com -u ${{ inputs.github_user }} -p ${{ secrets.GITHUB_TOKEN }}
 
       - name: "Publish image"
-        env:
-          IMAGE_NAME: ${{ inputs.repository }}
         run: |
-          docker push "docker.pkg.github.com/${{ inputs.repository }}/${{ steps.global_env.outputs.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}"
-          docker push "docker.pkg.github.com/${{ inputs.repository }}/${{ steps.global_env.outputs.IMAGE_NAME }}:latest"
+          docker push "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}"
+          docker push "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:latest"
