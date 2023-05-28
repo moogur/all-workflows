@@ -42,8 +42,9 @@ jobs:
         id: version
         run: |
           if [[ ${{ inputs.event_name }} == 'push' ]]; then
-            tag=${${{ inputs.ref }}/refs\/tags\//}
-            version=${tag#v}
+            tag=${{ inputs.ref }}
+            prepared_tag=${tag##*/}
+            version="v$prepared_tag"
             echo "VERSION=${version}" >> $GITHUB_OUTPUT
           else
             version=$(date +"%d.%m.%Y-auto")
