@@ -1,0 +1,26 @@
+{
+  "name": "all-workflows",
+  "version": "0.0.1",
+  "description": "Докер сборка nginx, это веб-сервер и почтовый прокси-сервер",
+  "main": "index.js",
+  "engines": {
+    "node": "16"
+  },
+  "scripts": {
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "husky": "^8.0.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/moogur/all-workflows.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/moogur/all-workflows/issues"
+  },
+  "homepage": "https://github.com/moogur/all-workflows#readme"
+}
