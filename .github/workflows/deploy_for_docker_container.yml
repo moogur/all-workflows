@@ -1,0 +1,61 @@
+name: Deploy for docker container
+
+on:
+  workflow_call:
+    inputs:
+      repository:
+        description: "The repository from which the action was called"
+        type: string
+        required: true
+      ref:
+        description: "Github ref"
+        type: string
+        required: true
+      event_name:
+        description: "Github event name"
+        type: string
+        required: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-docker-job:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v3
+
+      - name: "Global env"
+        id: global_env
+        run: |
+          echo "IMAGE_NAME=${${{ inputs.repository }}#*/}" >> $GITHUB_OUTPUT
+          echo "DOCKERHUB_IMAGE_NAME=docker.pkg.github.com/${{ inputs.repository }}/${${{ inputs.repository }}#*/}" >> $GITHUB_OUTPUT
+
+      - name: "Determining the version"
+        id: version
+        run: |
+          if [[ ${{ inputs.event_name }} == 'push' ]]; then
+            tag=${${{ inputs.ref }}/refs\/tags\//}
+            version=${tag#v}
+            echo "VERSION=${version}" >> $GITHUB_OUTPUT
+          else
+            version=$(date +"%d.%m.%Y-auto")
+            echo "VERSION=${version}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: "Build and tag image"
+        run: |
+          docker build -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:latest" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}" .
+
+      - name: "docker login"
+        run: docker login docker.pkg.github.com -u $GITHUB_ACTOR -p ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Publish image"
+        env:
+          IMAGE_NAME: ${{ inputs.repository }}
+        run: |
+          docker push "docker.pkg.github.com/${{ inputs.repository }}/${{ steps.global_env.outputs.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}"
+          docker push "docker.pkg.github.com/${{ inputs.repository }}/${{ steps.global_env.outputs.IMAGE_NAME }}:latest"
