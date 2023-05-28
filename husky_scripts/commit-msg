@@ -1,3 +1,5 @@
+#!/opt/homebrew/bin/bash
+
 # check commit message
 # - not empty
 function checkEmpty() {
