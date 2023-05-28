@@ -18,7 +18,8 @@ on:
       github_user:
         description: "The Github user who started workflow"
         type: string
-        required: true
+        required: false
+        default: $GITHUB_ACTOR
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -43,8 +44,7 @@ jobs:
         run: |
           if [[ ${{ inputs.event_name }} == 'push' ]]; then
             tag=${{ inputs.ref }}
-            prepared_tag=${tag##*/}
-            version="v$prepared_tag"
+            version=${tag##*/}
             echo "VERSION=${version}" >> $GITHUB_OUTPUT
           else
             version=$(date +"%d.%m.%Y-auto")
