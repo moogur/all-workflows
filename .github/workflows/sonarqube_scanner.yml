@@ -64,6 +64,7 @@ jobs:
           touch env/.sonar.env
           echo SONAR_TOKEN=${{ secrets.SONAR_TOKEN }} >> env/.sonar.env
           echo SONAR_SERVER_URL=${{ secrets.SONAR_SERVER_URL }} >> env/.sonar.env
+          cat env/.sonar.env
 
       - name: 'Sonarqube scanner'
         env:
