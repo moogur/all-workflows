@@ -65,7 +65,7 @@ jobs:
       - name: 'Sonarqube scanner'
         run: |
           SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}
-          SONAR_SERVER_URL=${{ secrets.SONAR_TOKEN }}
+          SONAR_SERVER_URL=${{ secrets.SONAR_SERVER_URL }}
           ANALYZE_BRANCH=${{ inputs.branch }}
           LATEST_TAG=${{ inputs.latest_tag }}
           SHA_LATEST_COMMIT=${{ inputs.sha_latest_commit }}
