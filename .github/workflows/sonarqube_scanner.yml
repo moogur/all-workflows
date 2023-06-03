@@ -2,11 +2,11 @@ name: Sonarqube scanner
 
 on:
   workflow_call:
-    inputs:
-      latest_tag:
-        description: "The last tag released"
-        type: string
-        required: true
+    # inputs:
+    #   latest_tag:
+    #     description: "The last tag released"
+    #     type: string
+    #     required: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -53,8 +53,11 @@ jobs:
       - name: 'Set variables'
         id: variables
         run: |
+          echo ls -la
+          echo $(git describe)
           echo "analyze_branch=`echo $(git rev-parse --abbrev-ref HEAD)`" >> $GITHUB_OUTPUT
           echo "sha_latest_commit=`echo $(git rev-parse --short HEAD)`" >> $GITHUB_OUTPUT
+          echo "latest_tag=`echo $(git describe --tags --abbrev=0)`" >> $GITHUB_OUTPUT
 
       - name: 'Install'
         if: steps.cache.outputs.cache-hit != 'true'
@@ -65,7 +68,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_SERVER_URL: ${{ secrets.SONAR_SERVER_URL }}
           ANALYZE_BRANCH: ${{ steps.variables.outputs.analyze_branch }}
-          LATEST_TAG: ${{ inputs.latest_tag }}
+          LATEST_TAG: ${{ steps.variables.outputs.latest_tag }}
           SHA_LATEST_COMMIT: ${{ steps.variables.outputs.sha_latest_commit }}
         run: |
           npm run sonar:publish
