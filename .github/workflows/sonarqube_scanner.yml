@@ -3,16 +3,8 @@ name: Sonarqube scanner
 on:
   workflow_call:
     inputs:
-      branch:
-        description: "Branch for analyze"
-        type: string
-        required: true
       latest_tag:
         description: "The last tag released"
-        type: string
-        required: true
-      sha_latest_commit:
-        description: "Hash of the last commit"
         type: string
         required: true
 
@@ -36,7 +28,7 @@ jobs:
           node_version=$(jq '.engines.node' package.json)
           echo "matrix={\"node_version\":[${node_version:1:-1}]}" >> $GITHUB_OUTPUT
 
-  test-and-lint:
+  scanner:
     needs: set-node-version
     runs-on: ubuntu-latest
     strategy:
@@ -61,11 +53,8 @@ jobs:
       - name: 'Set variables'
         id: variables
         run: |
-          tag=${GITHUB_REF/refs\/tags\//}
-          version=${tag#v}
-          echo "ANALYZE_BRANCH=`echo $(git rev-parse --abbrev-ref HEAD)`" >> $GITHUB_OUTPUT
-          echo "LATEST_TAG=`echo $(git describe --tags --abbrev=0)`" >> $GITHUB_OUTPUT
-          echo "SHA_LATEST_COMMIT=`echo $(git rev-parse --short HEAD)`" >> $GITHUB_OUTPUT
+          echo "analyze_branch=`echo $(git rev-parse --abbrev-ref HEAD)`" >> $GITHUB_OUTPUT
+          echo "sha_latest_commit=`echo $(git rev-parse --short HEAD)`" >> $GITHUB_OUTPUT
 
       - name: 'Install'
         if: steps.cache.outputs.cache-hit != 'true'
@@ -75,8 +64,8 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_SERVER_URL: ${{ secrets.SONAR_SERVER_URL }}
-          ANALYZE_BRANCH: ${{ steps.variables.outputs.ANALYZE_BRANCH }}
-          LATEST_TAG: ${{ steps.variables.outputs.LATEST_TAG }}
-          SHA_LATEST_COMMIT: ${{ steps.variables.outputs.SHA_LATEST_COMMIT }}
+          ANALYZE_BRANCH: ${{ steps.variables.outputs.analyze_branch }}
+          LATEST_TAG: ${{ inputs.latest_tag }}
+          SHA_LATEST_COMMIT: ${{ steps.variables.outputs.sha_latest_commit }}
         run: |
           npm run sonar:publish
