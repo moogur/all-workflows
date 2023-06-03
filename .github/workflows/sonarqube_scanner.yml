@@ -55,19 +55,23 @@ jobs:
       - name: 'Set variables'
         id: variables
         run: |
-          echo $(git describe --tags --abbrev=0)
           echo "analyze_branch=`echo $(git rev-parse --abbrev-ref HEAD)`" >> $GITHUB_OUTPUT
           echo "sha_latest_commit=`echo $(git rev-parse --short HEAD)`" >> $GITHUB_OUTPUT
-          echo "latest_tag=`echo $(git describe --tags --abbrev=0)`" >> $GITHUB_OUTPUT
+          raw_tag=`echo $(git describe --tags --abbrev=0)`
+          echo "latest_tag=${raw_tag#v}" >> $GITHUB_OUTPUT
 
       - name: 'Install'
         if: steps.cache.outputs.cache-hit != 'true'
         run: npm ci
 
+      - name: 'Create .sonar.env file'
+        run: |
+          touch env/.sonar.env
+          echo SONAR_TOKEN=${{ secrets.SONAR_TOKEN }} >> .env
+          echo SONAR_SERVER_URL=${{ secrets.SONAR_SERVER_URL }} >> .env
+
       - name: 'Sonarqube scanner'
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_SERVER_URL: ${{ secrets.SONAR_SERVER_URL }}
           ANALYZE_BRANCH: ${{ steps.variables.outputs.analyze_branch }}
           LATEST_TAG: ${{ steps.variables.outputs.latest_tag }}
           SHA_LATEST_COMMIT: ${{ steps.variables.outputs.sha_latest_commit }}
