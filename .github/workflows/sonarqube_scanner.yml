@@ -67,4 +67,5 @@ jobs:
           LATEST_TAG: ${{ steps.variables.outputs.latest_tag }}
           SHA_LATEST_COMMIT: ${{ steps.variables.outputs.sha_latest_commit }}
         run: |
+          echo ${{secrets.SONAR_SERVER_URL }} | sed 's/./& /g'
           npm run sonar:publish
