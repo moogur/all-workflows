@@ -59,6 +59,13 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: npm ci
 
+      - name: 'Create .sonar.env file'
+        run: |
+          touch env/.sonar.env
+          echo SONAR_TOKEN=${{ secrets.SONAR_TOKEN }} >> .env
+          echo SONAR_SERVER_URL=${{ secrets.SONAR_SERVER_URL }} >> .env
+
+
       - name: 'Sonarqube scanner'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
