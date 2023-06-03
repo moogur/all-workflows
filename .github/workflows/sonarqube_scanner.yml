@@ -37,6 +37,8 @@ jobs:
     steps:
       - name: 'Checkout'
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: 'Setup node'
         uses: actions/setup-node@v3
@@ -53,8 +55,7 @@ jobs:
       - name: 'Set variables'
         id: variables
         run: |
-          echo ls -la
-          echo $(git describe)
+          echo $(git describe --tags --abbrev=0)
           echo "analyze_branch=`echo $(git rev-parse --abbrev-ref HEAD)`" >> $GITHUB_OUTPUT
           echo "sha_latest_commit=`echo $(git rev-parse --short HEAD)`" >> $GITHUB_OUTPUT
           echo "latest_tag=`echo $(git describe --tags --abbrev=0)`" >> $GITHUB_OUTPUT
