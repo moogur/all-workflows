@@ -66,7 +66,13 @@ jobs:
         run: |
           SONAR_TOKEN=${{ secrets.SONAR_TOKEN }}
           SONAR_SERVER_URL=${{ secrets.SONAR_SERVER_URL }}
-          ANALYZE_BRANCH=${{ inputs.branch }}
-          LATEST_TAG=${{ inputs.latest_tag }}
-          SHA_LATEST_COMMIT=${{ inputs.sha_latest_commit }}
+          # ANALYZE_BRANCH=${{ inputs.branch }}
+          # LATEST_TAG=${{ inputs.latest_tag }}
+          # SHA_LATEST_COMMIT=${{ inputs.sha_latest_commit }}
+          ANALYZE_BRANCH=$(echo git rev-parse --abbrev-ref HEAD)
+          echo $ANALYZE_BRANCH
+          LATEST_TAG=$(echo git describe --abbrev=0 --tags)
+          echo $LATEST_TAG
+          SHA_LATEST_COMMIT=$(echo git rev-parse --short HEAD)
+          echo $SHA_LATEST_COMMIT
           npm run sonar:publish
