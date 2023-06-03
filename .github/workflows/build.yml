@@ -1,0 +1,49 @@
+name: Build
+
+on:
+  workflow_call:
+
+jobs:
+  set-node-version:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v3
+
+      - name: 'Set node version'
+        id: set-matrix
+        run: |
+          node_version=$(jq '.engines.node' package.json)
+          echo "matrix={\"node_version\":[${node_version:1:-1}]}" >> $GITHUB_OUTPUT
+
+  build:
+    needs: set-node-version
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{fromJson(needs.set-node-version.outputs.matrix)}}
+
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v3
+
+      - name: 'Setup node'
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node_version }}
+
+      - name: 'Cache node modules'
+        id: cache
+        uses: actions/cache@v3
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+
+      - name: 'Install'
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: 'Build'
+        run: npm run build
