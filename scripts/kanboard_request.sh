@@ -19,6 +19,7 @@ function request() {
   local method=$1
   local params=$2
 
+  echo params $2
   result=$(curl -u "$auth_data" -d "$(generate_post_data $method $params)" $url/jsonrpc.php)
   echo $result
 }
