@@ -26,7 +26,7 @@ jobs:
         run: |
           all_columns=${{ secrets.KANBOARD_COLUMNS }} | tr "," "\n"
           task_id=`echo $(git log -1 --pretty=%B) | tr "-" " " | tr "]" " " | awk '{print $2 }'`
-          task_info=`echo $(./request "getTask" "{\"task_id\":$task_id}")`
+          task_info=`echo $(./request getTask {\"task_id\":$task_id})`
           column_id=`echo $(jq '.result.column_id' <<< "$task_info")`
           echo $task_info
 
