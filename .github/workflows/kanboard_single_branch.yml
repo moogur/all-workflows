@@ -18,13 +18,15 @@ jobs:
         run: |
           url=${{ secrets.KANBOARD_HOST }}/jsonrpc.php
           auth_data=${{ secrets.KANBOARD_USER }}:${{ secrets.KANBOARD_TOKEN }}
+
           echo "method=\$1" > request
           echo "data=\$2" >> request
           echo "echo \$(curl -u \$auth_data -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"\$method\",\"params\":\$data}' $url)" >> request
+          chmod +x ./request
 
       - name: "Transferring the task to the in progress status"
         run: |
-          all_columns=${{ secrets.KANBOARD_COLUMNS }} | tr " " "\n"
+          all_columns=${{ secrets.KANBOARD_COLUMNS }} | tr "," "\n"
           task_id=`echo $(git log -1 --pretty=%B) | tr "-" " " | tr "]" " " | awk '{print $2 }'`
           task_info=`echo $(./request "getTask" "{\"task_id\":$task_id}")`
           column_id=`echo $(jq '.result.column_id' <<< "$task_info")`
