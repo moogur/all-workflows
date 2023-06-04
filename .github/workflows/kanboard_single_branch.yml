@@ -43,7 +43,9 @@ jobs:
           elif [[ "${all_columns[3]}" != $column_id ]] && [[ "${all_columns[*]}" =~ $column_id ]]; then
             project_id=`echo $(jq '.result.project_id' <<< "$task_info")`
             swimlane_id=`echo $(jq '.result.swimlane_id' <<< "$task_info")`
-            result=`echo $(request moveTaskPosition {\"project_id\":$project_id,\"task_id\":$task_id,\"column_id\":${all_columns[3]},\"position\":1,\"swimlane_id\":$swimlane_id})`
+            echo {\"project_id\":$project_id,\"task_id\":$task_id,\"column_id\":${all_columns[3]},\"position\":1,\"swimlane_id\":$swimlane_id}
+            response=`echo $(request moveTaskPosition {\"project_id\":$project_id,\"task_id\":$task_id,\"column_id\":${all_columns[3]},\"position\":1,\"swimlane_id\":$swimlane_id})`
+            result=`echo $(jq '.result' <<< "$response")`
           fi
 
           echo "$result"
