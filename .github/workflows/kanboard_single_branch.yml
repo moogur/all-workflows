@@ -44,7 +44,7 @@ jobs:
             project_id=`echo $(jq '.result.project_id' <<< "$task_info")`
             swimlane_id=`echo $(jq '.result.swimlane_id' <<< "$task_info")`
 
-            body={\"project_id\":$project_id,\"task_id\":$task_id,\"column_id\":${all_columns[3]},\"position\":1,\"swimlane_id\":$swimlane_id}
+            body={\"project_id\":$project_id,\"task_id\":$task_id,\"column_id\":${all_columns[3]},\"position\":10,\"swimlane_id\":$swimlane_id}
             response=`echo $(request moveTaskPosition $body)`
             result=`echo $(jq '.result' <<< "$response")`
           fi
