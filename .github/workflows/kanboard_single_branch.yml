@@ -19,7 +19,7 @@ jobs:
           url=${{ secrets.KANBOARD_HOST }}/jsonrpc.php
           auth_data=${{ secrets.KANBOARD_USER }}:${{ secrets.KANBOARD_TOKEN }}
 
-          echo "echo \$(curl -u \"$auth_data\" -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"\$1\",\"params\":{\"task_id\":184}}' $url)" > request
+          echo "echo \$(curl -u \"$auth_data\" -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"\$1\",\"params\":{\"task_id\":184}}" $url)" > request
           echo "echo \$1 \$2" >> request
           chmod +x ./request
 
