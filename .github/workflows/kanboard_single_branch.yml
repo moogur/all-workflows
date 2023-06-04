@@ -33,6 +33,8 @@ jobs:
           task_info=`echo $(request getTask {\"task_id\":$task_id})`
           column_id=`echo $(jq '.result.column_id' <<< "$task_info")`
 
+          echo "${all_columns[*]}"
+          echo $column_id
           if [[ -z $column_id ]]; then
             result=ERROR\nmessage=$task_info
           elif [[ "${all_columns[3]}" != $column_id ]] && [[ "${all_columns[*]}" =~ $column_id ]]; then
