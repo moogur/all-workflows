@@ -1,0 +1,50 @@
+name: Kanboard for single branch
+
+on:
+  workflow_call:
+    inputs:
+      columns:
+        description: "Github event name"
+        type: string
+        required: true
+
+jobs:
+  kanboard:
+    runs-on: ubuntu-latest
+    if: "github.event_name == 'push'"
+
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: 'Set variables'
+        id: variables
+        run: |
+          url=${{ secrets.KANBOARD_HOST }}/jsonrpc.php
+          auth_data=${{ secrets.KANBOARD_USER }}:${{ secrets.KANBOARD_TOKEN }}
+          function request_helper() {
+            local method=$1
+            local data=$2
+            echo $(curl -u $auth_data -d '{"jsonrpc":"2.0","id":1,"method": "$method","params":$data}' $url)
+          }
+          echo "request=request_helper" >> $GITHUB_OUTPUT
+
+      - name: "Transferring the task to the in progress status"
+        run: |
+          request=${{ steps.variables.outputs.request }}
+          all_columns=${{ inputs.columns }} | tr " " "\n"
+          task_id=`echo $(git log -1 --pretty=%B) | tr "-" " " | tr "]" " " | awk '{print $2 }'`
+          task_info=`echo $($request "getTask" "{\"task_id\":$task_id}")`
+          column_id=`echo $(jq '.result.column_id' <<< "$task_info")`
+
+          if [[ -z $column_id ]]; then
+            result=ERROR\nmessage=$task_info
+          elif [[ "${all_columns[3]}" != $column_id ]] && [[ "${all_columns[*]}" =~ $column_id ]]; then
+            project_id=`echo $(jq '.result.project_id' <<< "$task_info")`
+            swimlane_id=`echo $(jq '.result.swimlane_id' <<< "$task_info")`
+            result=`echo $($request "moveTaskPosition" "{\"project_id\":$project_id,\"task_id\":$task_id,\"column_id\":${all_columns[3]},\"position\":1,\"swimlane_id\":$swimlane_id}")`
+          fi
+
+          echo $result
