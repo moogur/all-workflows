@@ -17,13 +17,13 @@ jobs:
       - name: 'Set variables'
         id: variables
         run: |
-          wget -O ./request https://raw.githubusercontent.com/moogur/all-workflows/master/scripts/kanboard_request.sh
-          chmod +x ./request
+          wget -O ./request.sh https://raw.githubusercontent.com/moogur/all-workflows/master/scripts/kanboard_request.sh
+          chmod +x ./request.sh
 
           auth_data=${{ secrets.KANBOARD_USER }}:${{ secrets.KANBOARD_TOKEN }}
 
-          sed -i "s|url=|url=${{ secrets.KANBOARD_HOST }}|" ./request
-          sed -i "s|auth_data=|auth_data=$auth_data|" ./request
+          sed -i "s|url=|url=${{ secrets.KANBOARD_HOST }}|" ./request.sh
+          sed -i "s|auth_data=|auth_data=$auth_data|" ./request.sh
 
       - name: "Transferring the task to the in progress status"
         run: |
