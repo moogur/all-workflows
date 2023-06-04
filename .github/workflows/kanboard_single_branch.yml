@@ -39,4 +39,4 @@ jobs:
             result=`echo $(./request "moveTaskPosition" "{\"project_id\":$project_id,\"task_id\":$task_id,\"column_id\":${all_columns[3]},\"position\":1,\"swimlane_id\":$swimlane_id}")`
           fi
 
-          echo $result
+          echo -e "$result"
