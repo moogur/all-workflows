@@ -2,11 +2,6 @@ name: Kanboard for single branch
 
 on:
   workflow_call:
-    inputs:
-      columns:
-        description: "List of column ids separated by a space"
-        type: string
-        required: true
 
 jobs:
   kanboard:
@@ -34,7 +29,7 @@ jobs:
       - name: "Transferring the task to the in progress status"
         run: |
           request=${{ steps.variables.outputs.request }}
-          all_columns=${{ inputs.columns }} | tr " " "\n"
+          all_columns=${{ secrets.KANBOARD_COLUMNS }} | tr " " "\n"
           task_id=`echo $(git log -1 --pretty=%B) | tr "-" " " | tr "]" " " | awk '{print $2 }'`
           task_info=`echo $($request "getTask" "{\"task_id\":$task_id}")`
           column_id=`echo $(jq '.result.column_id' <<< "$task_info")`
