@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       columns:
-        description: "Github event name"
+        description: "List of column ids separated by a space"
         type: string
         required: true
 
