@@ -18,6 +18,7 @@ EOF
 function request() {
   local method=$1
 
+  echo 22222 $2
   if [[ $2 =~ " " ]]; then
     echo $2
     params=`echo {$2} | tr " " ","`
