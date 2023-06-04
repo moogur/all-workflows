@@ -1,5 +1,5 @@
-url=
-auth_data=
+url=sdf
+auth_data=ds:df
 
 function generate_post_data() {
   local method=$1
@@ -17,15 +17,7 @@ EOF
 
 function request() {
   local method=$1
-
-  echo 22222 $2
-  if [[ $2 =~ " " ]]; then
-    echo $2
-    params=`echo {$2} | tr " " ","`
-    echo $params
-  else
-    params=$2
-  fi
+  local params=$2
 
   result=$(curl -u "$auth_data" -d "$(generate_post_data $method $params)" $url/jsonrpc.php)
   echo $result
