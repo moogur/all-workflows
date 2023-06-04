@@ -24,7 +24,7 @@ jobs:
             local data=$2
             echo $(curl -u $auth_data -d '{"jsonrpc":"2.0","id":1,"method": "$method","params":$data}' $url)
           }
-          echo "request=request_helper" >> $GITHUB_OUTPUT
+          echo "request=${request_helper}" >> $GITHUB_OUTPUT
 
       - name: "Transferring the task to the in progress status"
         run: |
