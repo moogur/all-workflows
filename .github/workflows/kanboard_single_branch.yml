@@ -19,7 +19,7 @@ jobs:
           url=${{ secrets.KANBOARD_HOST }}/jsonrpc.php
           auth_data=${{ secrets.KANBOARD_USER }}:${{ secrets.KANBOARD_TOKEN }}
 
-          echo "echo \$(curl -u \"\$auth_data\" -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"\$1\",\"params\":\$2}' $url)" >> request
+          echo "echo \$(curl -u \"$auth_data\" -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"\$1\",\"params\":\$2}' $url)" >> request
           chmod +x ./request
 
       - name: "Transferring the task to the in progress status"
