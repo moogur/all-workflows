@@ -1,5 +1,5 @@
-url=sdf
-auth_data=ds:df
+url=
+auth_data=
 
 function generate_post_data() {
   local method=$1
