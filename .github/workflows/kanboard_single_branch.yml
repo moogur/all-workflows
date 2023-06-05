@@ -69,9 +69,9 @@ jobs:
 
           if [[ ${{ steps.variables.outputs.all_columns[*] }} =~ ${{ steps.variables.outputs.current_column_id }} ]]; then
             response=`echo $(request_for_move_task ${{ steps.variables.outputs.task_info[3] }})`
-            echo `result=$(jq '.result' <<< "$response")` > result_success
+            echo `result=$(jq '.result' <<< "$response")` > ./result_success
           else
-            echo "the task is in column - ${{ steps.variables.outputs.current_column_id }}" > result_error
+            echo "the task is in column - ${{ steps.variables.outputs.current_column_id }}" > ./result_error
           fi
 
       - name: "Transferring the task to the in review status"
@@ -81,9 +81,9 @@ jobs:
 
           if [[ ${{ steps.variables.outputs.all_columns[3] }} == ${{ steps.variables.outputs.current_column_id }} ]]; then
             response=`echo $(request_for_move_task ${{ steps.variables.outputs.all_columns[4] }})`
-            echo `result=$(jq '.result' <<< "$response")` > result_success
+            echo `result=$(jq '.result' <<< "$response")` > ./result_success
           else
-            echo "the task is in column - ${{ steps.variables.outputs.current_column_id }}" > result_error
+            echo "the task is in column - ${{ steps.variables.outputs.current_column_id }}" > ./result_error
           fi
 
       - name: "Transferring the task to the in merged status"
@@ -93,13 +93,13 @@ jobs:
 
           if [[ ${{ steps.variables.outputs.all_columns[4] }} == ${{ steps.variables.outputs.current_column_id }} ]]; then
             response=`echo $(request_for_move_task ${{ steps.variables.outputs.all_columns[5] }})`
-            echo `result=$(jq '.result' <<< "$response")` > result_success
+            echo `result=$(jq '.result' <<< "$response")` > ./result_success
           else
-            echo "the task is in column - ${{ steps.variables.outputs.current_column_id }}" > result_error
+            echo "the task is in column - ${{ steps.variables.outputs.current_column_id }}" > ./result_error
           fi
 
       - name: "Transferring the tasks to the in deploy status"
-        if: "inputs.event_type == 'tag'"
+        if: "inputs.event_type == 'tag' && inputs.project_type == 'multi_branch'"
         run: |
           . ./requests.sh
 
@@ -114,13 +114,13 @@ jobs:
             current_column_id=`echo $(jq '.result.column_id' <<< $task_info)`
 
             if [[ -z $current_column_id ]]; then
-              echo "the current column id for the task with id $task_id was not found" >> result_error
+              echo "the current column id for the task with id $task_id was not found" >> ./result_error
               continue
             fi
 
             if [[ ${{ steps.variables.outputs.all_columns[5] }} == $current_column_id ]]; then
               response=`echo $(request_for_move_task ${{ steps.variables.outputs.all_columns[6] }} $task_id 1)`
-              echo `result=$(jq '.result' <<< "$response")` >> result_success
+              echo `result=$(jq '.result' <<< "$response")` >> ./result_success
             fi
 
             temporary_app_version=`echo $(jq '.result.metamagikkey_App_version' <<< $task_info)`
@@ -131,5 +131,26 @@ jobs:
             fi
 
             response=`echo $(request_for_update_task_app_version $task_id $task_app_version)`
-            echo `result=$(jq '.result' <<< "$response")` >> result_success
+            echo `result=$(jq '.result' <<< "$response")` >> ./result_success
           done
+
+      - name: "Create file message for telegram"
+        run: |
+          if [[ -f ./result_success ]]; then
+            echo "SUCCESS" >> ./message.tmpl
+            cat ./result_success >> ./message.tmpl
+            echo "" >> ./message.tmpl
+          fi
+
+          if [[ -f ./result_error ]]; then
+            echo "ERROR" >> ./message.tmpl
+            cat ./result_error >> ./message.tmpl
+            echo "" >> ./message.tmpl
+          fi
+
+      - name: "Sending a message to telegram"
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message_file: ./message.tmpl

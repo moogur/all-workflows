@@ -64,7 +64,7 @@ function generate_post_data_for_update_task_app_version() {
   "method": "updateTask",
   "params": {
     "task_id": $task_id,
-    "metamagikkey_App_version": $app_version
+    "metamagikkey_App_version": "$app_version"
   }
 }
 EOF
