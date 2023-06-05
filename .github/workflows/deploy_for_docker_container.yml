@@ -3,10 +3,6 @@ name: Deploy for docker container
 on:
   workflow_call:
     inputs:
-      event_name:
-        description: "Github event name"
-        type: string
-        required: true
       github_user:
         description: "The Github user who started workflow"
         type: string
@@ -35,7 +31,7 @@ jobs:
       - name: "Determining the version"
         id: version
         run: |
-          if [[ ${{ inputs.event_name }} == 'push' ]]; then
+          if [[ ${{ github.event_name }} == 'push' ]]; then
             raw_tag=`echo $(git describe --tags --abbrev=0)`
             echo "VERSION=${raw_tag}" >> $GITHUB_OUTPUT
           else
