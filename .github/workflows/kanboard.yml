@@ -68,9 +68,15 @@ jobs:
 
           response=
           if [[ ${all_columns[*]} =~ ${{ steps.variables.outputs.current_column_id }} ]]; then
+            echo
+            echo
+            echo ${all_columns[*]}
+            echo $in_progress_column_id
+            echo
+            echo
             response=`echo $(request_for_move_task $in_progress_column_id)`
           fi
-          save_message_in_file IN_PROGRESS -1 $response $(jq '.result' <<< "$response")
+          save_message_in_file IN_PROGRESS -1 "$response" $(jq '.result' <<< "$response")
           cat ./message.tmpl
 
       - name: "Transferring the task to the in review status"
@@ -84,7 +90,7 @@ jobs:
           if [[ ${all_columns[3]} == ${{ steps.variables.outputs.current_column_id }} ]]; then
             response=`echo $(request_for_move_task ${all_columns[4]})`
           fi
-          save_message_in_file REVIEW -1 $response $(jq '.result' <<< "$response")
+          save_message_in_file REVIEW -1 "$response" $(jq '.result' <<< "$response")
 
       - name: "Transferring the task to the in merged status"
         if: "inputs.event_type == 'merge' && inputs.project_type == 'multi_branch'"
@@ -97,7 +103,7 @@ jobs:
           if [[ ${all_columns[4]} == ${{ steps.variables.outputs.current_column_id }} ]]; then
             response=`echo $(request_for_move_task ${all_columns[5]})`
           fi
-          save_message_in_file MERGED -1 $response $(jq '.result' <<< "$response")
+          save_message_in_file MERGED -1 "$response" $(jq '.result' <<< "$response")
 
       - name: "Transferring the tasks to the in deploy status"
         if: "inputs.event_type == 'tag' && inputs.project_type == 'multi_branch'"
@@ -125,7 +131,7 @@ jobs:
             if [[ ${all_columns[5]} == $current_column_id ]]; then
               response=`echo $(request_for_move_task ${all_columns[6]} $task_id 1)`
             fi
-            save_message_in_file DEPLOY $task_id $response $(jq '.result' <<< "$response")
+            save_message_in_file DEPLOY $task_id "$response" $(jq '.result' <<< "$response")
 
             temporary_app_version=`echo $(jq '.result.metamagikkey_App_version' <<< $task_info)`
             if [[ -z $temporary_app_version ]]; then
@@ -135,7 +141,7 @@ jobs:
             fi
 
             response=`echo $(request_for_update_task_app_version $task_id $task_app_version)`
-            save_message_in_file_for_add_app_version $task_id $response $(jq '.result' <<< "$response")
+            save_message_in_file_for_add_app_version $task_id "$response" $(jq '.result' <<< "$response")
           done
 
       # - name: "Sending a message to telegram"
