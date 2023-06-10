@@ -39,7 +39,7 @@ function request_for_move_task() {
   local task_id=$2
   local position=$3
 
-  result=$(curl -u "$auth_data" -d "$(generate_post_data $column $task_id $position)" $url/jsonrpc.php)
+  result=$(curl -u "$auth_data" -d "$(generate_post_data $column $task_id $position)" $private_url/jsonrpc.php)
   echo $result
 }
 
@@ -50,7 +50,7 @@ function request_for_get_info_task() {
     task_id=$private_task_id
   fi
 
-  result=$(curl -u "$auth_data" -d "{\"task_id\":$task_id}" $url/jsonrpc.php)
+  result=$(curl -u "$auth_data" -d "{\"task_id\":$task_id}" $private_url/jsonrpc.php)
   echo $result
 }
 
@@ -75,7 +75,7 @@ function request_for_update_task_app_version() {
   local task_id=$1
   local app_version=$2
 
-  result=$(curl -u "$auth_data" -d "$(generate_post_data_for_update_task_app_version $task_id $app_version)" $url/jsonrpc.php)
+  result=$(curl -u "$auth_data" -d "$(generate_post_data_for_update_task_app_version $task_id $app_version)" $private_url/jsonrpc.php)
   echo $result
 }
 
