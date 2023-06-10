@@ -65,5 +65,5 @@ jobs:
           access_key: ${{ secrets.MINIO_ACCESS_KEY }}
           secret_key: ${{ secrets.MINIO_SECRET_KEY }}
           bucket: ${{ inputs.minio_bucket }}
-          source_dir 'dist'
+          source_dir: 'dist'
           target_dir: '/'
