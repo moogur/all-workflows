@@ -67,21 +67,17 @@ jobs:
           IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
           in_progress_column_id=${all_columns[3]}
           unset 'all_columns[3]'
-          if [[ ${{ inputs.project_type }} == "multi_branch" ]]; then
+          if [[ "${{ inputs.project_type }}" == "multi_branch" ]]; then
             unset 'all_columns[4]'
           fi
 
+          export IFS=""
           if [[ ${all_columns[*]} =~ ${{ steps.variables.outputs.current_column_id }} ]]; then
             response=`echo $(request_for_move_task $in_progress_column_id)`
-            error_message="$response"
-            result=false$(jq '.result' <<< "$response"
+            save_message_in_file IN_PROGRESS -1 "$response" $(jq '.result' <<< "$response")
           else
-            error_message="The task is already in the right column"
-            result=false
+            save_message_in_file IN_PROGRESS -1 "The task is already in the right column" false
           fi
-
-          export IFS=""
-          save_message_in_file IN_PROGRESS -1 "$error_message" $result
 
       - name: "Transferring the task to the in review status"
         if: "inputs.event_type == 'pr' && inputs.project_type == 'multi_branch'"
