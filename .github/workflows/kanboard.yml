@@ -32,6 +32,11 @@ jobs:
           wget -O ./requests.sh https://raw.githubusercontent.com/moogur/all-workflows/master/scripts/kanboard_requests.sh
           chmod +x ./requests.sh
 
+          sed -i "s|private_url=|private_url=${{ secrets.KANBOARD_HOST }}|" ./requests.sh
+
+          auth_data=${{ secrets.KANBOARD_USER }}:${{ secrets.KANBOARD_TOKEN }}
+          sed -i "s|private_auth_data=|private_auth_data=$auth_data|" ./requests.sh
+
       - name: "Transferring the task to the in progress status"
         if: "inputs.event_type == 'push'"
         run: |
