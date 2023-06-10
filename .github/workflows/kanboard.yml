@@ -39,6 +39,8 @@ jobs:
 
           if [[ ${{ inputs.project_type }} == "single_branch" ]]; then
             task_id=`echo $(git log -1 --pretty=%B) | tr "-" " " | tr "]" " " | awk '{print $2 }'`
+          else if [[ ${{ inputs.event_type }} == "pr" ]]; then
+            task_id=`echo ${{ secrets.SONAR_PROJECT_KEY }} | tr "-" " " | tr "_" " " | awk '{print $2 }'`
           else
             task_id=`echo $GITHUB_REF_NAME | tr "-" " " | tr "_" " " | awk '{print $2 }'`
           fi
