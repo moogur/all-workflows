@@ -32,36 +32,6 @@ jobs:
           wget -O ./requests.sh https://raw.githubusercontent.com/moogur/all-workflows/master/scripts/kanboard_requests.sh
           chmod +x ./requests.sh
 
-          sed -i "s|private_url=|private_url=${{ secrets.KANBOARD_HOST }}|" ./requests.sh
-
-          auth_data=${{ secrets.KANBOARD_USER }}:${{ secrets.KANBOARD_TOKEN }}
-          sed -i "s|private_auth_data=|private_auth_data=$auth_data|" ./requests.sh
-
-          if [[ ${{ inputs.project_type }} == "single_branch" ]]; then
-            task_id=`echo $(git log -1 --pretty=%B) | tr "-" " " | tr "]" " " | awk '{print $2 }'`
-          else if [[ ${{ inputs.event_type }} == "pr" ]]; then
-            task_id=`echo ${{ github.head_ref }} | tr "-" " " | tr "_" " " | awk '{print $2 }'`
-          else
-            task_id=`echo $GITHUB_REF_NAME | tr "-" " " | tr "_" " " | awk '{print $2 }'`
-          fi
-
-          sed -i "s|private_task_id=|private_task_id=$task_id|" ./requests.sh
-          echo "task_id=${task_id}" >> $GITHUB_OUTPUT
-
-          . ./requests.sh
-
-          task_info=`echo $(request_for_get_info_task)`
-
-          current_column_id=`echo $(jq '.result.column_id' <<< $task_info)`
-          echo "current_column_id=${current_column_id}" >> $GITHUB_OUTPUT
-
-          cat ./requests.sh
-          project_id=`echo $(jq '.result.project_id' <<< $task_info)`
-          sed -i "s|private_project_id=|private_project_id=$project_id|" ./requests.sh
-
-          swimlane_id=`echo $(jq '.result.swimlane_id' <<< $task_info)`
-          sed -i "s|private_swimlane_id=|private_swimlane_id=$swimlane_id|" ./requests.sh
-
       - name: "Transferring the task to the in progress status"
         if: "inputs.event_type == 'push'"
         run: |
