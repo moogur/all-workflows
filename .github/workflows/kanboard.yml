@@ -29,8 +29,6 @@ jobs:
       - name: 'Set variables'
         id: variables
         run: |
-          echo GITHUB_REF_NAME "${{ github.head_ref }}"
-          echo GITHUB_REF_NAME "${{ github.base_ref }}"
           wget -O ./requests.sh https://raw.githubusercontent.com/moogur/all-workflows/master/scripts/kanboard_requests.sh
           chmod +x ./requests.sh
 
