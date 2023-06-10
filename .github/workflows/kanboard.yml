@@ -42,7 +42,7 @@ jobs:
           else
             task_id=`echo $GITHUB_REF_NAME | tr "-" " " | tr "_" " " | awk '{print $2 }'`
           fi
-          echo "$GITHUB_REF_NAME" $GITHUB_REF_NAME
+          echo "GITHUB_REF_NAME" $GITHUB_REF_NAME
 
           sed -i "s|private_task_id=|private_task_id=$task_id|" ./requests.sh
           echo "task_id=${task_id}" >> $GITHUB_OUTPUT
