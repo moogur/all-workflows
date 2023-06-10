@@ -52,9 +52,6 @@ jobs:
           swimlane_id=`echo $(jq '.result.swimlane_id' <<< $task_info)`
           sed -i "s|private_swimlane_id=|private_swimlane_id=$swimlane_id|" ./requests.sh
 
-          IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
-          echo "all_columns=${all_columns}" >> $GITHUB_OUTPUT
-
           current_column_id=`echo $(jq '.result.column_id' <<< $task_info)`
           echo "current_column_id=${current_column_id}" >> $GITHUB_OUTPUT
 
@@ -63,13 +60,14 @@ jobs:
         run: |
           . ./requests.sh
 
-          unset ${{ steps.variables.outputs.all_columns[3] }}
+          IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
+          unset ${all_columns[3]}
           if [[ ${{ inputs.project_type }} == "multi_branch" ]]; then
-            unset ${{ steps.variables.outputs.all_columns[4] }}
+            unset ${all_columns[4]}
           fi
 
           result=
-          if [[ ${{ steps.variables.outputs.all_columns[*] }} =~ ${{ steps.variables.outputs.current_column_id }} ]]; then
+          if [[ ${all_columns[*]} =~ ${{ steps.variables.outputs.current_column_id }} ]]; then
             response=`echo $(request_for_move_task ${{ steps.variables.outputs.task_info[3] }})`
             result=$(jq '.result' <<< "$response")
             echo $response
@@ -82,9 +80,11 @@ jobs:
         run: |
           . ./requests.sh
 
+          IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
           result=
-          if [[ ${{ steps.variables.outputs.all_columns[3] }} == ${{ steps.variables.outputs.current_column_id }} ]]; then
-            response=`echo $(request_for_move_task ${{ steps.variables.outputs.all_columns[4] }})`
+
+          if [[ ${all_columns[3]} == ${{ steps.variables.outputs.current_column_id }} ]]; then
+            response=`echo $(request_for_move_task ${all_columns[4]})`
             result=$(jq '.result' <<< "$response")
           fi
           save_message_in_file REVIEW -1 $result
@@ -94,9 +94,11 @@ jobs:
         run: |
           . ./requests.sh
 
+          IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
           result=
-          if [[ ${{ steps.variables.outputs.all_columns[4] }} == ${{ steps.variables.outputs.current_column_id }} ]]; then
-            response=`echo $(request_for_move_task ${{ steps.variables.outputs.all_columns[5] }})`
+
+          if [[ ${all_columns[4]} == ${{ steps.variables.outputs.current_column_id }} ]]; then
+            response=`echo $(request_for_move_task ${all_columns[5]})`
             result=$(jq '.result' <<< "$response")
           fi
           save_message_in_file MERGED -1 $result
@@ -121,9 +123,11 @@ jobs:
               continue
             fi
 
+            IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
             result=
-            if [[ ${{ steps.variables.outputs.all_columns[5] }} == $current_column_id ]]; then
-              response=`echo $(request_for_move_task ${{ steps.variables.outputs.all_columns[6] }} $task_id 1)`
+
+            if [[ ${all_columns[5]} == $current_column_id ]]; then
+              response=`echo $(request_for_move_task ${all_columns[6]} $task_id 1)`
               result=$(jq '.result' <<< "$response")
             fi
             save_message_in_file DEPLOY $task_id $result
@@ -141,9 +145,9 @@ jobs:
             save_message_in_file_for_add_app_version $task_id $result
           done
 
-      - name: "Sending a message to telegram"
-        uses: appleboy/telegram-action@master
-        with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message_file: ./message.tmpl
+      # - name: "Sending a message to telegram"
+      #   uses: appleboy/telegram-action@master
+      #   with:
+      #     to: ${{ secrets.TELEGRAM_CHAT_ID }}
+      #     token: ${{ secrets.TELEGRAM_TOKEN }}
+      #     message_file: ./message.tmpl
