@@ -71,11 +71,12 @@ jobs:
             unset 'all_columns[4]'
           fi
 
-          export IFS=""
           if [[ ${all_columns[*]} =~ ${{ steps.variables.outputs.current_column_id }} ]]; then
             response=`echo $(request_for_move_task $in_progress_column_id)`
+            IFS=""
             save_message_in_file IN_PROGRESS -1 "$response" $(jq '.result' <<< "$response")
           else
+            IFS=""
             save_message_in_file IN_PROGRESS -1 "The task is already in the right column" false
           fi
 
