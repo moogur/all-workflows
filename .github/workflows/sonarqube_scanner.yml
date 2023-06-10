@@ -66,7 +66,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          ANALYZE_BRANCH: ${{ github.event.pull_request.base.ref }}
+          ANALYZE_BRANCH: ${{ github.head_ref }}
           LATEST_TAG: ${{ steps.variables.outputs.latest_tag }}
         run: |
           npm run sonar:publish
@@ -79,4 +79,4 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
-          GIT_BRANCH: ${{ github.event.pull_request.base.ref }}
+          GIT_BRANCH: ${{ github.head_ref }}
