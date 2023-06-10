@@ -10,7 +10,7 @@ function generate_post_data_for_move_task() {
   local task_id=$2
   local position=$3
 
-  if [[-z $task_id ]]; then
+  if [[ -z $task_id ]]; then
     task_id=$private_task_id
   fi
 
