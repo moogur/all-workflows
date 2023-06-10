@@ -72,7 +72,6 @@ jobs:
           fi
           export IFS=""
           save_message_in_file IN_PROGRESS -1 "$response" $(jq '.result' <<< "$response")
-          echo "$response"
           cat ./message.tmpl
 
       - name: "Transferring the task to the in review status"
@@ -86,6 +85,7 @@ jobs:
           if [[ ${all_columns[3]} == ${{ steps.variables.outputs.current_column_id }} ]]; then
             response=`echo $(request_for_move_task ${all_columns[4]})`
           fi
+          export IFS=""
           save_message_in_file REVIEW -1 "$response" $(jq '.result' <<< "$response")
 
       - name: "Transferring the task to the in merged status"
@@ -99,6 +99,7 @@ jobs:
           if [[ ${all_columns[4]} == ${{ steps.variables.outputs.current_column_id }} ]]; then
             response=`echo $(request_for_move_task ${all_columns[5]})`
           fi
+          export IFS=""
           save_message_in_file MERGED -1 "$response" $(jq '.result' <<< "$response")
 
       - name: "Transferring the tasks to the in deploy status"
@@ -117,6 +118,7 @@ jobs:
             current_column_id=`echo $(jq '.result.column_id' <<< $task_info)`
 
             if [[ -z $current_column_id ]]; then
+              export IFS=""
               save_message_in_file_for_deploy_get_task_info_error $task_id $task_info
               continue
             fi
@@ -127,6 +129,7 @@ jobs:
             if [[ ${all_columns[5]} == $current_column_id ]]; then
               response=`echo $(request_for_move_task ${all_columns[6]} $task_id 1)`
             fi
+            export IFS=""
             save_message_in_file DEPLOY $task_id "$response" $(jq '.result' <<< "$response")
 
             temporary_app_version=`echo $(jq '.result.metamagikkey_App_version' <<< $task_info)`
@@ -137,6 +140,7 @@ jobs:
             fi
 
             response=`echo $(request_for_update_task_app_version $task_id $task_app_version)`
+            export IFS=""
             save_message_in_file_for_add_app_version $task_id "$response" $(jq '.result' <<< "$response")
           done
 
