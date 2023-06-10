@@ -45,7 +45,6 @@ jobs:
 
           task_info=`echo $(request_for_get_info_task)`
           echo "task_info=${task_info}" >> $GITHUB_OUTPUT
-          echo task_info
 
           project_id=`echo $(jq '.result.project_id' <<< $task_info)`
           sed -i "s|private_project_id=|private_project_id=$project_id=|" ./requests.sh
@@ -73,6 +72,7 @@ jobs:
           if [[ ${{ steps.variables.outputs.all_columns[*] }} =~ ${{ steps.variables.outputs.current_column_id }} ]]; then
             response=`echo $(request_for_move_task ${{ steps.variables.outputs.task_info[3] }})`
             result=$(jq '.result' <<< "$response")
+            echo $response
           fi
           save_message_in_file IN_PROGRESS -1 $result
           cat ./message.tmpl

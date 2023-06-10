@@ -126,7 +126,7 @@ function save_message_in_file() {
       ;;
 
     *)
-      echo "An unknown error occurred when moving the task from id $task_id to the column" >> $private_file_path
+      echo "An unknown error occurred when moving the task from id $task_id to the '$column_name' column" >> $private_file_path
       ;;
   esac
 
