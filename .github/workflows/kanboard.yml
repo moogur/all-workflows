@@ -49,6 +49,7 @@ jobs:
           . ./requests.sh
 
           task_info=`echo $(request_for_get_info_task)`
+          echo task_info "$task_info"
 
           project_id=`echo $(jq '.result.project_id' <<< $task_info)`
           sed -i "s|private_project_id=|private_project_id=$project_id|" ./requests.sh
