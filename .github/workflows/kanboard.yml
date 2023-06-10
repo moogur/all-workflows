@@ -52,14 +52,14 @@ jobs:
 
           task_info=`echo $(request_for_get_info_task)`
 
+          current_column_id=`echo $(jq '.result.column_id' <<< $task_info)`
+          echo "current_column_id=${current_column_id}" >> $GITHUB_OUTPUT
+
           project_id=`echo $(jq '.result.project_id' <<< $task_info)`
           sed -i "s|private_project_id=|private_project_id=$project_id|" ./requests.sh
 
           swimlane_id=`echo $(jq '.result.swimlane_id' <<< $task_info)`
           sed -i "s|private_swimlane_id=|private_swimlane_id=$swimlane_id|" ./requests.sh
-
-          current_column_id=`echo $(jq '.result.column_id' <<< $task_info)`
-          echo "current_column_id=${current_column_id}" >> $GITHUB_OUTPUT
 
       - name: "Transferring the task to the in progress status"
         if: "inputs.event_type == 'push'"
