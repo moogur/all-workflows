@@ -2,6 +2,11 @@ name: Sonarqube scanner
 
 on:
   workflow_call:
+    inputs:
+      event_type:
+        description: "Event type"
+        type: string # push, pr
+        default: "push"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -50,7 +55,7 @@ jobs:
       - name: 'Set variables'
         id: variables
         run: |
-          echo "analyze_branch=`echo $(git rev-parse --abbrev-ref HEAD)`" >> $GITHUB_OUTPUT
+          echo "analyze_branch=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
           echo "sha_latest_commit=`echo $(git rev-parse --short HEAD)`" >> $GITHUB_OUTPUT
           raw_tag=`echo $(git describe --tags --abbrev=0)`
           echo "latest_tag=${raw_tag#v}" >> $GITHUB_OUTPUT
@@ -68,3 +73,12 @@ jobs:
           SHA_LATEST_COMMIT: ${{ steps.variables.outputs.sha_latest_commit }}
         run: |
           npm run sonar:publish
+
+      - name: 'Sonarqube pull request comment'
+        if: "inputs.event_type == 'pr'"
+        uses: moogur/sonarqube-pr-comment@master
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
