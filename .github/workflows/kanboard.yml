@@ -13,7 +13,7 @@ on:
         required: true
       event_type:
         description: "Event type"
-        type: string # push, pr, merge, tag
+        type: string # push, pr, merge, deploy
         required: true
 
 jobs:
@@ -110,7 +110,7 @@ jobs:
           fi
 
       - name: "Transferring the tasks to the in deploy status"
-        if: "inputs.event_type == 'tag' && inputs.project_type == 'multi_branch'"
+        if: "inputs.event_type == 'deploy' && inputs.project_type == 'multi_branch'"
         run: |
           . ./requests.sh
 
