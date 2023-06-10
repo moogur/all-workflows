@@ -130,10 +130,10 @@ function save_raw_message_in_file() {
 }
 
 function save_message_in_file() {
-  local column_name="$1"
-  local task_id="$2"
-  local raw_message="$3"
-  local result="$3"
+  local column_name=$1
+  local task_id=$2
+  local raw_message=$3
+  local result=$4
 
   echo $result
 
