@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
 
       - name: 'Sonarqube pull request comment'
-        uses: campos-pay/sonarqube-pr-comment@main
+        uses: moogur/sonarqube-pr-comment@master
         with:
           GITHUB-TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
