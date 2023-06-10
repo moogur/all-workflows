@@ -66,13 +66,11 @@ jobs:
             unset ${all_columns[4]}
           fi
 
-          result=
+          response=
           if [[ ${all_columns[*]} =~ ${{ steps.variables.outputs.current_column_id }} ]]; then
             response=`echo $(request_for_move_task ${{ steps.variables.outputs.task_info[3] }})`
-            result=$(jq '.result' <<< "$response")
-            echo $response
           fi
-          save_message_in_file IN_PROGRESS -1 $result
+          save_message_in_file IN_PROGRESS -1 $response $(jq '.result' <<< "$response")
           cat ./message.tmpl
 
       - name: "Transferring the task to the in review status"
@@ -81,13 +79,12 @@ jobs:
           . ./requests.sh
 
           IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
-          result=
+          response=
 
           if [[ ${all_columns[3]} == ${{ steps.variables.outputs.current_column_id }} ]]; then
             response=`echo $(request_for_move_task ${all_columns[4]})`
-            result=$(jq '.result' <<< "$response")
           fi
-          save_message_in_file REVIEW -1 $result
+          save_message_in_file REVIEW -1 $response $(jq '.result' <<< "$response")
 
       - name: "Transferring the task to the in merged status"
         if: "inputs.event_type == 'merge' && inputs.project_type == 'multi_branch'"
@@ -95,13 +92,12 @@ jobs:
           . ./requests.sh
 
           IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
-          result=
+          response=
 
           if [[ ${all_columns[4]} == ${{ steps.variables.outputs.current_column_id }} ]]; then
             response=`echo $(request_for_move_task ${all_columns[5]})`
-            result=$(jq '.result' <<< "$response")
           fi
-          save_message_in_file MERGED -1 $result
+          save_message_in_file MERGED -1 $response $(jq '.result' <<< "$response")
 
       - name: "Transferring the tasks to the in deploy status"
         if: "inputs.event_type == 'tag' && inputs.project_type == 'multi_branch'"
@@ -119,18 +115,17 @@ jobs:
             current_column_id=`echo $(jq '.result.column_id' <<< $task_info)`
 
             if [[ -z $current_column_id ]]; then
-              save_message_in_file_for_deploy_get_task_info_error $task_id
+              save_message_in_file_for_deploy_get_task_info_error $task_id $task_info
               continue
             fi
 
             IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
-            result=
+            response=
 
             if [[ ${all_columns[5]} == $current_column_id ]]; then
               response=`echo $(request_for_move_task ${all_columns[6]} $task_id 1)`
-              result=$(jq '.result' <<< "$response")
             fi
-            save_message_in_file DEPLOY $task_id $result
+            save_message_in_file DEPLOY $task_id $response $(jq '.result' <<< "$response")
 
             temporary_app_version=`echo $(jq '.result.metamagikkey_App_version' <<< $task_info)`
             if [[ -z $temporary_app_version ]]; then
@@ -139,10 +134,8 @@ jobs:
               task_app_version="$temporary_app_version, $app_version"
             fi
 
-            result=
             response=`echo $(request_for_update_task_app_version $task_id $task_app_version)`
-            result=$(jq '.result' <<< "$response")
-            save_message_in_file_for_add_app_version $task_id $result
+            save_message_in_file_for_add_app_version $task_id $response $(jq '.result' <<< "$response")
           done
 
       # - name: "Sending a message to telegram"
