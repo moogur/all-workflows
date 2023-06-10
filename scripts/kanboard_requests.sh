@@ -119,7 +119,7 @@ function save_message_in_file() {
   case $result in
     true)
       echo "The task with id $task_id has been successfully moved to the '$column_name' column" >> $private_file_path
-      ;
+      ;;
 
     false)
       echo "An error occurred when moving a task with id $task_id to the '$column_name' column" >> $private_file_path
@@ -154,7 +154,7 @@ function save_message_in_file_for_add_app_version() {
   case $result in
     true)
       echo "For a task with id $task_id, a version has been added" >> $private_file_path
-      ;
+      ;;
 
     false)
       echo "An error occurred when adding a version to a task with id $task_id" >> $private_file_path
