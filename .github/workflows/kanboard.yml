@@ -68,15 +68,9 @@ jobs:
 
           response=
           if [[ ${all_columns[*]} =~ ${{ steps.variables.outputs.current_column_id }} ]]; then
-            echo
-            echo
-            echo ${all_columns[*]}
-            echo $in_progress_column_id
-            echo
-            echo
             response=`echo $(request_for_move_task $in_progress_column_id)`
           fi
-          save_message_in_file IN_PROGRESS -1 "$response" $(jq '.result' <<< "$response")
+          save_message_in_file IN_PROGRESS -1 '$response' $(jq '.result' <<< "$response")
           echo \""$response"\"
           cat ./message.tmpl
 
