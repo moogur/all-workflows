@@ -71,6 +71,7 @@ jobs:
             export IFS=""
             save_message_in_file IN_PROGRESS -1 "$response" $(jq '.result' <<< "$response")
           else
+            export IFS=" "
             save_message_in_file IN_PROGRESS -1 "The task is already in the right column" false
           fi
           cat ./message.tmpl
