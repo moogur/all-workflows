@@ -37,7 +37,12 @@ jobs:
           auth_data=${{ secrets.KANBOARD_USER }}:${{ secrets.KANBOARD_TOKEN }}
           sed -i "s|private_auth_data=|private_auth_data=$auth_data|" ./requests.sh
 
-          task_id=`echo $(git log -1 --pretty=%B) | tr "-" " " | tr "]" " " | awk '{print $2 }'`
+          if [[ ${{ inputs.project_type }} == "single_branch" ]]; then
+            task_id=`echo $(git log -1 --pretty=%B) | tr "-" " " | tr "]" " " | awk '{print $2 }'`
+          else
+            task_id=`echo $GITHUB_REF_NAME | tr "-" " " | tr "_" " " | awk '{print $2 }'`
+          fi
+
           sed -i "s|private_task_id=|private_task_id=$task_id|" ./requests.sh
           echo "task_id=${task_id}" >> $GITHUB_OUTPUT
 
