@@ -71,13 +71,17 @@ jobs:
             unset 'all_columns[4]'
           fi
 
-          export IFS=""
           if [[ ${all_columns[*]} =~ ${{ steps.variables.outputs.current_column_id }} ]]; then
             response=`echo $(request_for_move_task $in_progress_column_id)`
-            save_message_in_file IN_PROGRESS -1 "$response" $(jq '.result' <<< "$response")
+            error_message="$response"
+            result=false$(jq '.result' <<< "$response"
           else
-            save_message_in_file IN_PROGRESS -1 "The task is already in the right column" false
+            error_message="The task is already in the right column"
+            result=false
           fi
+
+          export IFS=""
+          save_message_in_file IN_PROGRESS -1 "$error_message" $result
 
       - name: "Transferring the task to the in review status"
         if: "inputs.event_type == 'pr' && inputs.project_type == 'multi_branch'"
