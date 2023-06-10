@@ -10,11 +10,11 @@ function generate_post_data_for_move_task() {
   local task_id=$2
   local position=$3
 
-  if [[-z $task_id ]];then
+  if [[-z $task_id ]]; then
     task_id=$private_task_id
   fi
 
-  if [[ -z $position ]];then
+  if [[ -z $position ]]; then
     position=100
   fi
 
@@ -61,7 +61,7 @@ function request_for_move_task() {
 function request_for_get_info_task() {
   local task_id=$1
 
-  if [[ -z $task_id ]];then
+  if [[ -z $task_id ]]; then
     task_id=$private_task_id
   fi
 
@@ -125,7 +125,7 @@ function save_message_in_file() {
   local task_id=$2
   local result=$3
 
-  if [[ $task_id == "-1" ]];then
+  if [[ $task_id == "-1" ]]; then
     task_id=$private_task_id
   fi
 
