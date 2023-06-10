@@ -71,6 +71,9 @@ function request_for_move_task() {
   local task_id=$2
   local position=$3
 
+  echo $column_id
+  echo $task_id
+  echo $position
   echo $(generate_post_data_for_move_task $column_id $task_id $position)
 
   result=$(curl -u "$private_auth_data" -d "$(generate_post_data_for_move_task $column_id $task_id $position)" $private_url/jsonrpc.php)
