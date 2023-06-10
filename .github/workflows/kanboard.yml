@@ -70,8 +70,9 @@ jobs:
           if [[ ${all_columns[*]} =~ ${{ steps.variables.outputs.current_column_id }} ]]; then
             response=`echo $(request_for_move_task $in_progress_column_id)`
           fi
+          result=$(jq '.result' <<< "$response")
           export IFS=""
-          save_message_in_file IN_PROGRESS -1 "$response" $(jq '.result' <<< "$response")
+          save_message_in_file IN_PROGRESS -1 $response $result
           cat ./message.tmpl
 
       - name: "Transferring the task to the in review status"
