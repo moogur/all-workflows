@@ -50,6 +50,8 @@ jobs:
 
           task_info=`echo $(request_for_get_info_task)`
           echo task_info "$task_info"
+          echo GITHUB_REF_NAME "$GITHUB_REF_NAME"
+          echo task_id "$task_id"
 
           project_id=`echo $(jq '.result.project_id' <<< $task_info)`
           sed -i "s|private_project_id=|private_project_id=$project_id|" ./requests.sh
