@@ -97,7 +97,7 @@ function request_for_update_task_app_version() {
 function save_message_header_in_file() {
   local result=$1
 
-  if [[ $result == true ]]; then
+  if [[ "$result" == true ]]; then
     echo "SUCCESS" >> $private_file_path
   else
     echo "ERROR" >> $private_file_path
@@ -124,7 +124,7 @@ function save_raw_message_in_file() {
   local raw_message=$1
   local result=$2
 
-  if [[ $result != true ]]; then
+  if [[ "$result" != true ]]; then
     echo "Raw error - '$raw_message'" >> $private_file_path
   fi
 }
