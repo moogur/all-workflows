@@ -55,8 +55,6 @@ jobs:
       - name: 'Set variables'
         id: variables
         run: |
-          echo "analyze_branch=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
-          echo "sha_latest_commit=`echo $(git rev-parse --short HEAD)`" >> $GITHUB_OUTPUT
           raw_tag=`echo $(git describe --tags --abbrev=0)`
           echo "latest_tag=${raw_tag#v}" >> $GITHUB_OUTPUT
 
@@ -68,9 +66,8 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          ANALYZE_BRANCH: ${{ steps.variables.outputs.analyze_branch }}
+          ANALYZE_BRANCH: $GITHUB_REF_NAME
           LATEST_TAG: ${{ steps.variables.outputs.latest_tag }}
-          SHA_LATEST_COMMIT: ${{ steps.variables.outputs.sha_latest_commit }}
         run: |
           npm run sonar:publish
 
@@ -82,4 +79,4 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
-          GIT_BRANCH: ${{ steps.variables.outputs.analyze_branch }}
+          GIT_BRANCH: $GITHUB_REF_NAME
