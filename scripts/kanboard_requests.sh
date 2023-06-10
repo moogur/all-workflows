@@ -34,6 +34,21 @@ function generate_post_data_for_move_task() {
 EOF
 }
 
+function generate_post_data_for_get_info_task() {
+  local task_id=$1
+
+  cat <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "getTask",
+  "params": {
+    "task_id": $task_id
+  }
+}
+EOF
+}
+
 function request_for_move_task() {
   local column_id=$1
   local task_id=$2
@@ -50,7 +65,7 @@ function request_for_get_info_task() {
     task_id=$private_task_id
   fi
 
-  result=$(curl -u "$auth_data" -d "{\"task_id\":$task_id}" $private_url/jsonrpc.php)
+  result=$(curl -u "$auth_data" -d "$(generate_post_data_for_get_info_task $task_id)" $private_url/jsonrpc.php)
   echo $result
 }
 
