@@ -73,7 +73,6 @@ jobs:
           else
             save_message_in_file IN_PROGRESS -1 "The task is already in the right column" false
           fi
-          cat ./message.tmpl
 
       - name: "Transferring the task to the in review status"
         if: "inputs.event_type == 'pr' && inputs.project_type == 'multi_branch'"
@@ -81,13 +80,14 @@ jobs:
           . ./requests.sh
 
           IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
-          response=
 
+          export IFS=""
           if [[ ${all_columns[3]} == ${{ steps.variables.outputs.current_column_id }} ]]; then
             response=`echo $(request_for_move_task ${all_columns[4]})`
+            save_message_in_file REVIEW -1 "$response" $(jq '.result' <<< "$response")
+          else
+            save_message_in_file REVIEW -1 "The task is already in the right column" false
           fi
-          export IFS=""
-          save_message_in_file REVIEW -1 "$response" $(jq '.result' <<< "$response")
 
       - name: "Transferring the task to the in merged status"
         if: "inputs.event_type == 'merge' && inputs.project_type == 'multi_branch'"
@@ -95,13 +95,14 @@ jobs:
           . ./requests.sh
 
           IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
-          response=
 
+          export IFS=""
           if [[ ${all_columns[4]} == ${{ steps.variables.outputs.current_column_id }} ]]; then
             response=`echo $(request_for_move_task ${all_columns[5]})`
+            save_message_in_file MERGED -1 "$response" $(jq '.result' <<< "$response")
+          else
+            save_message_in_file MERGED -1 "The task is already in the right column" false
           fi
-          export IFS=""
-          save_message_in_file MERGED -1 "$response" $(jq '.result' <<< "$response")
 
       - name: "Transferring the tasks to the in deploy status"
         if: "inputs.event_type == 'tag' && inputs.project_type == 'multi_branch'"
@@ -120,18 +121,19 @@ jobs:
 
             if [[ -z $current_column_id ]]; then
               export IFS=""
-              save_message_in_file_for_deploy_get_task_info_error $task_id $task_info
+              save_message_in_file_for_deploy_get_task_info_error $task_id "$task_info"
               continue
             fi
 
             IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
-            response=
+            export IFS=""
 
             if [[ ${all_columns[5]} == $current_column_id ]]; then
-              response=`echo $(request_for_move_task ${all_columns[6]} $task_id 1)`
+              move_response=`echo $(request_for_move_task ${all_columns[6]} $task_id 1)`
+              save_message_in_file DEPLOY $task_id "$move_response" $(jq '.result' <<< "$move_response")
+            else
+              save_message_in_file DEPLOY -1 "The task is already in the right column" false
             fi
-            export IFS=""
-            save_message_in_file DEPLOY $task_id "$response" $(jq '.result' <<< "$response")
 
             temporary_app_version=`echo $(jq '.result.metamagikkey_App_version' <<< $task_info)`
             if [[ -z $temporary_app_version ]]; then
@@ -140,14 +142,15 @@ jobs:
               task_app_version="$temporary_app_version, $app_version"
             fi
 
-            response=`echo $(request_for_update_task_app_version $task_id $task_app_version)`
-            export IFS=""
-            save_message_in_file_for_add_app_version $task_id "$response" $(jq '.result' <<< "$response")
+            app_response=`echo $(request_for_update_task_app_version $task_id $task_app_version)`
+            save_message_in_file_for_add_app_version $task_id "$app_response" $(jq '.result' <<< "$app_response")
           done
 
-      # - name: "Sending a message to telegram"
-      #   uses: appleboy/telegram-action@master
-      #   with:
-      #     to: ${{ secrets.TELEGRAM_CHAT_ID }}
-      #     token: ${{ secrets.TELEGRAM_TOKEN }}
-      #     message_file: ./message.tmpl
+      - name: "Sending a message to telegram"
+        run: |
+          cat ./message.tmpl
+      # uses: appleboy/telegram-action@master
+      # with:
+      #   to: ${{ secrets.TELEGRAM_CHAT_ID }}
+      #   token: ${{ secrets.TELEGRAM_TOKEN }}
+      #   message_file: ./message.tmpl

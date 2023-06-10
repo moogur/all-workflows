@@ -167,7 +167,7 @@ function save_message_in_file_for_deploy_get_task_info_error() {
 
   save_message_header_in_file
   echo "An error occurred while getting information about a task with id $task_id" >> $private_file_path
-  save_raw_message_in_file $raw_message $result
+  save_raw_message_in_file $raw_message
   save_task_link_in_file $task_id
 }
 
@@ -177,7 +177,6 @@ function save_message_in_file_for_add_app_version() {
   local result=$3
 
   save_separator_in_file
-
   save_message_header_in_file $result
 
   case $result in
