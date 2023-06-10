@@ -135,8 +135,6 @@ function save_message_in_file() {
   local raw_message=$3
   local result=$4
 
-  echo $result
-
   if [[ $task_id == "-1" ]]; then
     task_id=$private_task_id
   fi
