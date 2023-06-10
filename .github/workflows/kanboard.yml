@@ -37,6 +37,14 @@ jobs:
           auth_data=${{ secrets.KANBOARD_USER }}:${{ secrets.KANBOARD_TOKEN }}
           sed -i "s|private_auth_data=|private_auth_data=$auth_data|" ./requests.sh
 
+          if [[ ${{ inputs.project_type }} == "single_branch" ]]; then
+            task_id=`echo $(git log -1 --pretty=%B) | tr "-" " " | tr "]" " " | awk '{print $2 }'`
+          else if [[ ${{ inputs.event_type }} == "pr" ]]; then
+            task_id=`echo ${{ github.head_ref }} | tr "-" " " | tr "_" " " | awk '{print $2 }'`
+          else
+            task_id=`echo $GITHUB_REF_NAME | tr "-" " " | tr "_" " " | awk '{print $2 }'`
+          fi
+
       - name: "Transferring the task to the in progress status"
         if: "inputs.event_type == 'push'"
         run: |
