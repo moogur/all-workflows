@@ -14,7 +14,7 @@ function generate_post_data_for_move_task() {
     task_id=$private_task_id
   fi
 
-  if [[-z $position ]];then
+  if [[ -z $position ]];then
     position=100
   fi
 
@@ -46,7 +46,7 @@ function request_for_move_task() {
 function request_for_get_info_task() {
   local task_id=$1
 
-  if [[-z $task_id ]];then
+  if [[ -z $task_id ]];then
     task_id=$private_task_id
   fi
 
