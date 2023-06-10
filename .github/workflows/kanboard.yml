@@ -29,6 +29,7 @@ jobs:
       - name: 'Set variables'
         id: variables
         run: |
+          echo GITHUB_REF_NAME "${{ github.event.pull_request }}"
           wget -O ./requests.sh https://raw.githubusercontent.com/moogur/all-workflows/master/scripts/kanboard_requests.sh
           chmod +x ./requests.sh
 
@@ -39,8 +40,8 @@ jobs:
 
           if [[ ${{ inputs.project_type }} == "single_branch" ]]; then
             task_id=`echo $(git log -1 --pretty=%B) | tr "-" " " | tr "]" " " | awk '{print $2 }'`
-          else if [[ ${{ inputs.event_type }} == "pr" ]]; then
-            task_id=`echo ${{ secrets.SONAR_PROJECT_KEY }} | tr "-" " " | tr "_" " " | awk '{print $2 }'`
+          # else if [[ ${{ inputs.event_type }} == "pr" ]]; then
+          #   task_id=`echo ${{ secrets.SONAR_PROJECT_KEY }} | tr "-" " " | tr "_" " " | awk '{print $2 }'`
           else
             task_id=`echo $GITHUB_REF_NAME | tr "-" " " | tr "_" " " | awk '{print $2 }'`
           fi
@@ -51,9 +52,6 @@ jobs:
           . ./requests.sh
 
           task_info=`echo $(request_for_get_info_task)`
-          echo task_info "$task_info"
-          echo GITHUB_REF_NAME "$GITHUB_REF_NAME"
-          echo task_id "$task_id"
 
           project_id=`echo $(jq '.result.project_id' <<< $task_info)`
           sed -i "s|private_project_id=|private_project_id=$project_id|" ./requests.sh
