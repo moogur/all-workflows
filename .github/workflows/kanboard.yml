@@ -161,6 +161,8 @@ jobs:
 
             if [[ -z $task_app_version ]]; then
               task_app_version=$app_version
+            elif [[ "$task_app_version" =~ $app_version ]]; then
+              continue
             else
               task_app_version+=", $app_version"
             fi
