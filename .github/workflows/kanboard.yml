@@ -148,16 +148,12 @@ jobs:
               save_message_in_file DEPLOY $task_id "$move_response" $(jq '.result' <<< "$move_response")
             else
               export IFS=""
-              save_message_in_file DEPLOY -1 "The task is already in the right column" false
+              save_message_in_file DEPLOY $task_id "The task is already in the right column" false
             fi
 
             task_metadata=`echo $(request_for_get_metadata_task $task_id)`
             temporary_app_version=`echo $(jq '.result' <<< $task_metadata)`
             task_app_version=${temporary_app_version:1:-1}
-
-            echo app_version $app_version
-            echo temporary_app_version $temporary_app_version
-            echo task_app_version $task_app_version
 
             if [[ -z $task_app_version ]]; then
               task_app_version=$app_version
