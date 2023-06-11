@@ -153,12 +153,13 @@ jobs:
 
             task_metadata=`echo $(request_for_get_metadata_task $task_id)`
             temporary_app_version=`echo $(jq '.result' <<< $task_metadata)`
-            if [[ "$app_version" == *"$temporary_app_version"* ]]; then
+            task_app_version=${temporary_app_version:1:-1}
+            if [[ "$app_version" == *"$task_app_version"* ]]; then
               continue
-            elif [[ -z $temporary_app_version ]]; then
+            elif [[ -z $task_app_version ]]; then
               task_app_version=$app_version
             else
-              task_app_version="$temporary_app_version, $app_version"
+              task_app_version+=", $app_version"
             fi
 
             echo app_version $app_version
