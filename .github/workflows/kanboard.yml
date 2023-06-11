@@ -30,144 +30,144 @@ jobs:
         with:
           fetch-depth: 0
 
-      # -name: 'Save script'
-      #   run: |
-      #     wget -O ./requests.sh https://raw.githubusercontent.com/moogur/all-workflows/master/scripts/kanboard_requests.sh
-      #     chmod +x ./requests.sh
+      - name: 'Save script'
+        run: |
+          wget -O ./requests.sh https://raw.githubusercontent.com/moogur/all-workflows/master/scripts/kanboard_requests.sh
+          chmod +x ./requests.sh
 
-      #     sed -i "s|private_url=|private_url=${{ secrets.KANBOARD_HOST }}|" ./requests.sh
+          sed -i "s|private_url=|private_url=${{ secrets.KANBOARD_HOST }}|" ./requests.sh
 
-      #     auth_data=${{ secrets.KANBOARD_USER }}:${{ secrets.KANBOARD_TOKEN }}
-      #     sed -i "s|private_auth_data=|private_auth_data=$auth_data|" ./requests.sh
+          auth_data=${{ secrets.KANBOARD_USER }}:${{ secrets.KANBOARD_TOKEN }}
+          sed -i "s|private_auth_data=|private_auth_data=$auth_data|" ./requests.sh
 
-      # - name: 'Set variables'
-      #   if: "inputs.event_type != 'deploy'"
-      #   id: variables
-      #   run: |
-      #     if [[ ${{ inputs.project_type }} == "single_branch" ]]; then
-      #       task_id=`echo $(git log -1 --pretty=%B) | tr "-" " " | tr "]" " " | awk '{print $2 }'`
-      #     elif [[ ${{ inputs.event_type }} == "pr" ]] || [[ ${{ inputs.event_type }} == "merge" ]]; then
-      #       task_id=`echo ${{ github.head_ref }} | tr "-" " " | tr "_" " " | awk '{print $2 }'`
-      #     else
-      #       task_id=`echo $GITHUB_REF_NAME | tr "-" " " | tr "_" " " | awk '{print $2 }'`
-      #     fi
+      - name: 'Set variables'
+        if: "inputs.event_type != 'deploy'"
+        id: variables
+        run: |
+          if [[ ${{ inputs.project_type }} == "single_branch" ]]; then
+            task_id=`echo $(git log -1 --pretty=%B) | tr "-" " " | tr "]" " " | awk '{print $2 }'`
+          elif [[ ${{ inputs.event_type }} == "pr" ]] || [[ ${{ inputs.event_type }} == "merge" ]]; then
+            task_id=`echo ${{ github.head_ref }} | tr "-" " " | tr "_" " " | awk '{print $2 }'`
+          else
+            task_id=`echo $GITHUB_REF_NAME | tr "-" " " | tr "_" " " | awk '{print $2 }'`
+          fi
 
-      #     sed -i "s|private_task_id=|private_task_id=$task_id|" ./requests.sh
-      #     echo "task_id=${task_id}" >> $GITHUB_OUTPUT
+          sed -i "s|private_task_id=|private_task_id=$task_id|" ./requests.sh
+          echo "task_id=${task_id}" >> $GITHUB_OUTPUT
 
-      #     . ./requests.sh
+          . ./requests.sh
 
-      #     task_info=`echo $(request_for_get_info_task)`
+          task_info=`echo $(request_for_get_info_task)`
 
-      #     current_column_id=`echo $(jq '.result.column_id' <<< $task_info)`
-      #     echo "current_column_id=${current_column_id}" >> $GITHUB_OUTPUT
+          current_column_id=`echo $(jq '.result.column_id' <<< $task_info)`
+          echo "current_column_id=${current_column_id}" >> $GITHUB_OUTPUT
 
-      #     project_id=`echo $(jq '.result.project_id' <<< $task_info)`
-      #     sed -i "s|private_project_id=|private_project_id=$project_id|" ./requests.sh
+          project_id=`echo $(jq '.result.project_id' <<< $task_info)`
+          sed -i "s|private_project_id=|private_project_id=$project_id|" ./requests.sh
 
-      #     swimlane_id=`echo $(jq '.result.swimlane_id' <<< $task_info)`
-      #     sed -i "s|private_swimlane_id=|private_swimlane_id=$swimlane_id|" ./requests.sh
+          swimlane_id=`echo $(jq '.result.swimlane_id' <<< $task_info)`
+          sed -i "s|private_swimlane_id=|private_swimlane_id=$swimlane_id|" ./requests.sh
 
-      # - name: "Transferring the task to the in progress status"
-      #   if: "inputs.event_type == 'push'"
-      #   run: |
-      #     . ./requests.sh
+      - name: "Transferring the task to the in progress status"
+        if: "inputs.event_type == 'push'"
+        run: |
+          . ./requests.sh
 
-      #     IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
-      #     in_progress_column_id=${all_columns[3]}
-      #     unset 'all_columns[3]'
-      #     if [[ "${{ inputs.project_type }}" == "multi_branch" ]]; then
-      #       unset 'all_columns[4]'
-      #     fi
+          IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
+          in_progress_column_id=${all_columns[3]}
+          unset 'all_columns[3]'
+          if [[ "${{ inputs.project_type }}" == "multi_branch" ]]; then
+            unset 'all_columns[4]'
+          fi
 
-      #     export IFS=""
-      #     if [[ ${all_columns[*]} =~ ${{ steps.variables.outputs.current_column_id }} ]]; then
-      #       response=`echo $(request_for_move_task $in_progress_column_id)`
-      #       save_message_in_file IN_PROGRESS -1 "$response" $(jq '.result' <<< "$response")
-      #     else
-      #       save_message_in_file IN_PROGRESS -1 "The task is already in the right column" false
-      #     fi
+          export IFS=""
+          if [[ ${all_columns[*]} =~ ${{ steps.variables.outputs.current_column_id }} ]]; then
+            response=`echo $(request_for_move_task $in_progress_column_id)`
+            save_message_in_file IN_PROGRESS -1 "$response" $(jq '.result' <<< "$response")
+          else
+            save_message_in_file IN_PROGRESS -1 "The task is already in the right column" false
+          fi
 
-      # - name: "Transferring the task to the in review status"
-      #   if: "inputs.event_type == 'pr' && inputs.project_type == 'multi_branch'"
-      #   run: |
-      #     . ./requests.sh
+      - name: "Transferring the task to the in review status"
+        if: "inputs.event_type == 'pr' && inputs.project_type == 'multi_branch'"
+        run: |
+          . ./requests.sh
 
-      #     IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
+          IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
 
-      #     export IFS=""
-      #     if [[ ${all_columns[3]} == ${{ steps.variables.outputs.current_column_id }} ]]; then
-      #       response=`echo $(request_for_move_task ${all_columns[4]})`
-      #       save_message_in_file REVIEW -1 "$response" $(jq '.result' <<< "$response")
-      #     else
-      #       save_message_in_file REVIEW -1 "The task is already in the right column" false
-      #     fi
+          export IFS=""
+          if [[ ${all_columns[3]} == ${{ steps.variables.outputs.current_column_id }} ]]; then
+            response=`echo $(request_for_move_task ${all_columns[4]})`
+            save_message_in_file REVIEW -1 "$response" $(jq '.result' <<< "$response")
+          else
+            save_message_in_file REVIEW -1 "The task is already in the right column" false
+          fi
 
-      # - name: "Transferring the task to the in merged status"
-      #   if: "inputs.event_type == 'merge' && inputs.project_type == 'multi_branch'"
-      #   run: |
-      #     . ./requests.sh
+      - name: "Transferring the task to the in merged status"
+        if: "inputs.event_type == 'merge' && inputs.project_type == 'multi_branch'"
+        run: |
+          . ./requests.sh
 
-      #     IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
+          IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
 
-      #     export IFS=""
-      #     if [[ ${all_columns[4]} == ${{ steps.variables.outputs.current_column_id }} ]]; then
-      #       response=`echo $(request_for_move_task ${all_columns[5]})`
-      #       save_message_in_file MERGED -1 "$response" $(jq '.result' <<< "$response")
-      #     else
-      #       save_message_in_file MERGED -1 "The task is already in the right column" false
-      #     fi
+          export IFS=""
+          if [[ ${all_columns[4]} == ${{ steps.variables.outputs.current_column_id }} ]]; then
+            response=`echo $(request_for_move_task ${all_columns[5]})`
+            save_message_in_file MERGED -1 "$response" $(jq '.result' <<< "$response")
+          else
+            save_message_in_file MERGED -1 "The task is already in the right column" false
+          fi
 
-      # - name: "Transferring the tasks to the in deploy status"
-      #   if: "inputs.event_type == 'deploy' && inputs.project_type == 'multi_branch'"
-      #   run: |
-      #     . ./requests.sh
+      - name: "Transferring the tasks to the in deploy status"
+        if: "inputs.event_type == 'deploy' && inputs.project_type == 'multi_branch'"
+        run: |
+          . ./requests.sh
 
-      #     tags=`echo $(git tag --sort=-version:refname | head -n 2)`
-      #     IFS=' ' read -r -a array_tags <<< "$tags"
-      #     app_version=${array_tags[0]#v}
-      #     tasks_ids=`echo $(git log --pretty=format:"~@~@%s" ${array_tags[1]}..${array_tags[0]}) | tr "~@~@" "\n" | awk 'NF' | tr "] " " " | awk '{ print $1 }' | cut -f2 -d"-"`
-      #     IFS=' ' read -r -a array_tasks_ids <<< "$tasks_ids"
+          tags=`echo $(git tag --sort=-version:refname | head -n 2)`
+          IFS=' ' read -r -a array_tags <<< "$tags"
+          app_version=${array_tags[0]#v}
+          tasks_ids=`echo $(git log --pretty=format:"~@~@%s" ${array_tags[1]}..${array_tags[0]}) | tr "~@~@" "\n" | awk 'NF' | tr "] " " " | awk '{ print $1 }' | cut -f2 -d"-"`
+          IFS=' ' read -r -a array_tasks_ids <<< "$tasks_ids"
 
-      #     for task_id in "${array_tasks_ids[@]}"; do
-      #       task_info=`echo $(request_for_get_info_task $task_id)`
-      #       current_column_id=`echo $(jq '.result.column_id' <<< $task_info)`
+          for task_id in "${array_tasks_ids[@]}"; do
+            task_info=`echo $(request_for_get_info_task $task_id)`
+            current_column_id=`echo $(jq '.result.column_id' <<< $task_info)`
 
-      #       if [[ -z $current_column_id ]]; then
-      #         export IFS=""
-      #         save_message_in_file_for_deploy_get_task_info_error $task_id "$task_info"
-      #         continue
-      #       fi
+            if [[ -z $current_column_id ]]; then
+              export IFS=""
+              save_message_in_file_for_deploy_get_task_info_error $task_id "$task_info"
+              continue
+            fi
 
-      #       IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
+            IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
 
-      #       if [[ ${all_columns[5]} == $current_column_id ]]; then
-      #         export IFS=""
-      #         project_id=`echo $(jq '.result.project_id' <<< $task_info)`
-      #         swimlane_id=`echo $(jq '.result.swimlane_id' <<< $task_info)`
-      #         move_response=`echo $(request_for_move_task ${all_columns[6]} $task_id 1 $project_id $swimlane_id)`
-      #         save_message_in_file DEPLOY $task_id "$move_response" $(jq '.result' <<< "$move_response")
-      #       else
-      #         export IFS=""
-      #         save_message_in_file DEPLOY -1 "The task is already in the right column" false
-      #       fi
+            if [[ ${all_columns[5]} == $current_column_id ]]; then
+              export IFS=""
+              project_id=`echo $(jq '.result.project_id' <<< $task_info)`
+              swimlane_id=`echo $(jq '.result.swimlane_id' <<< $task_info)`
+              move_response=`echo $(request_for_move_task ${all_columns[6]} $task_id 1 $project_id $swimlane_id)`
+              save_message_in_file DEPLOY $task_id "$move_response" $(jq '.result' <<< "$move_response")
+            else
+              export IFS=""
+              save_message_in_file DEPLOY -1 "The task is already in the right column" false
+            fi
 
-      #       temporary_app_version=`echo $(jq '.result.metamagikkey_App_version' <<< $task_info)`
-      #       if [[ -z $temporary_app_version ]]; then
-      #         task_app_version=$app_version
-      #       else
-      #         task_app_version="$temporary_app_version, $app_version"
-      #       fi
+            temporary_app_version=`echo $(jq '.result.metamagikkey_App_version' <<< $task_info)`
+            if [[ -z $temporary_app_version ]]; then
+              task_app_version=$app_version
+            else
+              task_app_version="$temporary_app_version, $app_version"
+            fi
 
-      #       app_response=`echo $(request_for_update_task_app_version $task_id $task_app_version)`
-      #       save_message_in_file_for_add_app_version $task_id "$app_response" $(jq '.result' <<< "$app_response")
-      #     done
+            app_response=`echo $(request_for_update_task_app_version $task_id $task_app_version)`
+            save_message_in_file_for_add_app_version $task_id "$app_response" $(jq '.result' <<< "$app_response")
+          done
 
-      # - name: "Sending a message to telegram"
-      #   run: |
-      #     cat ./message.tmpl
-      # # uses: appleboy/telegram-action@master
-      # # with:
-      # #   to: ${{ secrets.TELEGRAM_CHAT_ID }}
-      # #   token: ${{ secrets.TELEGRAM_TOKEN }}
-      # #   message_file: ./message.tmpl
+      - name: "Sending a message to telegram"
+        run: |
+          cat ./message.tmpl
+      # uses: appleboy/telegram-action@master
+      # with:
+      #   to: ${{ secrets.TELEGRAM_CHAT_ID }}
+      #   token: ${{ secrets.TELEGRAM_TOKEN }}
+      #   message_file: ./message.tmpl
