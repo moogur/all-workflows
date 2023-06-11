@@ -2,6 +2,11 @@ name: Sonarqube info for pull request
 
 on:
   workflow_call:
+    inputs:
+      sonar_project_key:
+        description: "Repository key in sonarqube"
+        type: string
+        required: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -72,5 +77,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+          SONAR_PROJECT_KEY: ${{ inputs.sonar_project_key }}
           GIT_BRANCH: ${{ github.head_ref }}
