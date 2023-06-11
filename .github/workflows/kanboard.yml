@@ -39,7 +39,7 @@ jobs:
 
           if [[ ${{ inputs.project_type }} == "single_branch" ]]; then
             task_id=`echo $(git log -1 --pretty=%B) | tr "-" " " | tr "]" " " | awk '{print $2 }'`
-          elif [[ ${{ inputs.event_type }} == "pr" ]]; then
+          elif [[ ${{ inputs.event_type }} == "pr" ]] || [[ ${{ inputs.event_type }} == "merge" ]]; then
             task_id=`echo ${{ github.head_ref }} | tr "-" " " | tr "_" " " | awk '{print $2 }'`
           else
             task_id=`echo $GITHUB_REF_NAME | tr "-" " " | tr "_" " " | awk '{print $2 }'`
