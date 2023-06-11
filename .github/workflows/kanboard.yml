@@ -126,11 +126,8 @@ jobs:
           tags=`echo $(git tag --sort=-version:refname | head -n 2)`
           IFS=' ' read -r -a array_tags <<< "$tags"
           app_version=${array_tags[0]#v}
-          tasks_ids=`echo $(git log --pretty=format:"~@~@%s" ${array_tags[1]}..${array_tags[0]}) | tr "~@~@" "\n" | awk 'NF' | tr "] " " " | awk '{ print $1 }' | cut -f2 -d"-"`
-          IFS=' ' read -r -a array_tasks_ids <<< "$tasks_ids"
+          array_tasks_ids=(`echo $(git log --pretty=format:"~@~@%s" ${array_tags[1]}..${array_tags[0]}) | tr "~@~@" "\n" | awk 'NF' | tr "-" " " | tr "]" " " | awk '{ print $2 }'`)
 
-          echo tasks_ids "$tasks_ids"
-          echo array_tasks_ids "${array_tasks_ids[@]}"
           for task_id in "${array_tasks_ids[@]}"; do
             task_info=`echo $(request_for_get_info_task $task_id)`
             current_column_id=`echo $(jq '.result.column_id' <<< $task_info)`
@@ -154,8 +151,11 @@ jobs:
               save_message_in_file DEPLOY -1 "The task is already in the right column" false
             fi
 
-            temporary_app_version=`echo $(jq '.result.metamagikkey_App_version' <<< $task_info)`
-            if [[ -z $temporary_app_version ]]; then
+            task_metadata=`echo $(request_for_get_metadata_task $task_id)`
+            temporary_app_version=`echo $(jq '.result' <<< $task_metadata)`
+            if [[ "$app_version" == *"$temporary_app_version"* ]]; then
+              continue
+            elif [[ -z $temporary_app_version ]]; then
               task_app_version=$app_version
             else
               task_app_version="$temporary_app_version, $app_version"

@@ -59,6 +59,22 @@ function generate_post_data_for_get_info_task() {
 EOF
 }
 
+function generate_post_data_for_get_metadata_task() {
+  local task_id=$1
+
+  cat <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "getTaskMetadataByName",
+  "params": {
+    "name": "App_version",
+    "task_id": $task_id
+  }
+}
+EOF
+}
+
 function generate_post_data_for_update_task_app_version() {
   local task_id=$1
   local app_version=$2
@@ -67,10 +83,14 @@ function generate_post_data_for_update_task_app_version() {
 {
   "jsonrpc": "2.0",
   "id": 1,
-  "method": "updateTask",
+  "method": "saveTaskMetadata",
   "params": {
-    "id": $task_id,
-    "metamagikkey_App_version": "$app_version"
+    "task_id": $task_id,
+    "values": [
+      {
+        "App_version": "$app_version"
+      }
+    ]
   }
 }
 EOF
@@ -95,6 +115,13 @@ function request_for_get_info_task() {
   fi
 
   result=$(curl -u "$private_auth_data" -d "$(generate_post_data_for_get_info_task $task_id)" $private_url/jsonrpc.php)
+  echo $result
+}
+
+function request_for_get_metadata_task() {
+  local task_id=$1
+
+  result=$(curl -u "$private_auth_data" -d "$(generate_post_data_for_get_metadata_task $task_id)" $private_url/jsonrpc.php)
   echo $result
 }
 
