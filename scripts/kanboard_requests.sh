@@ -86,11 +86,9 @@ function generate_post_data_for_update_task_app_version() {
   "method": "saveTaskMetadata",
   "params": {
     "task_id": $task_id,
-    "values": [
-      {
-        "App_version": "$app_version"
-      }
-    ]
+    "values": {
+      "App_version": "$app_version"
+    }
   }
 }
 EOF
@@ -178,6 +176,7 @@ function save_message_in_file() {
     task_id=$private_task_id
   fi
 
+  save_separator_in_file
   save_message_header_in_file $result
 
   case $result in
