@@ -159,9 +159,7 @@ jobs:
             echo temporary_app_version $temporary_app_version
             echo task_app_version $task_app_version
 
-            if [[ "$app_version" == *"$task_app_version"* ]]; then
-              continue
-            elif [[ -z $task_app_version ]]; then
+            if [[ -z $task_app_version ]]; then
               task_app_version=$app_version
             else
               task_app_version+=", $app_version"
