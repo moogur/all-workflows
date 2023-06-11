@@ -9,6 +9,8 @@ function generate_post_data_for_move_task() {
   local column_id=$1
   local task_id=$2
   local position=$3
+  local project_id=$4
+  local swimlane_id=$5
 
   if [[ -z $task_id ]]; then
     task_id=$private_task_id
@@ -18,17 +20,25 @@ function generate_post_data_for_move_task() {
     position=100
   fi
 
+  if [[ -z $project_id ]]; then
+    project_id=$private_project_id
+  fi
+
+  if [[ -z $swimlane_id ]]; then
+    swimlane_id=$private_swimlane_id
+  fi
+
   cat <<EOF
 {
   "jsonrpc": "2.0",
   "id": 1,
   "method": "moveTaskPosition",
   "params": {
-    "project_id": $private_project_id,
+    "project_id": $project_id,
     "task_id": $task_id,
     "column_id": $column_id,
     "position": $position,
-    "swimlane_id": $private_swimlane_id
+    "swimlane_id": $swimlane_id
   }
 }
 EOF
@@ -70,8 +80,10 @@ function request_for_move_task() {
   local column_id=$1
   local task_id=$2
   local position=$3
+  local project_id=$4
+  local swimlane_id=$5
 
-  result=$(curl -u "$private_auth_data" -d "$(generate_post_data_for_move_task $column_id $task_id $position)" $private_url/jsonrpc.php)
+  result=$(curl -u "$private_auth_data" -d "$(generate_post_data_for_move_task $column_id $task_id $position $project_id $swimlane_id)" $private_url/jsonrpc.php)
   echo $result
 }
 

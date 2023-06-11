@@ -26,8 +26,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 'Set variables'
-        id: variables
+      -name: 'Save script'
         run: |
           wget -O ./requests.sh https://raw.githubusercontent.com/moogur/all-workflows/master/scripts/kanboard_requests.sh
           chmod +x ./requests.sh
@@ -37,6 +36,10 @@ jobs:
           auth_data=${{ secrets.KANBOARD_USER }}:${{ secrets.KANBOARD_TOKEN }}
           sed -i "s|private_auth_data=|private_auth_data=$auth_data|" ./requests.sh
 
+      - name: 'Set variables'
+        if: "inputs.event_type != 'deploy'"
+        id: variables
+        run: |
           if [[ ${{ inputs.project_type }} == "single_branch" ]]; then
             task_id=`echo $(git log -1 --pretty=%B) | tr "-" " " | tr "]" " " | awk '{print $2 }'`
           elif [[ ${{ inputs.event_type }} == "pr" ]] || [[ ${{ inputs.event_type }} == "merge" ]]; then
@@ -44,7 +47,6 @@ jobs:
           else
             task_id=`echo $GITHUB_REF_NAME | tr "-" " " | tr "_" " " | awk '{print $2 }'`
           fi
-          echo GITHUB_REF_NAME $GITHUB_REF
 
           sed -i "s|private_task_id=|private_task_id=$task_id|" ./requests.sh
           echo "task_id=${task_id}" >> $GITHUB_OUTPUT
@@ -134,12 +136,15 @@ jobs:
             fi
 
             IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
-            export IFS=""
 
             if [[ ${all_columns[5]} == $current_column_id ]]; then
-              move_response=`echo $(request_for_move_task ${all_columns[6]} $task_id 1)`
+              export IFS=""
+              project_id=`echo $(jq '.result.project_id' <<< $task_info)`
+              swimlane_id=`echo $(jq '.result.swimlane_id' <<< $task_info)`
+              move_response=`echo $(request_for_move_task ${all_columns[6]} $task_id 1 $project_id $swimlane_id)`
               save_message_in_file DEPLOY $task_id "$move_response" $(jq '.result' <<< "$move_response")
             else
+              export IFS=""
               save_message_in_file DEPLOY -1 "The task is already in the right column" false
             fi
 
