@@ -1,16 +1,7 @@
-name: Build and Deploy
+name: Sonarqube info for pull request
 
 on:
   workflow_call:
-    inputs:
-      minio_bucket:
-        description: "Set the target minio bucket for deployment"
-        type: string
-        default: ''
-      need_deploy:
-        description: "Do I need to run the deployment of files in the minio"
-        type: string
-        default: 'false'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -32,7 +23,7 @@ jobs:
           node_version=$(jq '.engines.node' package.json)
           echo "matrix={\"node_version\":[${node_version:1:-1}]}" >> $GITHUB_OUTPUT
 
-  build-deploy:
+  scanner:
     needs: set-node-version
     runs-on: ubuntu-latest
     strategy:
@@ -41,6 +32,8 @@ jobs:
     steps:
       - name: 'Checkout'
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: 'Setup node'
         uses: actions/setup-node@v3
@@ -54,20 +47,30 @@ jobs:
           path: '**/node_modules'
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
 
+      - name: 'Set variables'
+        id: variables
+        run: |
+          raw_tag=`echo $(git describe --tags --abbrev=0)`
+          echo "latest_tag=${raw_tag#v}" >> $GITHUB_OUTPUT
+
       - name: 'Install'
         if: steps.cache.outputs.cache-hit != 'true'
         run: npm ci
 
-      - name: 'Build'
-        run: npm run build
+      - name: 'Sonarqube scanner'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          ANALYZE_BRANCH: ${{ github.head_ref }}
+          LATEST_TAG: ${{ steps.variables.outputs.latest_tag }}
+        run: |
+          npm run sonar:publish
 
-      - name: Minio Deploy
-        if: "inputs.need_deploy == 'true'"
-        uses: hkdobrev/minio-deploy-action@v1
+      - name: 'Sonarqube pull request comment'
+        uses: moogur/sonarqube-pr-comment@master
         with:
-          endpoint: ${{ secrets.MINIO_ENDPOINT }}
-          access_key: ${{ secrets.MINIO_ACCESS_KEY }}
-          secret_key: ${{ secrets.MINIO_SECRET_KEY }}
-          bucket: ${{ inputs.minio_bucket }}
-          source_dir: 'dist'
-          target_dir: '/'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+          GIT_BRANCH: ${{ github.head_ref }}

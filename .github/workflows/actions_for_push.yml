@@ -1,12 +1,7 @@
-name: Sonarqube scanner
+name: Sonarqube, test, lint, and deploy
 
 on:
   workflow_call:
-    inputs:
-      event_type:
-        description: "Event type"
-        type: string # push, pr
-        default: "push"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -28,7 +23,7 @@ jobs:
           node_version=$(jq '.engines.node' package.json)
           echo "matrix={\"node_version\":[${node_version:1:-1}]}" >> $GITHUB_OUTPUT
 
-  scanner:
+  test-and-lint:
     needs: set-node-version
     runs-on: ubuntu-latest
     strategy:
@@ -52,15 +47,15 @@ jobs:
           path: '**/node_modules'
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
 
+      - name: 'Install'
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm ci
+
       - name: 'Set variables'
         id: variables
         run: |
           raw_tag=`echo $(git describe --tags --abbrev=0)`
           echo "latest_tag=${raw_tag#v}" >> $GITHUB_OUTPUT
-
-      - name: 'Install'
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: npm ci
 
       - name: 'Sonarqube scanner'
         env:
@@ -71,12 +66,11 @@ jobs:
         run: |
           npm run sonar:publish
 
-      - name: 'Sonarqube pull request comment'
-        if: "inputs.event_type == 'pr'"
-        uses: moogur/sonarqube-pr-comment@master
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
-          GIT_BRANCH: ${{ github.head_ref }}
+      - name: 'Lint'
+        run: npm run lint
+
+      - name: 'Test'
+        run: npm run test
+
+      - name: 'Build'
+        run: npm run build
