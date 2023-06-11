@@ -161,6 +161,9 @@ jobs:
               task_app_version="$temporary_app_version, $app_version"
             fi
 
+            echo app_version $app_version
+            echo temporary_app_version $temporary_app_version
+            echo task_app_version $task_app_version
             app_response=`echo $(request_for_update_task_app_version $task_id $task_app_version)`
             save_message_in_file_for_add_app_version $task_id "$app_response" $(jq '.result' <<< "$app_response")
           done
