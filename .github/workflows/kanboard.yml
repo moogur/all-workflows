@@ -135,6 +135,9 @@ jobs:
           done
 
           IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
+          echo
+          echo uniq_array_tasks_ids "${!uniq_array_tasks_ids[@]}"
+          echo
 
           for task_id in "${!uniq_array_tasks_ids[@]}"; do
             echo
