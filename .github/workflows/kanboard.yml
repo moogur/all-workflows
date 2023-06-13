@@ -125,6 +125,7 @@ jobs:
 
           tags=`echo $(git tag --sort=-taggerdate | head -n 2)`
           IFS=' ' read -r -a array_tags <<< "$tags"
+          echo array_tags "${array_tags[@]}"
           app_version=${array_tags[0]#v}
           array_tasks_ids=(`echo $(git log --pretty=format:"~@~@%s" ${array_tags[1]}..${array_tags[0]}) | tr "~@~@" "\n" | awk 'NF' | tr "-" " " | tr "]" " " | awk '{ print $2 }'`)
 
@@ -135,15 +136,8 @@ jobs:
           done
 
           IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
-          echo array_tags "${array_tags[@]}"
-          echo uniq_array_tasks_ids "${!uniq_array_tasks_ids[@]}"
-          echo
 
           for task_id in "${!uniq_array_tasks_ids[@]}"; do
-            echo
-            echo task_id $task_id
-            echo
-
             task_info=`echo $(request_for_get_info_task $task_id)`
             current_column_id=`echo $(jq '.result.column_id' <<< $task_info)`
 
