@@ -123,12 +123,18 @@ jobs:
         run: |
           . ./requests.sh
 
-          tags=`echo $(git tag --sort=-version:refname | head -n 2)`
+          tags=`echo $(git tag --sort=-taggerdate | head -n 2)`
           IFS=' ' read -r -a array_tags <<< "$tags"
           app_version=${array_tags[0]#v}
           array_tasks_ids=(`echo $(git log --pretty=format:"~@~@%s" ${array_tags[1]}..${array_tags[0]}) | tr "~@~@" "\n" | awk 'NF' | tr "-" " " | tr "]" " " | awk '{ print $2 }'`)
 
+          # remove duplicates tasks ids
+          declare -A uniq_array_tasks_ids
           for task_id in "${array_tasks_ids[@]}"; do
+            uniq_array_tasks_ids[$task_id]=0
+          done
+
+          for task_id in "${!uniq_array_tasks_ids[@]}"; do
             task_info=`echo $(request_for_get_info_task $task_id)`
             current_column_id=`echo $(jq '.result.column_id' <<< $task_info)`
 
