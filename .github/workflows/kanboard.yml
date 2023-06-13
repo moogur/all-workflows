@@ -123,7 +123,7 @@ jobs:
         run: |
           . ./requests.sh
 
-          tags=`echo $(git tag --sort=taggerdate | head -n 2)`
+          tags=`echo $(git tag --sort=-creatordate | head -n 2)`
           IFS=' ' read -r -a array_tags <<< "$tags"
           echo array_tags "${array_tags[@]}"
           echo $(git -v)
