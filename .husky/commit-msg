@@ -55,7 +55,7 @@ function includeInTypes() {
 function validateTaskNumber() {
   local value=$1
 
-  local regexp="^\[SRV-[0-9]+\]$"
+  local regexp="^\[GA-[0-9]+\]$"
   if [[ ! "$value" =~ $regexp ]]; then
     echo "The issue number is not specified correctly"
     echo "value = $value"
