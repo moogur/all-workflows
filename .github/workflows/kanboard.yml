@@ -134,7 +134,13 @@ jobs:
             uniq_array_tasks_ids[$task_id]=0
           done
 
+          IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
+
           for task_id in "${!uniq_array_tasks_ids[@]}"; do
+            echo
+            echo task_id $task_id
+            echo
+
             task_info=`echo $(request_for_get_info_task $task_id)`
             current_column_id=`echo $(jq '.result.column_id' <<< $task_info)`
 
@@ -143,8 +149,6 @@ jobs:
               save_message_in_file_for_deploy_get_task_info_error $task_id "$task_info"
               continue
             fi
-
-            IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
 
             if [[ ${all_columns[5]} == $current_column_id ]]; then
               export IFS=""
