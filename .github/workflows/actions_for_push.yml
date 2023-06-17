@@ -57,6 +57,9 @@ jobs:
           raw_tag=`echo $(git describe --tags --abbrev=0)`
           echo "latest_tag=${raw_tag#v}" >> $GITHUB_OUTPUT
 
+      - name: 'Test'
+        run: npm run test:coverage
+
       - name: 'Sonarqube scanner'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
