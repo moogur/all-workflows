@@ -4,7 +4,7 @@
   "description": "Докер сборка nginx, это веб-сервер и почтовый прокси-сервер",
   "main": "index.js",
   "engines": {
-    "node": "16"
+    "node": "18.16.0"
   },
   "scripts": {
     "prepare": "husky install"
