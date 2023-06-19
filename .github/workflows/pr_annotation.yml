@@ -13,23 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  set-node-version:
-    runs-on: ubuntu-latest
-    outputs:
-      node_version: ${{ steps.set-node-version.outputs.node_version }}
-
-    steps:
-      - name: 'Checkout'
-        uses: actions/checkout@v3
-
-      - name: 'Set node version'
-        id: set-node-version
-        run: |
-          node_version=$(jq '.engines.node' package.json)
-          echo "node_version=${node_version:1:-1}" >> $GITHUB_OUTPUT
-
   scanner:
-    needs: set-node-version
     runs-on: ubuntu-latest
 
     steps:
@@ -38,10 +22,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: 'Set node version'
+        id: set-node-version
+        run: |
+          node_version=$(jq '.engines.node' package.json)
+          echo "node_version=${node_version:1:-1}" >> $GITHUB_OUTPUT
+
       - name: 'Setup node'
         uses: actions/setup-node@v3
         with:
-          node-version: ${{ needs.set-node-version.outputs.node_version }}
+          node-version: ${{ steps.set-node-version.outputs.node_version }}
 
       - name: 'Cache node modules'
         id: cache

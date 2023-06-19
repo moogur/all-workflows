@@ -14,23 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  set-node-version:
-    runs-on: ubuntu-latest
-    outputs:
-      node_version: ${{ steps.set-node-version.outputs.node_version }}
-
-    steps:
-      - name: 'Checkout'
-        uses: actions/checkout@v3
-
-      - name: 'Set node version'
-        id: set-node-version
-        run: |
-          node_version=$(jq '.engines.node' package.json)
-          echo "node_version=${node_version:1:-1}" >> $GITHUB_OUTPUT
-
   build-docker-job:
-    needs: set-node-version
     runs-on: ubuntu-latest
 
     steps:
@@ -38,6 +22,12 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: 'Set node version'
+        id: set-node-version
+        run: |
+          node_version=$(jq '.engines.node' package.json)
+          echo "node_version=${node_version:1:-1}" >> $GITHUB_OUTPUT
 
       - name: 'Global env'
         id: global_env
@@ -53,7 +43,7 @@ jobs:
 
       - name: 'Build and tag image'
         run: |
-          docker build --build-arg ARG_NODE_VERSION="${{ needs.set-node-version.outputs.node_version }}" --build-arg ARG_APP_VERSION="${{ steps.version.outputs.VERSION }}" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:latest" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}" .
+          docker build --build-arg ARG_NODE_VERSION="${{ steps.set-node-version.outputs.node_version }}" --build-arg ARG_APP_VERSION="${{ steps.version.outputs.VERSION }}" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:latest" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}" .
 
       - name: 'docker login'
         run: docker login docker.pkg.github.com -u ${{ inputs.github_user }} -p ${{ secrets.GITHUB_TOKEN }}
