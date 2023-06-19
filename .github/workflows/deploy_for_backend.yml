@@ -17,23 +17,21 @@ jobs:
   set-node-version:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      node_version: ${{ steps.set-node-version.outputs.node_version }}
 
     steps:
       - name: 'Checkout'
         uses: actions/checkout@v3
 
       - name: 'Set node version'
-        id: set-matrix
+        id: set-node-version
         run: |
           node_version=$(jq '.engines.node' package.json)
-          echo "matrix={\"node_version\":[${node_version:1:-1}]}" >> $GITHUB_OUTPUT
+          echo "node_version=${node_version:1:-1}" >> $GITHUB_OUTPUT
 
   build-docker-job:
     needs: set-node-version
     runs-on: ubuntu-latest
-    strategy:
-      matrix: ${{fromJson(needs.set-node-version.outputs.matrix)}}
 
     steps:
       - name: 'Checkout'
@@ -55,7 +53,7 @@ jobs:
 
       - name: 'Build and tag image'
         run: |
-          docker build --build-arg ARG_NODE_VERSION="${{ matrix.node_version }}" --build-arg ARG_APP_VERSION="${{ steps.version.outputs.VERSION }}" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:latest" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}" .
+          docker build --build-arg ARG_NODE_VERSION="${{ needs.set-node-version.outputs.node_version }}" --build-arg ARG_APP_VERSION="${{ steps.version.outputs.VERSION }}" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:latest" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}" .
 
       - name: 'docker login'
         run: docker login docker.pkg.github.com -u ${{ inputs.github_user }} -p ${{ secrets.GITHUB_TOKEN }}
