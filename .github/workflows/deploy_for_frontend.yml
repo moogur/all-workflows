@@ -2,11 +2,6 @@ name: Build and Deploy
 
 on:
   workflow_call:
-    inputs:
-      minio_bucket:
-        description: "Set the target minio bucket for deployment"
-        type: string
-        required: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -53,6 +48,6 @@ jobs:
           endpoint: ${{ secrets.MINIO_ENDPOINT }}
           access_key: ${{ secrets.MINIO_ACCESS_KEY }}
           secret_key: ${{ secrets.MINIO_SECRET_KEY }}
-          bucket: ${{ inputs.minio_bucket }}
+          bucket: ${{ secrets.MINIO_BUCKET }}
           source_dir: 'dist'
           target_dir: '/'

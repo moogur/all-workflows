@@ -2,6 +2,12 @@ name: Sonarqube, test, lint, and deploy
 
 on:
   workflow_call:
+    inputs:
+      skip_tests:
+        description: "Skip pipeline tests"
+        type: string
+        required: false
+        default: 'false'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -46,6 +52,7 @@ jobs:
           echo "latest_tag=${raw_tag#v}" >> $GITHUB_OUTPUT
 
       - name: 'Test'
+        if: "inputs.skip_tests != 'true'"
         run: npm run test:coverage
 
       - name: 'Sonarqube scanner'

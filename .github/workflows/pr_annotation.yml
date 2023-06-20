@@ -7,6 +7,12 @@ on:
         description: "Repository key in sonarqube"
         type: string
         required: true
+    inputs:
+      skip_tests:
+        description: "Skip pipeline tests"
+        type: string
+        required: false
+        default: 'false'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -45,6 +51,7 @@ jobs:
         run: npm ci
 
       - name: 'Test coverage (jest)'
+        if: "inputs.skip_tests != 'true'"
         uses: ArtiomTr/jest-coverage-report-action@v2
         with:
           annotations: failed-tests
