@@ -7,7 +7,6 @@ on:
         description: "Repository key in sonarqube"
         type: string
         required: true
-    inputs:
       skip_tests:
         description: "Skip pipeline tests"
         type: string
