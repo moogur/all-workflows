@@ -43,7 +43,7 @@ jobs:
         run: npm run build
 
       - name: Minio Deploy
-        uses: hkdobrev/minio-deploy-action@v1
+        uses: moogur/minio-deploy-action@master
         with:
           endpoint: ${{ secrets.MINIO_ENDPOINT }}
           access_key: ${{ secrets.MINIO_ACCESS_KEY }}
