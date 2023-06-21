@@ -126,12 +126,18 @@ jobs:
           tags=`echo $(git tag --sort=-creatordate | head -n 2)`
           IFS=' ' read -r -a array_tags <<< "$tags"
           app_version=${array_tags[0]#v}
-          array_tasks_ids=(`echo $(git log --pretty=format:"~@~@%s" ${array_tags[1]}..${array_tags[0]}) | tr "~@~@" "\n" | awk 'NF' | tr "-" " " | tr "]" " " | awk '{ print $2 }'`)
+          if [[ "${#array_tags[@]}" -eq 2 ]]; then
+            array_tasks_ids=(`echo $(git log --pretty=format:"~@~@%s" ${array_tags[1]}..${array_tags[0]}) | tr "~@~@" "\n" | awk 'NF' | tr "-" " " | tr "]" " " | awk '{ print $2 }'`)
+          else
+            array_tasks_ids=(`echo $(git log --pretty=format:"~@~@%s" --all) | tr "~@~@" "\n" | awk 'NF' | tr "-" " " | tr "]" " " | awk '{ print $2 }'`)
+          fi
 
           # remove duplicates tasks ids
           declare -A uniq_array_tasks_ids
           for task_id in "${array_tasks_ids[@]}"; do
-            uniq_array_tasks_ids[$task_id]=0
+            if [[ "$task_id" =~ ^[0-9]+$ ]]; then
+              uniq_array_tasks_ids[$task_id]=0
+            fi
           done
 
           IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
