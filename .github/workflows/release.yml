@@ -24,6 +24,8 @@ jobs:
       - name: 'Set version in package.json'
         run: |
           sed -i 's/"version":.*/"version": "${{ steps.version.outputs.VERSION }}",/' package.json
+          git config --global user.email "bot@github.actions"
+          git config --global user.name "github actions bot"
           git add package.json
           git commit --amend --no-edit
 
