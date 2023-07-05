@@ -1,0 +1,36 @@
+name: Release
+
+on:
+  workflow_call:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v3
+
+      - name: 'Version'
+        id: version
+        run: |
+          tag=${GITHUB_REF/refs\/tags\//}
+          echo "VERSION=${tag#v}" >> $GITHUB_OUTPUT
+
+      - name: 'Set version in package.json'
+        run: |
+          sed -i 's/"version":.*/"version": "${{ steps.version.outputs.VERSION }}",/' package.json
+          git add package.json
+          git commit --amend --no-edit
+
+      - name: 'Publish release'
+        uses: release-drafter/release-drafter@v5
+        with:
+          version: ${{ steps.version.outputs.VERSION }}
+          publish: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
