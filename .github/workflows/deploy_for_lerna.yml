@@ -35,9 +35,14 @@ jobs:
 
       - name: "Publish packages"
         run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor}}@users.noreply.github.com"
+
           new_package_json=$(jq 'del(.scripts)' package.json)
           rm -f package.json
           echo $new_package_json > package.json
+
           git add .
           git commit -m "temporary"
+
           npx lerna publish --registry=https://npm.pkg.github.com from-package --yes
