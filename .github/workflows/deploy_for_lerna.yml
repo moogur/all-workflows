@@ -1,0 +1,38 @@
+name: Lerna publish packages
+
+on:
+  workflow_call:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: 'Set node version'
+        id: set-node-version
+        run: |
+          node_version=$(jq '.engines.node' package.json)
+          echo "node_version=${node_version:1:-1}" >> $GITHUB_OUTPUT
+
+      - name: 'Setup node'
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ steps.set-node-version.outputs.node_version }}
+
+      - name: "Setup npm"
+        run: |
+          npm set @moogur:registry=https://npm.pkg.github.com/
+          npm set "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}"
+
+      - name: "Publish packages"
+        run: |
+          npx lerna publish --registry=https://npm.pkg.github.com from-package --yes
