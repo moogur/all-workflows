@@ -35,4 +35,7 @@ jobs:
 
       - name: "Publish packages"
         run: |
+          new_package_json=$(jq 'del(.scripts)' package.json)
+          rm -f package.json
+          echo $new_package_json > package.json
           npx lerna publish --registry=https://npm.pkg.github.com from-package --yes
