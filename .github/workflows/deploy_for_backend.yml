@@ -41,6 +41,11 @@ jobs:
           raw_tag=`echo $(git describe --tags --abbrev=0)`
           echo "VERSION=${raw_tag#v}" >> $GITHUB_OUTPUT
 
+      - name: "Setup npm"
+        run: |
+          npm set @moogur:registry=https://npm.pkg.github.com/
+          npm set "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}"
+
       - name: 'Build and tag image'
         run: |
           docker build --build-arg ARG_NODE_VERSION="${{ steps.set-node-version.outputs.node_version }}" --build-arg ARG_APP_VERSION="${{ steps.version.outputs.VERSION }}" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:latest" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}" .
