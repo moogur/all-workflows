@@ -48,15 +48,21 @@ jobs:
           npm set "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}"
           npm ci
 
+      - name: 'Lint'
+        run: npm run lint
+
+      - name: 'Build'
+        run: npm run build
+
+      - name: 'Test'
+        if: "inputs.skip_tests != 'true'"
+        run: npm run test:coverage
+
       - name: 'Set variables'
         id: variables
         run: |
           raw_tag=`echo $(git describe --tags --abbrev=0)`
           echo "latest_tag=${raw_tag#v}" >> $GITHUB_OUTPUT
-
-      - name: 'Test'
-        if: "inputs.skip_tests != 'true'"
-        run: npm run test:coverage
 
       - name: 'Sonarqube scanner'
         env:
@@ -66,9 +72,3 @@ jobs:
           LATEST_TAG: ${{ steps.variables.outputs.latest_tag }}
         run: |
           npm run sonar:publish
-
-      - name: 'Lint'
-        run: npm run lint
-
-      - name: 'Build'
-        run: npm run build
