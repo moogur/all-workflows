@@ -72,8 +72,7 @@ jobs:
           ANALYZE_BRANCH: ${{ github.head_ref }}
           LATEST_TAG: ${{ steps.variables.outputs.latest_tag }}
         run: |
-          ls -la ./coverage
-          node ./scripts/sonarqube-scanner.js
+          npm run sonar:publish
 
       - name: 'Sonarqube pull request comment'
         uses: moogur/sonarqube-pr-comment@master
