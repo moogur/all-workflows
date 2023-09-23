@@ -72,6 +72,7 @@ jobs:
           ANALYZE_BRANCH: ${{ github.head_ref }}
           LATEST_TAG: ${{ steps.variables.outputs.latest_tag }}
         run: |
+          ls -la
           npm run sonar:publish
 
       - name: 'Sonarqube pull request comment'
