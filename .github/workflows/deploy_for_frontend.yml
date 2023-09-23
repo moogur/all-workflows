@@ -37,7 +37,10 @@ jobs:
 
       - name: 'Install'
         if: steps.cache.outputs.cache-hit != 'true'
-        run: npm ci
+        run: |
+          npm set @moogur:registry=https://npm.pkg.github.com/
+          npm set "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}"
+          npm ci
 
       - name: 'Build'
         run: npm run build
