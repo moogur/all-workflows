@@ -44,13 +44,3 @@ jobs:
 
       - name: 'Build'
         run: npm run build
-
-      - name: Minio Deploy
-        uses: moogur/minio-deploy-action@master
-        with:
-          endpoint: ${{ secrets.MINIO_ENDPOINT }}
-          access_key: ${{ secrets.MINIO_ACCESS_KEY }}
-          secret_key: ${{ secrets.MINIO_SECRET_KEY }}
-          bucket: ${{ secrets.MINIO_BUCKET }}
-          source_dir: 'dist'
-          target_dir: '/'
