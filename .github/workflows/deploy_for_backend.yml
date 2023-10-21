@@ -43,8 +43,10 @@ jobs:
 
       - name: "Setup npm"
         run: |
-          npm set @moogur:registry=https://npm.pkg.github.com/
-          npm set "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}"
+          npmrc_file_name=.npmrc
+          touch $npmrc_file_name
+          npm set @moogur:registry=https://npm.pkg.github.com/ >> $npmrc_file_name
+          npm set "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> $npmrc_file_name
 
       - name: 'Build and tag image'
         run: |
