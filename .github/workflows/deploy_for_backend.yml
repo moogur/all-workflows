@@ -50,6 +50,7 @@ jobs:
 
       - name: 'Add docker file'
         run: |
+          wget -O ./.dockerignore https://raw.githubusercontent.com/moogur/all-workflows/master/dockerfiles/.dockerignore
           wget -O ./Dockerfile https://raw.githubusercontent.com/moogur/all-workflows/master/dockerfiles/deploy_backend.dockerfile
 
       - name: 'Build and tag image'

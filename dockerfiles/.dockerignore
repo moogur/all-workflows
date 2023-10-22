@@ -1,0 +1,37 @@
+coverage
+*.md
+nodemon*.json
+
+# IDE
+.vscode
+.idea
+
+# Git
+.gitignore
+# .git
+.github
+.husky
+
+# Linters
+.prettierignore
+.prettierrc
+.editorconfig
+.eslintignore
+.eslintrc.js
+
+# Secrets
+.env
+
+# Node Files
+node_modules
+npm-debug.log
+npm-debug.log.*
+
+# Source files
+test
+dist
+
+# nest
+nest-cli.json
+
+README.md
