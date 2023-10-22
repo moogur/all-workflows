@@ -33,6 +33,17 @@ jobs:
           npm set @moogur:registry=https://npm.pkg.github.com/
           npm set "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}"
 
+      - name: "Setup git"
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor}}@users.noreply.github.com"
+
+      - name: "Remove husky from package.json"
+        run: |
+          new_package_json=$(jq 'del(.scripts)' package.json)
+          rm -f package.json
+          echo $new_package_json > package.json
+
       - name: "Prepared packages"
         run: |
           cd ./builders/vite-config
@@ -41,13 +52,6 @@ jobs:
 
       - name: "Publish packages"
         run: |
-          git config user.name "${{ github.actor }}"
-          git config user.email "${{ github.actor}}@users.noreply.github.com"
-
-          new_package_json=$(jq 'del(.scripts)' package.json)
-          rm -f package.json
-          echo $new_package_json > package.json
-
           git add .
           git commit -m "temporary"
 
