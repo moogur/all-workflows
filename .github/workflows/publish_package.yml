@@ -50,6 +50,5 @@ jobs:
           git config user.name "${{ github.actor }}"
           git config user.email "${{ github.actor}}@users.noreply.github.com"
 
-          npm run build
           node ./node_modules/@moogur/helpers/pre-build.js
           npm publish

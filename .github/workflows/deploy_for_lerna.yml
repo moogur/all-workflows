@@ -33,6 +33,12 @@ jobs:
           npm set @moogur:registry=https://npm.pkg.github.com/
           npm set "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}"
 
+      - name: "Prepared packages"
+        run: |
+          cd ./builders/vite-config
+          npm install
+          npm run build
+
       - name: "Publish packages"
         run: |
           git config user.name "${{ github.actor }}"
