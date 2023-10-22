@@ -48,6 +48,10 @@ jobs:
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> $npmrc_file_name
           echo "@moogur:registry=https://npm.pkg.github.com/" >> $npmrc_file_name
 
+      - name: 'Add docker file'
+        run: |
+          wget -O ./Dockerfile https://raw.githubusercontent.com/moogur/all-workflows/master/dockerfiles/deploy_backend.dockerfile
+
       - name: 'Build and tag image'
         run: |
           docker build --build-arg ARG_NODE_VERSION="${{ steps.set-node-version.outputs.node_version }}" --build-arg ARG_APP_VERSION="${{ steps.version.outputs.VERSION }}" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:latest" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}" .
