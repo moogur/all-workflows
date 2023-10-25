@@ -59,7 +59,7 @@ jobs:
         run: |
           export VITE_VERSION=${{ steps.version.outputs.VERSION }} && npm run build
           mkdir application
-          mv build application/build
+          mv dist application/dist
           zip -r application.zip application
 
       - name: Upload Release Asset
