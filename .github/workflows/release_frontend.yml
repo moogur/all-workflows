@@ -57,7 +57,7 @@ jobs:
 
       - name: 'Create assets'
         run: |
-          npm run build
+          export VITE_VERSION=${{ steps.version.outputs.VERSION }} && npm run build
           mkdir application
           mv build application/build
           zip -r application.zip application
