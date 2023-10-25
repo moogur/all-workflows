@@ -1,4 +1,4 @@
-name: Build and Deploy
+name: Release
 
 on:
   workflow_call:
@@ -8,14 +8,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-deploy:
+  release:
     runs-on: ubuntu-latest
 
     steps:
       - name: 'Checkout'
         uses: actions/checkout@v3
+
+      - name: 'Version'
+        id: version
+        run: |
+          tag=${GITHUB_REF/refs\/tags\//}
+          echo "VERSION=${tag#v}" >> $GITHUB_OUTPUT
+
+      - name: 'Publish release'
+        uses: release-drafter/release-drafter@v5
+        id: create_release
         with:
-          fetch-depth: 0
+          version: ${{ steps.version.outputs.VERSION }}
+          publish: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 'Set node version'
         id: set-node-version
@@ -42,5 +55,19 @@ jobs:
           npm set "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}"
           npm ci
 
-      - name: 'Build'
-        run: npm run build
+      - name: 'Create assets'
+        run: |
+          npm run build
+          mkdir application
+          mv build application/build
+          zip -r application.zip application
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./application.zip
+          asset_name: application.zip
+          asset_content_type: application/zip
