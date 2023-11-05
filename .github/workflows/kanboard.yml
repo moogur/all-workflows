@@ -181,4 +181,4 @@ jobs:
 
       - name: "Show result"
         run: |
-          echo $(cat ./message.tmpl)
+          echo -e $(cat ./message.tmpl)
