@@ -57,8 +57,8 @@ jobs:
             /repos/$OWNER/$REPO/environments/${{ inputs.environment }}/variables/LAST_UPDATE_COMMIT_TIME \
             -f "name=LAST_UPDATE_COMMIT_TIME" -f "value=${{ steps.check.outputs.current_commit_time }}"
 
-  # deploy:
-  #   needs: getting_date
-  #   if: steps.check.outputs.current_commit_time != steps.check.outputs.last_update_commit_time
-  #   uses: ./.github/workflows/deploy_for_docker_container.yml
-  #   secrets: inherit
+  deploy:
+    needs: getting_date
+    if: steps.check.outputs.current_commit_time != steps.check.outputs.last_update_commit_time
+    uses: ./.github/workflows/deploy_for_docker_container.yml
+    secrets: inherit
