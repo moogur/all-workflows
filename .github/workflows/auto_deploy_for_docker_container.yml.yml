@@ -1,0 +1,45 @@
+name: Auto deploy for docker container
+
+on:
+  workflow_call:
+    inputs:
+      repository_url:
+        description: "Url for git repository"
+        type: string
+        required: true
+      repository_branch:
+        description: "Branch to check for updates"
+        type: string
+        required: true
+      last_update_commit_time:
+        description: "Date for last commit"
+        type: string
+        required: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actions:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: 'Check'
+        id: check
+        run: |
+          git clone --depth=1 --single-branch -b "${{ inputs.repository_branch }}" "${{ inputs.repository_url }}" temp_repository
+          cd temp_repository || exit
+          echo "current_date=$(git log -1 --format=%ct)" >> $GITHUB_OUTPUT
+          cd ..
+          rm -fr temp_repository
+
+      - name: 'Show'
+        if: steps.check.outputs.current_date != inputs.last_update_commit_time
+        run: |
+          echo ${{ steps.check.outputs.current_date }}
