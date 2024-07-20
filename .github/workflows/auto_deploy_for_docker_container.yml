@@ -11,8 +11,8 @@ on:
         description: "Branch to check for updates"
         type: string
         required: true
-      last_update_commit_time:
-        description: "Date for last commit"
+      environment:
+        description: "Environment"
         type: string
         required: true
 
@@ -23,6 +23,7 @@ concurrency:
 jobs:
   actions:
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
 
     steps:
       - name: 'Checkout'
@@ -40,12 +41,12 @@ jobs:
           rm -fr temp_repository
 
       - name: 'Show'
-        if: steps.check.outputs.current_date != last_update_commit_time
+        if: steps.check.outputs.current_date != vars.LAST_UPDATE_COMMIT_TIME
         run: |
           echo ${{ steps.check.outputs.current_date }}
-          echo ${{ last_update_commit_time }}
+          echo ${{ vars.LAST_UPDATE_COMMIT_TIME }}
 
       # - name: 'Deploy'
-      #   if: steps.check.outputs.current_date != last_update_commit_time
+      #   if: steps.check.outputs.current_date != vars.LAST_UPDATE_COMMIT_TIME
       #   uses: .github/workflows/deploy_for_docker_container.yml
       #   secrets: inherit
