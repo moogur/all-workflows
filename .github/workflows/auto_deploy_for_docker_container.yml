@@ -11,10 +11,10 @@ on:
         description: "Branch to check for updates"
         type: string
         required: true
-      # last_update_commit_time:
-      #   description: "Date for last commit"
-      #   type: string
-      #   required: true
+      last_update_commit_time:
+        description: "Date for last commit"
+        type: string
+        required: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -40,12 +40,12 @@ jobs:
           rm -fr temp_repository
 
       - name: 'Show'
-        if: steps.check.outputs.current_date != env_var.LAST_UPDATE_COMMIT_TIME
+        if: steps.check.outputs.current_date != last_update_commit_time
         run: |
           echo ${{ steps.check.outputs.current_date }}
-          echo ${{ env_var.LAST_UPDATE_COMMIT_TIME }}
+          echo ${{ last_update_commit_time }}
 
       # - name: 'Deploy'
-      #   if: steps.check.outputs.current_date != env_var.LAST_UPDATE_COMMIT_TIME
+      #   if: steps.check.outputs.current_date != last_update_commit_time
       #   uses: .github/workflows/deploy_for_docker_container.yml
       #   secrets: inherit
