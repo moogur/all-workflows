@@ -41,7 +41,7 @@ jobs:
           rm -fr temp_repository
 
       - name: 'Update variable'
-        if: steps.check.outputs.current_commit_time == vars.LAST_UPDATE_COMMIT_TIME
+        if: steps.check.outputs.current_commit_time != vars.LAST_UPDATE_COMMIT_TIME
         env:
           GH_TOKEN: ${{ secrets.UPDATE_VARIABLES_CLI_TOKEN }}
           OWNER: ${{ github.repository_owner }}
@@ -57,11 +57,11 @@ jobs:
             -f "name=LAST_UPDATE_COMMIT_TIME" -f "value=${{ steps.check.outputs.current_commit_time }}"
 
       - name: 'Cancel job'
-        if: steps.check.outputs.current_commit_time != vars.LAST_UPDATE_COMMIT_TIME
+        if: steps.check.outputs.current_commit_time == vars.LAST_UPDATE_COMMIT_TIME
         run: exit 1
 
-  # deploy:
-  #   needs: getting_date
-  #   if: getting_date.check.outputs.current_commit_time != getting_date.check.outputs.last_update_commit_time
-  #   uses: ./.github/workflows/deploy_for_docker_container.yml
-  #   secrets: inherit
+  deploy:
+    needs: getting_date
+    if: getting_date.check.outputs.current_commit_time != getting_date.check.outputs.last_update_commit_time
+    uses: ./.github/workflows/deploy_for_docker_container.yml
+    secrets: inherit
