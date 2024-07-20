@@ -43,3 +43,8 @@ jobs:
         if: steps.check.outputs.current_date != inputs.last_update_commit_time
         run: |
           echo ${{ steps.check.outputs.current_date }}
+
+      # - name: 'Deploy'
+      #   if: steps.check.outputs.current_date != inputs.last_update_commit_time
+      #   uses: moogur/all-workflows/.github/workflows/deploy_for_docker_container.yml@master
+      #   secrets: inherit
