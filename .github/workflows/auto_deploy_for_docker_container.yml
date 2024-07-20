@@ -21,9 +21,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  actions:
+  getting_date:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
+    outputs:
+      current_commit_time: ${{ steps.check.outputs.current_commit_time }}
+      last_update_commit_time: ${{ steps.check.outputs.last_update_commit_time }}
 
     steps:
       - name: 'Checkout'
@@ -36,17 +39,22 @@ jobs:
         run: |
           git clone --depth=1 --single-branch -b "${{ inputs.repository_branch }}" "${{ inputs.repository_url }}" temp_repository
           cd temp_repository || exit
-          echo "current_date=$(git log -1 --format=%ct)" >> $GITHUB_OUTPUT
+          echo "last_update_commit_time=${{ vars.LAST_UPDATE_COMMIT_TIME }}" >> $GITHUB_OUTPUT
+          echo "current_commit_time=$(git log -1 --format=%ct)" >> $GITHUB_OUTPUT
           cd ..
           rm -fr temp_repository
 
-      - name: 'Show'
-        if: steps.check.outputs.current_date != vars.LAST_UPDATE_COMMIT_TIME
+      - name: 'Update variable'
         run: |
-          echo ${{ steps.check.outputs.current_date }}
-          echo ${{ vars.LAST_UPDATE_COMMIT_TIME }}
+          gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/$OWNER/$REPOSITORY/environments/${{ inputs.environment }}/variables/LAST_UPDATE_COMMIT_TIME \
+            -f "name=LAST_UPDATE_COMMIT_TIME" -f "${{ steps.check.outputs.current_commit_time }}"
 
-      # - name: 'Deploy'
-      #   if: steps.check.outputs.current_date != vars.LAST_UPDATE_COMMIT_TIME
-      #   uses: .github/workflows/deploy_for_docker_container.yml
-      #   secrets: inherit
+  # deploy:
+  #   needs: getting_date
+  #   if: steps.check.outputs.current_commit_time != steps.check.outputs.last_update_commit_time
+  #   uses: ./.github/workflows/deploy_for_docker_container.yml
+  #   secrets: inherit
