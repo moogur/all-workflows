@@ -16,10 +16,6 @@ on:
         type: string
         required: true
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   getting_date:
     runs-on: ubuntu-latest
@@ -56,9 +52,9 @@ jobs:
             /repos/$OWNER/$REPO/environments/${{ inputs.environment }}/variables/LAST_UPDATE_COMMIT_TIME \
             -f "name=LAST_UPDATE_COMMIT_TIME" -f "value=${{ steps.check.outputs.current_commit_time }}"
 
-      # - name: 'Cancel job'
-      #   if: steps.check.outputs.current_commit_time == vars.LAST_UPDATE_COMMIT_TIME
-      #   run: exit 1
+      - name: 'Cancel job'
+        if: steps.check.outputs.current_commit_time == vars.LAST_UPDATE_COMMIT_TIME
+        run: exit 1
 
   auto_deploy:
     needs: getting_date
