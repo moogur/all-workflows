@@ -63,4 +63,3 @@ jobs:
   auto_deploy:
     needs: getting_date
     uses: ./.github/workflows/deploy_for_docker_container.yml
-    secrets: inherit
