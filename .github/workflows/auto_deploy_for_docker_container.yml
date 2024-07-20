@@ -45,9 +45,8 @@ jobs:
           rm -fr temp_repository
 
       - name: 'Update variable'
-        permissions: write-all
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.UPDATE_VARIABLE_CLI_TOKEN }}
           OWNER: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
         run: |
