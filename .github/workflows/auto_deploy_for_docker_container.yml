@@ -23,6 +23,7 @@ concurrency:
 jobs:
   getting_date:
     runs-on: ubuntu-latest
+    permissions: write-all
     environment: ${{ inputs.environment }}
     outputs:
       current_commit_time: ${{ steps.check.outputs.current_commit_time }}
