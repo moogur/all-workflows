@@ -24,9 +24,6 @@ jobs:
   getting_date:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
-    outputs:
-      current_commit_time: ${{ steps.check.outputs.current_commit_time }}
-      last_update_commit_time: ${{ steps.check.outputs.last_update_commit_time }}
 
     steps:
       - name: 'Checkout'
@@ -39,17 +36,19 @@ jobs:
         run: |
           git clone --depth=1 --single-branch -b "${{ inputs.repository_branch }}" "${{ inputs.repository_url }}" temp_repository
           cd temp_repository || exit
-          echo "last_update_commit_time=${{ vars.LAST_UPDATE_COMMIT_TIME }}" >> $GITHUB_OUTPUT
           echo "current_commit_time=$(git log -1 --format=%ct)" >> $GITHUB_OUTPUT
           cd ..
           rm -fr temp_repository
 
       - name: 'Update variable'
+        if: steps.check.outputs.current_commit_time != vars.LAST_UPDATE_COMMIT_TIME
         env:
           GH_TOKEN: ${{ secrets.UPDATE_VARIABLES_CLI_TOKEN }}
           OWNER: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
         run: |
+          echo ${{ steps.check.outputs.current_commit_time }}
+          echo ${{ vars.LAST_UPDATE_COMMIT_TIME }}
           gh api \
             --method PATCH \
             -H "Accept: application/vnd.github+json" \
@@ -57,8 +56,12 @@ jobs:
             /repos/$OWNER/$REPO/environments/${{ inputs.environment }}/variables/LAST_UPDATE_COMMIT_TIME \
             -f "name=LAST_UPDATE_COMMIT_TIME" -f "value=${{ steps.check.outputs.current_commit_time }}"
 
-  deploy:
-    needs: getting_date
-    if: getting_date.check.outputs.current_commit_time != getting_date.check.outputs.last_update_commit_time
-    uses: ./.github/workflows/deploy_for_docker_container.yml
-    secrets: inherit
+      - name: 'Cancel job'
+        if: steps.check.outputs.current_commit_time == vars.LAST_UPDATE_COMMIT_TIME
+        run: exit 1
+
+  # deploy:
+  #   needs: getting_date
+  #   if: getting_date.check.outputs.current_commit_time != getting_date.check.outputs.last_update_commit_time
+  #   uses: ./.github/workflows/deploy_for_docker_container.yml
+  #   secrets: inherit
