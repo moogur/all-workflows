@@ -16,6 +16,9 @@ on:
         type: string
         required: true
 
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
