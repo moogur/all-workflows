@@ -60,7 +60,7 @@ jobs:
         if: steps.check.outputs.current_commit_time == vars.LAST_UPDATE_COMMIT_TIME
         run: exit 1
 
-  deploy:
+  auto_deploy:
     needs: getting_date
     uses: ./.github/workflows/deploy_for_docker_container.yml
     secrets: inherit
