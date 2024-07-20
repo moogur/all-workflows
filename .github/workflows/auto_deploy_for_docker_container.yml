@@ -62,6 +62,5 @@ jobs:
 
   deploy:
     needs: getting_date
-    if: getting_date.check.outputs.current_commit_time != getting_date.check.outputs.last_update_commit_time
     uses: ./.github/workflows/deploy_for_docker_container.yml
     secrets: inherit
