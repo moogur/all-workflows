@@ -22,7 +22,6 @@ concurrency:
 
 jobs:
   getting_date:
-    permissions: write-all
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     outputs:
