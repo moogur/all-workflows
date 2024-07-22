@@ -7,14 +7,20 @@ on:
         description: "Url for git repository"
         type: string
         required: true
-      repository_branch:
-        description: "Branch to check for updates"
-        type: string
-        required: true
       environment:
         description: "Environment"
         type: string
         required: true
+      type:
+        description: "The type of definition of the latest version"
+        type: string
+        required: false
+        default: "commit" # commit | tag
+      repository_branch: # need for commit type
+        description: "Branch to check for updates"
+        type: string
+        required: false
+        default: "master"
 
 jobs:
   getting_date:
@@ -30,30 +36,35 @@ jobs:
       - name: 'Check'
         id: check
         run: |
-          git clone --depth=1 --single-branch -b "${{ inputs.repository_branch }}" "${{ inputs.repository_url }}" temp_repository
-          cd temp_repository || exit
-          echo "current_commit_time=$(git log -1 --format=%ct)" >> $GITHUB_OUTPUT
-          cd ..
-          rm -fr temp_repository
+          if [[ "${{ inputs.type }}" == "commit" ]]; then
+            git clone --depth=1 --single-branch -b "${{ inputs.repository_branch }}" "${{ inputs.repository_url }}" temp_repository
+            cd temp_repository || exit
+            last_update_value=$(git log -1 --format=%ct)
+            cd ..
+            rm -fr temp_repository
+          else
+            last_update_value=$(git ls-remote --tags --refs --sort="v:refname" "${{ inputs.repository_url }}" | tail -n1 | sed 's/.*\///')
+          fi
+          echo "last_update_value=$(git log -1 --format=%ct)" >> $GITHUB_OUTPUT
 
       - name: 'Update variable'
-        if: steps.check.outputs.current_commit_time != vars.LAST_UPDATE_COMMIT_TIME
+        if: steps.check.outputs.last_update_value != vars.LAST_UPDATE_VALUE
         env:
           GH_TOKEN: ${{ secrets.UPDATE_VARIABLES_CLI_TOKEN }}
           OWNER: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
         run: |
-          echo ${{ steps.check.outputs.current_commit_time }}
-          echo ${{ vars.LAST_UPDATE_COMMIT_TIME }}
+          echo ${{ steps.check.outputs.last_update_value }}
+          echo ${{ vars.LAST_UPDATE_VALUE }}
           gh api \
             --method PATCH \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            /repos/$OWNER/$REPO/environments/${{ inputs.environment }}/variables/LAST_UPDATE_COMMIT_TIME \
-            -f "name=LAST_UPDATE_COMMIT_TIME" -f "value=${{ steps.check.outputs.current_commit_time }}"
+            /repos/$OWNER/$REPO/environments/${{ inputs.environment }}/variables/LAST_UPDATE_VALUE \
+            -f "name=LAST_UPDATE_VALUE" -f "value=${{ steps.check.outputs.current_commit_time }}"
 
       - name: 'Cancel job'
-        if: steps.check.outputs.current_commit_time == vars.LAST_UPDATE_COMMIT_TIME
+        if: steps.check.outputs.current_commit_time == vars.LAST_UPDATE_VALUE
         run: exit 1
 
   auto_deploy:
