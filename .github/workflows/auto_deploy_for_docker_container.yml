@@ -23,7 +23,7 @@ on:
         default: "master"
 
 jobs:
-  getting_date:
+  checking_to_use_the_latest_version:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
 
@@ -66,5 +66,5 @@ jobs:
         run: exit 1
 
   auto_deploy:
-    needs: getting_date
+    needs: checking_to_use_the_latest_version
     uses: ./.github/workflows/deploy_for_docker_container.yml
