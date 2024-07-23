@@ -45,7 +45,7 @@ jobs:
           else
             last_update_value=$(git ls-remote --tags --refs --sort="v:refname" "${{ inputs.repository_url }}" | tail -n1 | sed 's/.*\///')
           fi
-          echo "last_update_value=$(git log -1 --format=%ct)" >> $GITHUB_OUTPUT
+          echo "last_update_value=$last_update_value" >> $GITHUB_OUTPUT
 
       - name: 'Update variable'
         if: steps.check.outputs.last_update_value != vars.LAST_UPDATE_VALUE
@@ -54,17 +54,15 @@ jobs:
           OWNER: ${{ github.repository_owner }}
           REPO: ${{ github.event.repository.name }}
         run: |
-          echo ${{ steps.check.outputs.last_update_value }}
-          echo ${{ vars.LAST_UPDATE_VALUE }}
           gh api \
             --method PATCH \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             /repos/$OWNER/$REPO/environments/${{ inputs.environment }}/variables/LAST_UPDATE_VALUE \
-            -f "name=LAST_UPDATE_VALUE" -f "value=${{ steps.check.outputs.current_commit_time }}"
+            -f "name=LAST_UPDATE_VALUE" -f "value=${{ steps.check.outputs.last_update_value }}"
 
       - name: 'Cancel job'
-        if: steps.check.outputs.current_commit_time == vars.LAST_UPDATE_VALUE
+        if: steps.check.outputs.last_update_value == vars.LAST_UPDATE_VALUE
         run: exit 1
 
   auto_deploy:
