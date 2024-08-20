@@ -19,6 +19,11 @@ on:
         required: false
         default: "linux/amd64"
 
+permissions:
+  contents: write
+  # packages: write
+  # issues: write
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -39,26 +44,15 @@ jobs:
           go_version=$(cat go.mod | grep "go[[:space:]]" | sed 's/.*[[:space:]]//')
           echo "go_version=$go_version" >> $GITHUB_OUTPUT
 
-      - name: 'Global env'
-        id: global_env
-        run: |
-          echo "IMAGE_NAME=${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
-          echo "DOCKERHUB_IMAGE_NAME=docker.pkg.github.com/${{ inputs.github_user }}/${{ github.event.repository.name }}/${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
+      - name: 'Setup go'
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.set-go-version.outputs.go_version }}
 
-      - name: 'Version'
-        id: version
-        run: |
-          raw_tag=`echo $(git describe --tags --abbrev=0)`
-          echo "VERSION=${raw_tag#v}" >> $GITHUB_OUTPUT
-
-      - name: 'Build and tag image'
-        run: |
-          wget -O ./Dockerfile https://raw.githubusercontent.com/moogur/all-workflows/master/dockerfiles/deploy_go_backend.dockerfile
-          docker build --build-arg ARG_GO_VERSION="${{ steps.set-go-version.outputs.go_version }}" --build-arg ARG_APP_VERSION="${{ steps.version.outputs.VERSION }}" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:latest" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}" .
-
-      - name: 'Publish image'
-        if: "inputs.type == 'docker'"
-        run: |
-          docker login docker.pkg.github.com -u ${{ inputs.github_user }} -p ${{ secrets.GITHUB_TOKEN }}
-          docker push "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}"
-          docker push "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:latest"
+      - name: 'Run GoReleaser'
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}

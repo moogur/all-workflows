@@ -1,4 +1,4 @@
-name: Pull request annotation (jest, sonarqube)
+name: Pull request annotation (test, sonarqube)
 
 on:
   workflow_call:
