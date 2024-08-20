@@ -79,7 +79,6 @@ jobs:
       - name: 'Sonarqube scanner'
         uses: sonarsource/sonarqube-scan-action@master
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         with:
           projectBaseDir: '.'
@@ -89,3 +88,4 @@ jobs:
             -Dsonar.projectVersion="${{ steps.variables.outputs.latest_tag }}"
             -Dsonar.language=go
             -Dsonar.sources="${{ inputs.sonar_sources }}"
+            -Dsonar.token="${{ secrets.SONAR_TOKEN }}"
