@@ -7,7 +7,7 @@ on:
         description: "Working directory (below repository root)"
         type: string
         required: false
-        default: "./src"
+        default: "."
 
 permissions:
   contents: write
