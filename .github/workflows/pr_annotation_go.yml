@@ -1,0 +1,39 @@
+name: Pull request annotation (jest, sonarqube)
+
+on:
+  workflow_call:
+    inputs:
+      sonar_project_key:
+        description: "Repository key in sonarqube"
+        type: string
+        required: true
+      skip_tests:
+        description: "Skip pipeline tests"
+        type: string
+        required: false
+        default: 'false'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scanner:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: 'Set go version'
+        id: set-go-version
+        run: |
+          go_version=$(cat go.mod | grep "go[[:space:]]" | sed 's/.*[[:space:]]//')
+          echo "go_version=$go_version" >> $GITHUB_OUTPUT
+
+      - name: 'Setup go'
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.set-go-version.outputs.go_version }}

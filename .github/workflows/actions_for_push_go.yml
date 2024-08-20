@@ -1,0 +1,58 @@
+name: Sonarqube, test, lint, and deploy
+
+on:
+  workflow_call:
+    inputs:
+      skip_tests:
+        description: "Skip pipeline tests"
+        type: string
+        required: false
+        default: 'false'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actions:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: 'Set go version'
+        id: set-go-version
+        run: |
+          go_version=$(cat go.mod | grep "go[[:space:]]" | sed 's/.*[[:space:]]//')
+          echo "go_version=$go_version" >> $GITHUB_OUTPUT
+
+      - name: 'Setup go'
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.set-go-version.outputs.go_version }}
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run staticcheck
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          staticcheck ./...
+
+      - name: Run golint
+        run: |
+          go install golang.org/x/lint/golint@latest
+          golint ./...
+
+      - name: Run tests
+        if: "inputs.skip_tests != 'true'"
+        run: go test -race -vet=off ./...
