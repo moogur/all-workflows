@@ -42,6 +42,7 @@ jobs:
       - name: 'Run GoReleaser'
         uses: goreleaser/goreleaser-action@v6
         with:
+          distribution: goreleaser
           version: '~> v2'
           args: release --clean
           workdir: ${{ inputs.workdir }}
