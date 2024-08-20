@@ -55,8 +55,6 @@ jobs:
           sed -i "s|private_task_id=|private_task_id=$task_id|" ./requests.sh
           echo "task_id=${task_id}" >> $GITHUB_OUTPUT
 
-          echo task_id $task_id
-
           . ./requests.sh
 
           task_info=`echo $(request_for_get_info_task)`
