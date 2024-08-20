@@ -3,21 +3,11 @@ name: Deploy for backend
 on:
   workflow_call:
     inputs:
-      github_user:
-        description: "The Github user who started workflow"
+      workdir:
+        description: "Working directory (below repository root)"
         type: string
         required: false
-        default: $GITHUB_ACTOR
-      type:
-        description: "Type of assembly"
-        type: string
-        required: false
-        default: "binary" # binary | docker
-      repository_branch: # need for binary type
-        description: "Assembly architecture, a space-separated list"
-        type: string
-        required: false
-        default: "linux/amd64"
+        default: "./src"
 
 permissions:
   contents: write
@@ -54,5 +44,6 @@ jobs:
         with:
           version: '~> v2'
           args: release --clean
+          workdir: ${{ inputs.workdir }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
