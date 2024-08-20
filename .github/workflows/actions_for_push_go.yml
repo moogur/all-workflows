@@ -87,6 +87,6 @@ jobs:
           language: go
           sources: ${{ inputs.sonar_sources }}
           projectName: ${{ inputs.project_name }}
-          projectKey: ${{ inputs.project_key }}
           args: >
             -Dsonar.branch.name=${{ github.ref_name }}
+            -Dsonar.projectKey=${{ inputs.project_key }}
