@@ -22,7 +22,7 @@ jobs:
           echo "VERSION=${tag#v}" >> $GITHUB_OUTPUT
 
       - name: 'Publish release'
-        uses: release-drafter/release-drafter@v5
+        uses: release-drafter/release-drafter@v6
         with:
           version: ${{ steps.version.outputs.VERSION }}
           publish: true
