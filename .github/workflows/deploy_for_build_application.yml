@@ -31,6 +31,7 @@ jobs:
       - name: Build project
         run: |
           . ${{ inputs.file_path }}
+          ls -la .
 
       - name: Create Release
         id: create_release
