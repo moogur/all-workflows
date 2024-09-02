@@ -1,0 +1,76 @@
+name: Auto deploy for build application
+
+on:
+  workflow_call:
+    inputs:
+      repository_url:
+        description: "Url for git repository"
+        type: string
+        required: true
+      environment:
+        description: "Environment"
+        type: string
+        required: true
+      type:
+        description: "The type of definition of the latest version"
+        type: string
+        required: false
+        default: "commit" # commit | tag
+      repository_branch: # need for commit type
+        description: "Branch to check for updates"
+        type: string
+        required: false
+        default: "master"
+      file_path:
+        description: "The path to the execution file"
+        type: string
+        required: true
+
+jobs:
+  checking_to_use_the_latest_version:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 'Check'
+        id: check
+        run: |
+          if [[ "${{ inputs.type }}" == "commit" ]]; then
+            git clone --depth=1 --single-branch -b "${{ inputs.repository_branch }}" "${{ inputs.repository_url }}" temp_repository
+            cd temp_repository || exit
+            last_update_value=$(git log -1 --format=%ct)
+            cd ..
+            rm -fr temp_repository
+          else
+            last_update_value=$(git ls-remote --tags --refs --sort="v:refname" "${{ inputs.repository_url }}" | tail -n1 | sed 's/.*\///')
+          fi
+          echo "last_update_value=$last_update_value" >> $GITHUB_OUTPUT
+
+      - name: 'Update variable'
+        if: steps.check.outputs.last_update_value != vars.LAST_UPDATE_VALUE
+        env:
+          GH_TOKEN: ${{ secrets.UPDATE_VARIABLES_CLI_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/$OWNER/$REPO/environments/${{ inputs.environment }}/variables/LAST_UPDATE_VALUE \
+            -f "name=LAST_UPDATE_VALUE" -f "value=${{ steps.check.outputs.last_update_value }}"
+
+      - name: 'Cancel job'
+        if: steps.check.outputs.last_update_value == vars.LAST_UPDATE_VALUE
+        run: exit 1
+
+  auto_deploy:
+    needs: checking_to_use_the_latest_version
+    uses: ./.github/workflows/deploy_for_build_application.yml
+    with:
+      file_path: ${{ inputs.repository_branch }}
