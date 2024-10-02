@@ -1,0 +1,7 @@
+.git
+.vscode
+.editorconfig
+.gitignore
+app.code-workspace
+Makefile
+README.md
