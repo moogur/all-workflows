@@ -106,6 +106,6 @@ jobs:
             -Dsonar.branch.name=${{ github.ref_name }}
             -Dsonar.projectKey=${{ inputs.sonar_project_key }}
             -Dsonar.projectVersion="${{ steps.variables.outputs.latest_tag }}"
-            -Dsonar.language=go
+            -Dsonar.language=ts
             -Dsonar.sources="${{ inputs.sonar_sources }}"
             -Dsonar.projectName="${{ inputs.sonar_project_name }}"
