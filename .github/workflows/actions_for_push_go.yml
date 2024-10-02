@@ -107,3 +107,4 @@ jobs:
             -Dsonar.projectVersion="${{ steps.variables.outputs.latest_tag }}"
             -Dsonar.language=go
             -Dsonar.sources="${{ inputs.sonar_sources }}"
+            -Dsonar.projectName="${{ inputs.sonar_project_name }}"

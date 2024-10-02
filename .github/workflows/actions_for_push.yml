@@ -18,6 +18,21 @@ on:
         type: string
         required: false
         default: '.'
+      sonar_sources:
+        description: "Comma-separated paths to directories containing main source files"
+        type: string
+        required: false
+        default: 'src'
+      sonar_project_name:
+        description: "Name of the project that will be displayed on the web interface"
+        type: string
+        required: false
+        default: ''
+      sonar_project_key:
+        description: "The project's unique key"
+        type: string
+        required: false
+        default: ''
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.folder }}
@@ -81,10 +96,16 @@ jobs:
 
       - name: 'Sonarqube scanner'
         if: "inputs.skip_sonar != 'true'"
+        uses: sonarsource/sonarqube-scan-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          ANALYZE_BRANCH: ${{ github.ref_name }}
-          LATEST_TAG: ${{ steps.variables.outputs.latest_tag }}
-        run: |
-          npm run sonar:publish
+        with:
+          projectBaseDir: '.'
+          args: >
+            -Dsonar.branch.name=${{ github.ref_name }}
+            -Dsonar.projectKey=${{ inputs.sonar_project_key }}
+            -Dsonar.projectVersion="${{ steps.variables.outputs.latest_tag }}"
+            -Dsonar.language=go
+            -Dsonar.sources="${{ inputs.sonar_sources }}"
+            -Dsonar.projectName="${{ inputs.sonar_project_name }}"
