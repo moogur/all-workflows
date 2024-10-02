@@ -79,9 +79,8 @@ jobs:
 
       - name: Run golint
         run: |
-          go install golang.org/x/lint/golint@latest
-          golint ./...
-          ls -la .
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          golangci-lint run ./... --out-format=checkstyle > report.xml
 
       - name: Run tests
         if: "inputs.skip_tests != 'true'"
@@ -108,3 +107,4 @@ jobs:
             -Dsonar.projectVersion="${{ steps.variables.outputs.latest_tag }}"
             -Dsonar.sources="${{ inputs.sonar_sources }}"
             -Dsonar.projectName="${{ inputs.sonar_project_name }}"
+            -Dsonar.go.golangci-lint.reportPaths=report.xml
