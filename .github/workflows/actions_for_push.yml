@@ -35,7 +35,7 @@ jobs:
 
       - name: 'Prepare working folder'
         if: "inputs.folder != '.'"
-        run: cp ${{ inputs.environment }}/* .
+        run: cp ${{ inputs.folder }}/* .
 
       - name: 'Set node version'
         id: set-node-version
