@@ -87,14 +87,14 @@ jobs:
         run: go test -race -vet=off ./...
 
       - name: 'Set variables'
-        if: "inputs.sonar != 'true'"
+        if: "inputs.skip_sonar != 'true'"
         id: variables
         run: |
           raw_tag=`echo $(git describe --tags --abbrev=0)`
           echo "latest_tag=${raw_tag#v}" >> $GITHUB_OUTPUT
 
       - name: 'Sonarqube scanner'
-        if: "inputs.sonar != 'true'"
+        if: "inputs.skip_sonar != 'true'"
         uses: sonarsource/sonarqube-scan-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
