@@ -6,15 +6,26 @@ on:
       sonar_project_key:
         description: "Repository key in sonarqube"
         type: string
-        required: true
+        required: false
+        default: ''
       skip_tests:
         description: "Skip pipeline tests"
         type: string
         required: false
         default: 'false'
+      skip_sonar:
+        description: "Skip pipeline sonar"
+        type: string
+        required: false
+        default: 'false'
+      folder:
+        description: "Working folder"
+        type: string
+        required: false
+        default: '.'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.folder }}
   cancel-in-progress: true
 
 jobs:
@@ -26,6 +37,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: 'Prepare working folder'
+        if: "inputs.folder != '.'"
+        run: cp -r ${{ inputs.folder }}/. .
 
       - name: 'Set go version'
         id: set-go-version
