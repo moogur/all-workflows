@@ -20,7 +20,7 @@ on:
         default: '.'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.folder }}
   cancel-in-progress: true
 
 jobs:
