@@ -50,7 +50,7 @@ jobs:
 
       - name: 'Prepare working folder'
         if: "inputs.folder != '.'"
-        run: cp ${{ inputs.folder }}/* .
+        run: cp -r ${{ inputs.folder }}/* .
 
       - name: 'Set go version'
         id: set-go-version
