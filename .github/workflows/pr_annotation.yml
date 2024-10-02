@@ -3,11 +3,6 @@ name: Pull request annotation (jest, sonarqube)
 on:
   workflow_call:
     inputs:
-      sonar_project_key:
-        description: "Repository key in sonarqube"
-        type: string
-        required: false
-        default: ''
       skip_tests:
         description: "Skip pipeline tests"
         type: string
@@ -18,6 +13,21 @@ on:
         type: string
         required: false
         default: 'false'
+      sonar_sources:
+        description: "Comma-separated paths to directories containing main source files"
+        type: string
+        required: false
+        default: 'src'
+      sonar_project_name:
+        description: "Name of the project that will be displayed on the web interface"
+        type: string
+        required: false
+        default: ''
+      sonar_project_key:
+        description: "The project's unique key"
+        type: string
+        required: false
+        default: ''
       folder:
         description: "Working folder"
         type: string
@@ -83,13 +93,19 @@ jobs:
 
       - name: 'Sonarqube scanner'
         if: "inputs.skip_sonar != 'true'"
+        uses: sonarsource/sonarqube-scan-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          ANALYZE_BRANCH: ${{ github.head_ref }}
-          LATEST_TAG: ${{ steps.variables.outputs.latest_tag }}
-        run: |
-          npm run sonar:publish
+        with:
+          projectBaseDir: '.'
+          args: >
+            -Dsonar.branch.name=${{ github.head_ref }}
+            -Dsonar.projectKey=${{ inputs.sonar_project_key }}
+            -Dsonar.projectVersion="${{ steps.variables.outputs.latest_tag }}"
+            -Dsonar.language=ts
+            -Dsonar.sources="${{ inputs.sonar_sources }}"
+            -Dsonar.projectName="${{ inputs.sonar_project_name }}"
 
       - name: 'Sonarqube pull request comment'
         if: "inputs.skip_sonar != 'true'"
