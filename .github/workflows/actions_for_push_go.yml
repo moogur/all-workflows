@@ -26,11 +26,13 @@ on:
       sonar_project_name:
         description: "Name of the project that will be displayed on the web interface"
         type: string
-        required: true
+        required: false
+        default: ''
       sonar_project_key:
         description: "The project's unique key"
         type: string
-        required: true
+        required: false
+        default: ''
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
