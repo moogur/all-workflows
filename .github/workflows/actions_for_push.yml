@@ -44,13 +44,13 @@ jobs:
           echo "node_version=${node_version:1:-1}" >> $GITHUB_OUTPUT
 
       - name: 'Setup node'
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ steps.set-node-version.outputs.node_version }}
 
       - name: 'Cache node modules'
         id: cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: '**/node_modules'
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
