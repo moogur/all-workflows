@@ -107,12 +107,12 @@ jobs:
             -Dsonar.sources="${{ inputs.sonar_sources }}"
             -Dsonar.projectName="${{ inputs.sonar_project_name }}"
 
-      - name: 'Sonarqube pull request comment'
-        if: "inputs.skip_sonar != 'true'"
-        uses: moogur/sonarqube-pr-comment@master
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_PROJECT_KEY: ${{ inputs.sonar_project_key }}
-          GIT_BRANCH: ${{ github.head_ref }}
+      # - name: 'Sonarqube pull request comment'
+      #   if: "inputs.skip_sonar != 'true'"
+      #   uses: moogur/sonarqube-pr-comment@master
+      #   with:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      #     SONAR_PROJECT_KEY: ${{ inputs.sonar_project_key }}
+      #     GIT_BRANCH: ${{ github.head_ref }}
