@@ -36,7 +36,7 @@ jobs:
       - name: "Remove husky from package.json"
         run: |
           new_package_json=$(jq 'del(.scripts.prepare)' package.json)
-          rm -f package.json
+          rm -f package.json package-lock.json
           echo $new_package_json > package.json
 
       - name: 'Cache node modules'
