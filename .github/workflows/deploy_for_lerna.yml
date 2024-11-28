@@ -28,11 +28,6 @@ jobs:
         with:
           node-version: ${{ steps.set-node-version.outputs.node_version }}
 
-      - name: "Setup npm"
-        run: |
-          npm set @moogur:registry=https://npm.pkg.github.com/
-          npm set "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}"
-
       - name: "Setup git"
         run: |
           git config user.name "${{ github.actor }}"
@@ -40,14 +35,26 @@ jobs:
 
       - name: "Remove husky from package.json"
         run: |
-          new_package_json=$(jq 'del(.scripts)' package.json)
+          new_package_json=$(jq 'del(.scripts.prepare)' package.json)
           rm -f package.json
           echo $new_package_json > package.json
 
+      - name: 'Cache node modules'
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+
+      - name: 'Install'
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          npm set @moogur:registry=https://npm.pkg.github.com/
+          npm set "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}"
+          npm ci
+
       - name: "Prepared packages"
         run: |
-          cd ./builders/vite-config
-          npm install
           npm run build
 
       - name: "Publish packages"
