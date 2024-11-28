@@ -51,7 +51,7 @@ jobs:
         run: |
           npm set @moogur:registry=https://npm.pkg.github.com/
           npm set "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}"
-          npm ci
+          npm i
 
       - name: "Prepared packages"
         run: |
