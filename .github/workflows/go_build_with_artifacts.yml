@@ -56,11 +56,11 @@ jobs:
       - name: Build
         run: |
           make build GOOS=${{ inputs.goos }} GOARCH=${{ inputs.goarch }} PROJECTNAME=${{ inputs.projectname }}
-          zip ./bin/${{ inputs.projectname }}.zip ./bin/${{ inputs.projectname }}
+          zip ./${{ inputs.projectname }}.zip ./bin/${{ inputs.projectname }}
 
       - name: Upload production-ready build files
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.projectname }}
-          path: ./bin/${{ inputs.projectname }}.zip
+          path: ./${{ inputs.projectname }}.zip
           retention-days: 1
