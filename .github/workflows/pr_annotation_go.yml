@@ -45,7 +45,6 @@ jobs:
           go-version: ${{ steps.set-go-version.outputs.go_version }}
 
       - name: Run golint
-        if: "inputs.skip_tests != 'true'"
         run: |
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-          golangci-lint run ./... --out-format=checkstyle > report.xml
+          go install golang.org/x/lint/golint@latest
+          golint ./...
