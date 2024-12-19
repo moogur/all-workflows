@@ -55,7 +55,6 @@ jobs:
 
       - name: Build
         run: |
-          apt-get install zip -y
           make build GOOS=${{ inputs.goos }} GOARCH=${{ inputs.goarch }} PROJECTNAME=${{ inputs.projectname }}
           zip ./bin/${{ inputs.projectname }}.zip ./bin/${{ inputs.projectname }}
 
