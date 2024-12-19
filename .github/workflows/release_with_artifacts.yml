@@ -40,7 +40,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.projectname }}
-          path: ./bin/${{ inputs.projectname }}.zip
+          path: ./${{ inputs.projectname }}.zip
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
