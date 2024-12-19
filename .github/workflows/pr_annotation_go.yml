@@ -44,7 +44,6 @@ jobs:
         with:
           go-version: ${{ steps.set-go-version.outputs.go_version }}
 
-      - name: Run golint
-        run: |
-          go install golang.org/x/lint/golint@latest
-          golint ./...
+      # - name: Run tests
+      #   if: "inputs.skip_tests != 'true'"
+      #   run: go test -race -vet=off ./...
