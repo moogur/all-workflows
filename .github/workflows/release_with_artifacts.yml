@@ -42,6 +42,9 @@ jobs:
           name: ${{ inputs.projectname }}
           path: ./${{ inputs.projectname }}.zip
 
+      - name: ls
+        run: ls -la .
+
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
@@ -49,5 +52,5 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./${{ inputs.projectname }}.zip
-          asset_name: ${{ inputs.projectname }}
+          asset_name: ${{ inputs.projectname }}.zip
           asset_content_type: application/zip
