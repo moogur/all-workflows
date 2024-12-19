@@ -1,4 +1,4 @@
-name: Pull request annotation (jest, sonarqube)
+name: Pull request annotation (jest)
 
 on:
   workflow_call:
@@ -8,26 +8,6 @@ on:
         type: string
         required: false
         default: 'false'
-      skip_sonar:
-        description: "Skip pipeline sonar"
-        type: string
-        required: false
-        default: 'false'
-      sonar_sources:
-        description: "Comma-separated paths to directories containing main source files"
-        type: string
-        required: false
-        default: 'src'
-      sonar_project_name:
-        description: "Name of the project that will be displayed on the web interface"
-        type: string
-        required: false
-        default: ''
-      sonar_project_key:
-        description: "The project's unique key"
-        type: string
-        required: false
-        default: ''
       folder:
         description: "Working folder"
         type: string
@@ -83,36 +63,3 @@ jobs:
         with:
           annotations: failed-tests
           test-script: npm run test:coverage
-
-      - name: 'Set variables'
-        if: "inputs.skip_sonar != 'true'"
-        id: variables
-        run: |
-          raw_tag=`echo $(git describe --tags --abbrev=0)`
-          echo "latest_tag=${raw_tag#v}" >> $GITHUB_OUTPUT
-
-      - name: 'Sonarqube scanner'
-        if: "inputs.skip_sonar != 'true'"
-        uses: sonarsource/sonarqube-scan-action@master
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        with:
-          projectBaseDir: '.'
-          args: >
-            -Dsonar.branch.name=${{ github.head_ref }}
-            -Dsonar.projectKey=${{ inputs.sonar_project_key }}
-            -Dsonar.projectVersion="${{ steps.variables.outputs.latest_tag }}"
-            -Dsonar.language=ts
-            -Dsonar.sources="${{ inputs.sonar_sources }}"
-            -Dsonar.projectName="${{ inputs.sonar_project_name }}"
-
-      # - name: 'Sonarqube pull request comment'
-      #   if: "inputs.skip_sonar != 'true'"
-      #   uses: moogur/sonarqube-pr-comment@master
-      #   with:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      #     SONAR_PROJECT_KEY: ${{ inputs.sonar_project_key }}
-      #     GIT_BRANCH: ${{ github.head_ref }}

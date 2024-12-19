@@ -1,0 +1,53 @@
+name: Release with artifacts
+
+on:
+  workflow_call:
+    inputs:
+      projectname:
+        description: "Project name"
+        type: string
+        required: false
+        default: 'main'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v4
+
+      - name: 'Version'
+        id: version
+        run: |
+          tag=${GITHUB_REF/refs\/tags\//}
+          echo "VERSION=${tag#v}" >> $GITHUB_OUTPUT
+
+      - name: 'Publish release'
+        id: create_release
+        uses: release-drafter/release-drafter@v6
+        with:
+          version: ${{ steps.version.outputs.VERSION }}
+          publish: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.projectname }}
+          path: ./bin/${{ inputs.projectname }}.zip
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./bin/${{ inputs.projectname }}.zip
+          asset_name: ${{ inputs.projectname }}
+          asset_content_type: application/zip

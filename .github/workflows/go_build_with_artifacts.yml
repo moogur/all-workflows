@@ -1,0 +1,67 @@
+name: Build with artifacts
+
+on:
+  workflow_call:
+    inputs:
+      folder:
+        description: "Working folder"
+        type: string
+        required: false
+        default: '.'
+      goos:
+        description: "OS"
+        type: string # linux, darwin, windows, freebsd, netbsd, openbsd, dragonfly, plan9, nacl, android
+        required: false
+        default: 'linux'
+      goarch:
+        description: "Architecture"
+        type: string  # 386, amd64, amd64p32, arm
+        required: false
+        default: 'amd64'
+      projectname:
+        description: "Project name"
+        type: string
+        required: false
+        default: 'main'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.folder }}
+  cancel-in-progress: true
+
+jobs:
+  actions:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 'Prepare working folder'
+        if: "inputs.folder != '.'"
+        run: cp -r ${{ inputs.folder }}/. .
+
+      - name: 'Set go version'
+        id: set-go-version
+        run: |
+          go_version=$(cat go.mod | grep "go[[:space:]]" | sed 's/.*[[:space:]]//')
+          echo "go_version=$go_version" >> $GITHUB_OUTPUT
+
+      - name: 'Setup go'
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.set-go-version.outputs.go_version }}
+
+      - name: Build
+        run: |
+          apt-get install zip -y
+          make build GOOS=${{ inputs.goos }} GOARCH=${{ inputs.goarch }} PROJECTNAME=${{ inputs.projectname }}
+          zip ./bin/${{ inputs.projectname }}.zip ./bin/${{ inputs.projectname }}
+
+      - name: Upload production-ready build files
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.projectname }}
+          path: ./bin/${{ inputs.projectname }}.zip
+          retention-days: 1
