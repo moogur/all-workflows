@@ -1,0 +1,63 @@
+name: Release
+
+on:
+  workflow_call:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 'Set node version'
+        id: set-node-version
+        run: |
+          node_version=$(jq '.engines.node' package.json)
+          echo "node_version=${node_version:1:-1}" >> $GITHUB_OUTPUT
+
+      - name: 'Setup node'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.set-node-version.outputs.node_version }}
+
+      - name: 'Cache node modules'
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+
+      - name: 'Install'
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          npm set @moogur:registry=https://npm.pkg.github.com/
+          npm set "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}"
+          npm ci
+
+      - name: 'Build'
+        run: npm run build
+
+      - name: 'Set up Git'
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+
+      - name: 'Create a build branch'
+        run: |
+          git checkout -b builds
+          git rm -rf .
+          cp -r dist/* .
+          git add .
+          git commit -m "Deploy build"
+
+      - name: 'Push to build branch'
+        run: |
+          git push origin builds --force
