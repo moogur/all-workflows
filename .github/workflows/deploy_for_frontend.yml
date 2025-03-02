@@ -52,10 +52,10 @@ jobs:
 
       - name: 'Create a build branch'
         run: |
-          find . -mindepth 1 -not -name 'dist' -exec rm -rf {} +
           git checkout -b builds
           git rm -rf .
           cp -r dist/* .
+          rm -fr node_modules
           rm -fr dist
           git add .
           git commit -m "Deploy build"
