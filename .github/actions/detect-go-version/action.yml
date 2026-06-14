@@ -1,0 +1,21 @@
+name: 'Detect Go version'
+description: 'Считывает версию Go из директивы go в go.mod'
+
+inputs:
+  working-directory:
+    description: 'Каталог, содержащий go.mod'
+    required: false
+    default: '.'
+
+outputs:
+  version:
+    description: 'Найденная версия Go'
+    value: ${{ steps.detect.outputs.version }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: detect
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: bash "$GITHUB_ACTION_PATH/detect.sh"

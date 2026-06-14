@@ -1,14 +1,18 @@
+# Автодеплой: проверяет новизну во внешнем репозитории и при изменении запускает
+# deploy_for_build_application. «Последняя увиденная» версия — в переменной
+# LAST_UPDATE_VALUE нужного GitHub Environment. Переиспользуемый workflow.
+# Секреты: UPDATE_VARIABLES_CLI_TOKEN (PAT для записи переменной), GITHUB_TOKEN.
 name: Auto deploy for build application
 
 on:
   workflow_call:
     inputs:
       repository_url:
-        description: "Url for git repository"
+        description: "Url for git repository"  # отслеживаемый внешний репозиторий
         type: string
         required: true
       environment:
-        description: "Environment"
+        description: "Environment"  # GitHub Environment, где лежит LAST_UPDATE_VALUE
         type: string
         required: true
       type:
@@ -69,6 +73,8 @@ jobs:
         if: steps.check.outputs.last_update_value == vars.LAST_UPDATE_VALUE
         run: exit 1
 
+  # Запускается только если версия изменилась (предыдущий job прошёл).
+  # В этом сценарии путь к скрипту сборки совпадает со значением repository_branch.
   auto_deploy:
     needs: checking_to_use_the_latest_version
     uses: ./.github/workflows/deploy_for_build_application.yml

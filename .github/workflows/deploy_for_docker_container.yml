@@ -1,10 +1,13 @@
+# Универсальная сборка и публикация Docker-образа по локальному Dockerfile проекта
+# (в отличие от deploy_for_backend/go — здесь Dockerfile не скачивается).
+# Переиспользуемый workflow (workflow_call). Секрет: GITHUB_TOKEN.
 name: Deploy for docker container
 
 on:
   workflow_call:
     inputs:
       github_user:
-        description: "The Github user who started workflow"
+        description: "The Github user who started workflow"  # владелец образа / логин в реестр
         type: string
         required: false
         default: $GITHUB_ACTOR
@@ -29,6 +32,9 @@ jobs:
           echo "IMAGE_NAME=${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
           echo "DOCKERHUB_IMAGE_NAME=docker.pkg.github.com/${{ inputs.github_user }}/${{ github.event.repository.name }}/${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
 
+      # Версия тега: при push берём последний git-тег, иначе (ручной/авто-запуск)
+      # генерим метку вида dd.mm.yyyy-auto. Здесь своя inline-логика (не app-version)
+      # именно из-за этого fallback без тега.
       - name: "Determining the version"
         id: version
         run: |

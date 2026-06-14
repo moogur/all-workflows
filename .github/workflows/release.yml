@@ -1,3 +1,6 @@
+# Публикация GitHub-релиза по тегу через Release Drafter
+# (категории/инкремент версии — в .github/release-drafter.yml).
+# Переиспользуемый workflow (workflow_call); запускается на push тега.
 name: Release
 
 on:
@@ -15,16 +18,17 @@ jobs:
       - name: 'Checkout'
         uses: actions/checkout@v4
 
+      # mode: ref — версия берётся из тега, инициировавшего запуск (GITHUB_REF).
       - name: 'Version'
         id: version
-        run: |
-          tag=${GITHUB_REF/refs\/tags\//}
-          echo "VERSION=${tag#v}" >> $GITHUB_OUTPUT
+        uses: moogur/all-workflows/.github/actions/app-version@master
+        with:
+          mode: ref
 
       - name: 'Publish release'
         uses: release-drafter/release-drafter@v6
         with:
-          version: ${{ steps.version.outputs.VERSION }}
+          version: ${{ steps.version.outputs.version }}
           publish: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

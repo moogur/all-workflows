@@ -1,19 +1,22 @@
-name: Test, lint, and deploy
+# CI для Go-проекта: сборка → vet → статанализ → тесты.
+# Переиспользуемый workflow (вызывается через `uses: ...@<ref>`).
+name: Test, lint, and build (Go)
 
 on:
   workflow_call:
     inputs:
       skip_tests:
-        description: "Skip pipeline tests"
+        description: "Skip pipeline tests"  # 'true' — пропустить шаг тестов
         type: string
         required: false
         default: 'false'
       folder:
-        description: "Working folder"
+        description: "Working folder"  # подпапка монорепозитория; '.' — корень
         type: string
         required: false
         default: '.'
 
+# Новый запуск для той же ветки/папки отменяет предыдущий незавершённый.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.folder }}
   cancel-in-progress: true
@@ -28,23 +31,23 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Для монорепозитория: переносим содержимое подпапки в корень рабочей директории.
       - name: 'Prepare working folder'
         if: "inputs.folder != '.'"
         run: cp -r ${{ inputs.folder }}/. .
 
-      - name: 'Set go version'
-        id: set-go-version
-        run: |
-          go_version=$(cat go.mod | grep "go[[:space:]]" | sed 's/.*[[:space:]]//')
-          echo "go_version=$go_version" >> $GITHUB_OUTPUT
+      # Версия Go берётся из директивы `go` в go.mod.
+      - name: 'Detect Go version'
+        id: go
+        uses: moogur/all-workflows/.github/actions/detect-go-version@master
 
       - name: 'Setup go'
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.set-go-version.outputs.go_version }}
+          go-version: ${{ steps.go.outputs.version }}
 
       - name: Verify dependencies
-        run: go mod verify
+        run: go mod verify  # проверка контрольных сумм зависимостей
 
       - name: Build
         run: go build -v ./...
@@ -52,11 +55,13 @@ jobs:
       - name: Run go vet
         run: go vet ./...
 
+      # Статанализ honnef.co/staticcheck (ставится на лету).
       - name: Run staticcheck
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@latest
           staticcheck ./...
 
+      # ВНИМАНИЕ: golint заархивирован; см. docs/modernization.md (замена — golangci-lint).
       - name: Run golint
         run: |
           go install golang.org/x/lint/golint@latest
@@ -64,4 +69,4 @@ jobs:
 
       - name: Run tests
         if: "inputs.skip_tests != 'true'"
-        run: go test -race -vet=off ./...
+        run: go test -race -vet=off ./...  # -race: детектор гонок

@@ -1,10 +1,13 @@
+# Выполняет произвольный скрипт сборки, создаёт GitHub-релиз и прикладывает
+# application.zip (скрипт должен сам создать этот файл в корне).
+# Переиспользуемый workflow (workflow_call). Секрет: GITHUB_TOKEN.
 name: Deploy for build application
 
 on:
   workflow_call:
     inputs:
       file_path:
-        description: "The path to the execution file"
+        description: "The path to the execution file"  # скрипт сборки, запускается через `. <file_path>`
         type: string
         required: true
 
@@ -22,24 +25,27 @@ jobs:
         with:
           fetch-depth: 0
 
+      # prefix: '' — тег используется как есть, без снятия префикса.
       - name: "Determining the version"
         id: version
-        run: |
-          raw_tag=`echo $(git describe --tags --abbrev=0)`
-          echo "VERSION=${raw_tag}" >> $GITHUB_OUTPUT
+        uses: moogur/all-workflows/.github/actions/app-version@master
+        with:
+          prefix: ''
 
+      # Запуск пользовательского скрипта сборки в текущей оболочке (source).
       - name: Build project
         run: |
           . ${{ inputs.file_path }}
 
+      # ПРИМЕЧАНИЕ: create-release/upload-release-asset заархивированы; см. docs/modernization.md.
       - name: Create Release
         id: create_release
         uses: actions/create-release@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.version.outputs.VERSION }}
-          release_name: Release ${{ steps.version.outputs.VERSION }}
+          tag_name: ${{ steps.version.outputs.version }}
+          release_name: Release ${{ steps.version.outputs.version }}
           draft: false
           prerelease: false
 

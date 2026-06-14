@@ -1,4 +1,10 @@
-#!/opt/homebrew/bin/bash
+#!/usr/bin/env bash
+
+# Git-хук (husky): валидация сообщения коммита.
+# Ожидаемый формат:  [GA-<число>] <type>(<scope>): <subject>
+# Пример:            [GA-557] feature(frontend): add deploy spa and pwa
+# Правила: type из списка ниже; scope и subject — нижний регистр; subject ≤ 125.
+# Подключается через "prepare": "husky install" в package.json.
 
 # check commit message
 # - not empty
@@ -40,6 +46,8 @@ function checkLowercase() {
 }
 
 # - include type
+# ВНИМАНИЕ: сравнение подстрочное (без якорей) — например, 'feat' пройдёт как
+# часть 'feature'. Это зафиксировано в tests/commit-msg.bats как особенность.
 function includeInTypes() {
   local value="$1"
   local types_array=(feature bugfix ci config refactor test docs)
@@ -64,11 +72,12 @@ function validateTaskNumber() {
 }
 
 # variables
+# $1 — путь к файлу с текстом коммита (передаёт git). Разбираем его на части:
 commit=$(cat "$1")
-task_number=$(echo "$commit" | awk -F' ' '{print $1}')
-type=$(echo "$commit" | awk -F'] ' '{print $2}' | awk -F'(' '{print $1}')
-scope=$(echo "$commit" | awk -F'(' '{print $2}' | awk -F')' '{print $1}')
-message=$(echo "$commit" | awk -F': ' '{print $2}')
+task_number=$(echo "$commit" | awk -F' ' '{print $1}')                  # первый токен: [GA-123]
+type=$(echo "$commit" | awk -F'] ' '{print $2}' | awk -F'(' '{print $1}')  # между "] " и "("
+scope=$(echo "$commit" | awk -F'(' '{print $2}' | awk -F')' '{print $1}')  # между "(" и ")"
+message=$(echo "$commit" | awk -F': ' '{print $2}')                     # после первого ": "
 
 # checking
 ## TASK NUMBER

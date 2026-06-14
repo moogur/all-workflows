@@ -1,10 +1,14 @@
+# Кросс-компиляция Go через `make build` и загрузка результата как артефакта
+# GitHub Actions (хранится 1 день). Обычно используется в паре с release_with_artifacts.
+# Требует Makefile с целью build (GOOS/GOARCH/PROJECTNAME → ./bin/<projectname>).
+# Переиспользуемый workflow (workflow_call).
 name: Build with artifacts
 
 on:
   workflow_call:
     inputs:
       folder:
-        description: "Working folder"
+        description: "Working folder"  # подпапка монорепозитория; '.' — корень
         type: string
         required: false
         default: '.'
@@ -42,16 +46,14 @@ jobs:
         if: "inputs.folder != '.'"
         run: cp -r ${{ inputs.folder }}/. .
 
-      - name: 'Set go version'
-        id: set-go-version
-        run: |
-          go_version=$(cat go.mod | grep "go[[:space:]]" | sed 's/.*[[:space:]]//')
-          echo "go_version=$go_version" >> $GITHUB_OUTPUT
+      - name: 'Detect Go version'
+        id: go
+        uses: moogur/all-workflows/.github/actions/detect-go-version@master
 
       - name: 'Setup go'
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.set-go-version.outputs.go_version }}
+          go-version: ${{ steps.go.outputs.version }}
 
       - name: Build
         run: |

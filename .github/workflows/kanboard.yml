@@ -1,3 +1,6 @@
+# Перемещает задачи Kanboard по колонкам в зависимости от события Git
+# (push/pr/merge/deploy). Логика работы с API — в scripts/kanboard_requests.sh.
+# Переиспользуемый workflow (workflow_call). Секреты: KANBOARD_HOST/USER/TOKEN.
 name: Kanboard for single branch
 
 on:
@@ -8,11 +11,11 @@ on:
         type: string
         required: true
       project_type:
-        description: "Type of project used"
+        description: "Type of project used"  # single_branch | multi_branch
         type: string # single_branch, multi_branch
         required: true
       event_type:
-        description: "Event type"
+        description: "Event type"  # push | pr | merge | deploy
         type: string # push, pr, merge, deploy
         required: true
 
@@ -25,14 +28,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Репозиторий-потребитель (его задачи двигаем; нужна история для шага deploy).
       - name: 'Checkout'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # Этот репозиторий (all-workflows), запиненный к версии вызванного workflow,
+      # чтобы взять kanboard_requests.sh без wget с master. Кладём в подпапку.
+      - name: 'Checkout all-workflows'
+        uses: actions/checkout@v4
+        with:
+          repository: moogur/all-workflows
+          ref: ${{ github.job_workflow_sha }}
+          path: .all-workflows
+
+      # Копируем библиотеку в рабочую директорию и подставляем хост/учётные данные.
       - name: 'Save script'
         run: |
-          wget -O ./requests.sh https://raw.githubusercontent.com/moogur/all-workflows/master/scripts/kanboard_requests.sh
+          cp .all-workflows/scripts/kanboard_requests.sh ./requests.sh
           chmod +x ./requests.sh
 
           sed -i "s|private_url=|private_url=${{ secrets.KANBOARD_HOST }}|" ./requests.sh

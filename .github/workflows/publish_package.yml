@@ -1,3 +1,6 @@
+# Сборка и публикация npm-пакета в GitHub Packages.
+# Требует зависимость @moogur/helpers (скрипт pre-build.js).
+# Переиспользуемый workflow (workflow_call). Секрет: GITHUB_TOKEN.
 name: Publish package
 
 on:
@@ -17,34 +20,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 'Set node version'
-        id: set-node-version
-        run: |
-          node_version=$(jq '.engines.node' package.json)
-          echo "node_version=${node_version:1:-1}" >> $GITHUB_OUTPUT
-
       - name: 'Setup node'
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ steps.set-node-version.outputs.node_version }}
+        uses: moogur/all-workflows/.github/actions/setup-node@master
 
-      - name: 'Cache node modules'
-        id: cache
-        uses: actions/cache@v4
+      - name: 'Configure npm auth'
+        uses: moogur/all-workflows/.github/actions/npm-auth@master
         with:
-          path: '**/node_modules'
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 'Install'
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          npm set @moogur:registry=https://npm.pkg.github.com/
-          npm set "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}"
-          npm ci
+        run: npm ci
 
       - name: 'Build'
         run: npm run build
 
+      # pre-build.js (@moogur/helpers) готовит package.json к публикации, затем npm publish.
       - name: "Publish packages"
         run: |
           git config user.name "${{ github.actor }}"

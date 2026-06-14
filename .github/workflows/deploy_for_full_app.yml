@@ -1,10 +1,13 @@
-name: Deploy for backend
+# Сборка единого Docker-образа приложения «бэкенд (Go) + фронтенд (Node.js)»
+# и публикация в GitHub Packages. Ожидает структуру проекта backend/ и frontend/.
+# Переиспользуемый workflow (workflow_call). Секрет: GITHUB_TOKEN.
+name: Deploy full application
 
 on:
   workflow_call:
     inputs:
       github_user:
-        description: "The Github user who started workflow"
+        description: "The Github user who started workflow"  # владелец образа / логин в реестр
         type: string
         required: false
         default: $GITHUB_ACTOR
@@ -23,37 +26,35 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 'Set node version'
-        id: set-node-version
-        run: |
-          node_version=$(jq '.engines.node' package.json)
-          echo "node_version=${node_version:1:-1}" >> $GITHUB_OUTPUT
+      - name: 'Detect Node.js version'
+        id: node
+        uses: moogur/all-workflows/.github/actions/detect-node-version@master
 
-      - name: 'Set go version'
-        id: set-go-version
-        run: |
-          go_version=$(cat go.mod | grep "go[[:space:]]" | sed 's/.*[[:space:]]//')
-          echo "go_version=$go_version" >> $GITHUB_OUTPUT
+      - name: 'Detect Go version'
+        id: go
+        uses: moogur/all-workflows/.github/actions/detect-go-version@master
 
+      # Имя образа в GitHub Packages: <user>/<repo>/<repo>.
+      # ПРИМЕЧАНИЕ: docker.pkg.github.com устарел; см. docs/modernization.md.
       - name: 'Global env'
         id: global_env
         run: |
           echo "IMAGE_NAME=${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
           echo "DOCKERHUB_IMAGE_NAME=docker.pkg.github.com/${{ inputs.github_user }}/${{ github.event.repository.name }}/${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
 
+      # Версия приложения из последнего git-тега (v1.2.3 → 1.2.3).
       - name: 'Version'
         id: version
-        run: |
-          raw_tag=`echo $(git describe --tags --abbrev=0)`
-          echo "VERSION=${raw_tag#v}" >> $GITHUB_OUTPUT
+        uses: moogur/all-workflows/.github/actions/app-version@master
 
+      # .npmrc создаётся в frontend/ — именно там выполняется npm-сборка внутри образа.
       - name: "Setup npm"
-        run: |
-          npmrc_file_name=frontend/.npmrc
-          touch $npmrc_file_name
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" >> $npmrc_file_name
-          echo "@moogur:registry=https://npm.pkg.github.com/" >> $npmrc_file_name
+        uses: moogur/all-workflows/.github/actions/npm-auth@master
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          working-directory: frontend
 
+      # Dockerfile и .dockerignore тянутся из этого же репозитория (ветка master).
       - name: 'Add docker file'
         run: |
           wget -O ./.dockerignore https://raw.githubusercontent.com/moogur/all-workflows/master/dockerfiles/.full.dockerignore
@@ -61,12 +62,12 @@ jobs:
 
       - name: 'Build and tag image'
         run: |
-          docker build --build-arg ARG_NODE_VERSION="${{ steps.set-node-version.outputs.node_version }}" --build-arg ARG_GO_VERSION="${{ steps.go-node-version.outputs.go_version }}" --build-arg ARG_APP_VERSION="${{ steps.version.outputs.VERSION }}" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:latest" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}" .
+          docker build --build-arg ARG_NODE_VERSION="${{ steps.node.outputs.version }}" --build-arg ARG_GO_VERSION="${{ steps.go.outputs.version }}" --build-arg ARG_APP_VERSION="${{ steps.version.outputs.version }}" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:latest" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:${{ steps.version.outputs.version }}" .
 
       - name: 'docker login'
         run: docker login docker.pkg.github.com -u ${{ inputs.github_user }} -p ${{ secrets.GITHUB_TOKEN }}
 
       - name: 'Publish image'
         run: |
-          docker push "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}"
+          docker push "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:${{ steps.version.outputs.version }}"
           docker push "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:latest"

@@ -1,0 +1,27 @@
+name: 'Resolve application version'
+description: 'Определяет версию приложения из git-тега со снятием префикса. Два режима: git (последний тег) и ref (тег из GITHUB_REF).'
+
+inputs:
+  mode:
+    description: 'Источник версии: "git" — последний тег (git describe); "ref" — тег, инициировавший запуск (GITHUB_REF).'
+    required: false
+    default: 'git'
+  prefix:
+    description: 'Префикс тега для снятия (например, "v" превращает v1.2.3 в 1.2.3). Пустая строка — оставить тег как есть.'
+    required: false
+    default: 'v'
+
+outputs:
+  version:
+    description: 'Версия приложения'
+    value: ${{ steps.resolve.outputs.version }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: resolve
+      shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        PREFIX: ${{ inputs.prefix }}
+      run: bash "$GITHUB_ACTION_PATH/resolve.sh"

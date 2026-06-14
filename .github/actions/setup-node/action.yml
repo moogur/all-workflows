@@ -1,0 +1,25 @@
+name: 'Setup Node.js project'
+description: 'Определяет версию Node.js из package.json, ставит Node и включает кэш npm (~/.npm)'
+
+inputs:
+  cache-dependency-path:
+    description: 'Путь к package-lock.json для ключа кэша npm'
+    required: false
+    default: 'package-lock.json'
+
+outputs:
+  version:
+    description: 'Версия Node.js'
+    value: ${{ steps.node.outputs.version }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: node
+      uses: moogur/all-workflows/.github/actions/detect-node-version@master
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ steps.node.outputs.version }}
+        cache: npm
+        cache-dependency-path: ${{ inputs.cache-dependency-path }}

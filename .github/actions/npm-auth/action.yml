@@ -1,0 +1,20 @@
+name: 'Configure npm authentication'
+description: 'Создаёт .npmrc для приватного scope @moogur в GitHub Packages'
+
+inputs:
+  token:
+    description: 'Токен с доступом read:packages (обычно GITHUB_TOKEN)'
+    required: true
+  working-directory:
+    description: 'Каталог, в котором будет создан файл .npmrc'
+    required: false
+    default: '.'
+
+runs:
+  using: 'composite'
+  steps:
+    - shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        NODE_AUTH_TOKEN: ${{ inputs.token }}
+      run: bash "$GITHUB_ACTION_PATH/configure.sh"

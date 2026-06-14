@@ -1,19 +1,22 @@
-name: Test, lint, and deploy
+# CI для Node.js-проекта: установка → линт → сборка → тесты.
+# Переиспользуемый workflow (вызывается через `uses: ...@<ref>`).
+name: Test, lint, and build (Node.js)
 
 on:
   workflow_call:
     inputs:
       skip_tests:
-        description: "Skip pipeline tests"
+        description: "Skip pipeline tests"  # 'true' — пропустить шаг тестов
         type: string
         required: false
         default: 'false'
       folder:
-        description: "Working folder"
+        description: "Working folder"  # подпапка монорепозитория; '.' — корень
         type: string
         required: false
         default: '.'
 
+# Новый запуск для той же ветки/папки отменяет предыдущий незавершённый.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.folder }}
   cancel-in-progress: true
@@ -26,36 +29,25 @@ jobs:
       - name: 'Checkout'
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # полная история (нужна, например, для версий по тегам)
 
+      # Для монорепозитория: переносим содержимое подпапки в корень рабочей директории.
       - name: 'Prepare working folder'
         if: "inputs.folder != '.'"
         run: cp -r ${{ inputs.folder }}/. .
 
-      - name: 'Set node version'
-        id: set-node-version
-        run: |
-          node_version=$(jq '.engines.node' package.json)
-          echo "node_version=${node_version:1:-1}" >> $GITHUB_OUTPUT
-
+      # Определение версии Node из package.json + setup-node с кэшем npm (~/.npm).
       - name: 'Setup node'
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ steps.set-node-version.outputs.node_version }}
+        uses: moogur/all-workflows/.github/actions/setup-node@master
 
-      - name: 'Cache node modules'
-        id: cache
-        uses: actions/cache@v4
+      # .npmrc для приватного scope @moogur в GitHub Packages.
+      - name: 'Configure npm auth'
+        uses: moogur/all-workflows/.github/actions/npm-auth@master
         with:
-          path: '**/node_modules'
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 'Install'
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          npm set @moogur:registry=https://npm.pkg.github.com/
-          npm set "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}"
-          npm ci
+        run: npm ci  # чистая установка строго по package-lock.json
 
       - name: 'Lint'
         run: npm run lint

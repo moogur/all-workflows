@@ -1,0 +1,21 @@
+name: 'Detect Node.js version'
+description: 'Считывает версию Node.js из поля engines.node в package.json'
+
+inputs:
+  working-directory:
+    description: 'Каталог, содержащий package.json'
+    required: false
+    default: '.'
+
+outputs:
+  version:
+    description: 'Найденная версия Node.js'
+    value: ${{ steps.detect.outputs.version }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: detect
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: bash "$GITHUB_ACTION_PATH/detect.sh"

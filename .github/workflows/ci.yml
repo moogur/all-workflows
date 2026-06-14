@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: actionlint (статика workflow'ов)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install actionlint
+        run: bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) 1.7.12
+      - name: Run actionlint
+        env:
+          # inline-скрипты в существующих workflow'ах содержат намеренный
+          # word-splitting (SC2086 и т.п.) — проверяем shellcheck'ом только ошибки.
+          SHELLCHECK_OPTS: --severity=error
+        # -ignore #1: известная находка про github.head_ref в kanboard.yml (см. docs/security.md).
+        # -ignore #2: github.job_workflow_sha — валидное поле контекста (GitHub docs),
+        #   но отсутствует в схеме actionlint 1.7.12; используется в kanboard.yml.
+        run: ./actionlint -color -ignore 'is potentially untrusted' -ignore 'job_workflow_sha'
+
+  shellcheck:
+    name: shellcheck (bash-скрипты)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint scripts
+        run: shellcheck .github/actions/*/*.sh scripts/*.sh .husky/commit-msg tests/helpers.bash
+
+  yamllint:
+    name: yamllint (структура YAML)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install yamllint
+        run: pipx install yamllint
+      - name: Run yamllint
+        run: yamllint -c .yamllint.yml .github
+
+  bats:
+    name: bats (unit-тесты)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install bats and jq
+        run: sudo apt-get update && sudo apt-get install -y bats jq
+      - name: Run tests
+        run: bats tests/

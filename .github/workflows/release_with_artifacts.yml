@@ -1,15 +1,18 @@
+# Публикует GitHub-релиз (Release Drafter) и прикладывает заранее собранный
+# артефакт *.tar.gz (обычно из go_build_with_artifacts).
+# Переиспользуемый workflow (workflow_call); запускается на push тега.
 name: Release with artifacts
 
 on:
   workflow_call:
     inputs:
       projectname:
-        description: "Project name"
+        description: "Project name"  # = имя скачиваемого артефакта
         type: string
         required: false
         default: 'main'
       suffixname:
-        description: "Suffix for project name"
+        description: "Suffix for project name"  # суффикс к имени файла ассета
         type: string
         required: false
         default: ''
@@ -26,27 +29,30 @@ jobs:
       - name: 'Checkout'
         uses: actions/checkout@v4
 
+      # mode: ref — версия из тега, инициировавшего запуск.
       - name: 'Version'
         id: version
-        run: |
-          tag=${GITHUB_REF/refs\/tags\//}
-          echo "VERSION=${tag#v}" >> $GITHUB_OUTPUT
+        uses: moogur/all-workflows/.github/actions/app-version@master
+        with:
+          mode: ref
 
       - name: 'Publish release'
         id: create_release
         uses: release-drafter/release-drafter@v6
         with:
-          version: ${{ steps.version.outputs.VERSION }}
+          version: ${{ steps.version.outputs.version }}
           publish: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Артефакт, загруженный другим workflow в рамках того же прогона/тега.
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.projectname }}
           path: ./
 
+      # ПРИМЕЧАНИЕ: upload-release-asset заархивирован; см. docs/modernization.md.
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:

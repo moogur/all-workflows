@@ -1,0 +1,19 @@
+# Конфигурация yamllint. Намеренно мягкая: ловим реальные проблемы структуры,
+# а косметику (длина строк, отступы комментариев) не считаем ошибкой.
+# Корректность workflow'ов проверяет actionlint.
+extends: default
+
+rules:
+  line-length: disable
+  document-start: disable
+  comments-indentation: disable
+  truthy:
+    # ключ `on:` в workflow не должен считаться "истинностным"
+    check-keys: false
+  comments:
+    min-spaces-from-content: 1
+  indentation:
+    spaces: 2
+    indent-sequences: consistent
+  empty-lines:
+    max: 2

@@ -1,14 +1,19 @@
+# Автодеплой: проверяет, появилась ли новая версия во внешнем репозитории,
+# и только тогда запускает deploy_for_docker_container.
+# «Последняя увиденная» версия хранится в переменной окружения LAST_UPDATE_VALUE
+# нужного GitHub Environment. Переиспользуемый workflow (workflow_call).
+# Секреты: UPDATE_VARIABLES_CLI_TOKEN (PAT для записи переменной), GITHUB_TOKEN.
 name: Auto deploy for docker container
 
 on:
   workflow_call:
     inputs:
       repository_url:
-        description: "Url for git repository"
+        description: "Url for git repository"  # отслеживаемый внешний репозиторий
         type: string
         required: true
       environment:
-        description: "Environment"
+        description: "Environment"  # GitHub Environment, где лежит LAST_UPDATE_VALUE
         type: string
         required: true
       type:
@@ -33,6 +38,8 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Маркер свежести: для type=commit — время последнего коммита ветки,
+      # для type=tag — последний тег внешнего репозитория.
       - name: 'Check'
         id: check
         run: |
@@ -61,10 +68,14 @@ jobs:
             /repos/$OWNER/$REPO/environments/${{ inputs.environment }}/variables/LAST_UPDATE_VALUE \
             -f "name=LAST_UPDATE_VALUE" -f "value=${{ steps.check.outputs.last_update_value }}"
 
+      # Нет обновлений → намеренный `exit 1`: job падает, и зависящий от него
+      # auto_deploy не запускается (так пропускаются ВСЕ последующие шаги).
+      # Подробнее о выборе — docs/modernization.md.
       - name: 'Cancel job'
         if: steps.check.outputs.last_update_value == vars.LAST_UPDATE_VALUE
         run: exit 1
 
+  # Запускается только если предыдущий job прошёл (т.е. версия изменилась).
   auto_deploy:
     needs: checking_to_use_the_latest_version
     uses: ./.github/workflows/deploy_for_docker_container.yml

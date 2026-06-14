@@ -1,3 +1,6 @@
+# Публикация пакетов монорепозитория через Lerna в GitHub Packages
+# (`lerna publish from-package`). Переиспользуемый workflow (workflow_call).
+# Секрет: GITHUB_TOKEN.
 name: Lerna publish packages
 
 on:
@@ -17,41 +20,28 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 'Set node version'
-        id: set-node-version
-        run: |
-          node_version=$(jq '.engines.node' package.json)
-          echo "node_version=${node_version:1:-1}" >> $GITHUB_OUTPUT
-
       - name: 'Setup node'
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ steps.set-node-version.outputs.node_version }}
+        uses: moogur/all-workflows/.github/actions/setup-node@master
 
       - name: "Setup git"
         run: |
           git config user.name "${{ github.actor }}"
           git config user.email "${{ github.actor}}@users.noreply.github.com"
 
+      # Убираем скрипт prepare (husky), чтобы он не выполнялся при установке в CI.
       - name: "Remove husky from package.json"
         run: |
           new_package_json=$(jq 'del(.scripts.prepare)' package.json)
           rm -f package.json
           echo $new_package_json > package.json
 
-      # - name: 'Cache node modules'
-      #   id: cache
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: '**/node_modules'
-      #     key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+      - name: 'Configure npm auth'
+        uses: moogur/all-workflows/.github/actions/npm-auth@master
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 'Install'
-        # if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          npm set @moogur:registry=https://npm.pkg.github.com/
-          npm set "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}"
-          npm i
+        run: npm ci
 
       - name: "Prepared packages"
         run: |

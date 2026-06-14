@@ -1,3 +1,6 @@
+# Заготовка под аннотации тестов Go в Pull Request.
+# Сейчас только готовит окружение Go; шаг запуска тестов закомментирован.
+# Переиспользуемый workflow (workflow_call).
 name: Pull request annotation (test)
 
 on:
@@ -9,11 +12,12 @@ on:
         required: false
         default: 'false'
       folder:
-        description: "Working folder"
+        description: "Working folder"  # подпапка монорепозитория; '.' — корень
         type: string
         required: false
         default: '.'
 
+# Новый запуск для той же ветки/папки отменяет предыдущий незавершённый.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.folder }}
   cancel-in-progress: true
@@ -32,18 +36,17 @@ jobs:
         if: "inputs.folder != '.'"
         run: cp -r ${{ inputs.folder }}/. .
 
-      - name: 'Set go version'
-        id: set-go-version
-        run: |
-          go_version=$(cat go.mod | grep "go[[:space:]]" | sed 's/.*[[:space:]]//')
-          echo "go_version=$go_version" >> $GITHUB_OUTPUT
+      - name: 'Detect Go version'
+        id: go
+        uses: moogur/all-workflows/.github/actions/detect-go-version@master
 
       - name: 'Setup go'
         if: "inputs.skip_tests != 'true'"
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.set-go-version.outputs.go_version }}
+          go-version: ${{ steps.go.outputs.version }}
 
+      # TODO: включить аннотации/прогон тестов Go (шаг намеренно отключён).
       # - name: Run tests
       #   if: "inputs.skip_tests != 'true'"
       #   run: go test -race -vet=off ./...

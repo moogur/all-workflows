@@ -1,9 +1,18 @@
-private_url=
-private_auth_data=
-private_task_id=
-private_project_id=
-private_swimlane_id=
-private_file_path=./message.tmpl
+# shellcheck shell=bash
+#
+# Библиотека функций для работы с Kanboard JSON-RPC API.
+# Скачивается workflow'ом kanboard.yml через wget и подключается через `source`
+# (поэтому здесь нет shebang, а указана директива shellcheck shell=bash).
+# Значения private_* подставляются в этот файл через sed перед использованием.
+
+private_url=             # базовый URL инстанса Kanboard (запросы идут на <url>/jsonrpc.php)
+private_auth_data=       # "<user>:<token>" для curl -u
+private_task_id=         # id текущей задачи (значение по умолчанию для функций)
+private_project_id=      # id проекта (по умолчанию)
+private_swimlane_id=     # id дорожки (по умолчанию)
+private_file_path=./message.tmpl  # файл-отчёт, выводится в лог в конце workflow
+
+# --- Генераторы тела JSON-RPC запроса (печатают JSON в stdout) ---
 
 function generate_post_data_for_move_task() {
   local column_id=$1
@@ -94,6 +103,8 @@ function generate_post_data_for_update_task_app_version() {
 EOF
 }
 
+# --- Выполнение запросов (curl на <url>/jsonrpc.php), печатают ответ в stdout ---
+
 function request_for_move_task() {
   local column_id=$1
   local task_id=$2
@@ -101,8 +112,8 @@ function request_for_move_task() {
   local project_id=$4
   local swimlane_id=$5
 
-  result=$(curl -u "$private_auth_data" -d "$(generate_post_data_for_move_task $column_id $task_id $position $project_id $swimlane_id)" $private_url/jsonrpc.php)
-  echo $result
+  result=$(curl -u "$private_auth_data" -d "$(generate_post_data_for_move_task "$column_id" "$task_id" "$position" "$project_id" "$swimlane_id")" "$private_url/jsonrpc.php")
+  echo "$result"
 }
 
 function request_for_get_info_task() {
@@ -112,24 +123,27 @@ function request_for_get_info_task() {
     task_id=$private_task_id
   fi
 
-  result=$(curl -u "$private_auth_data" -d "$(generate_post_data_for_get_info_task $task_id)" $private_url/jsonrpc.php)
-  echo $result
+  result=$(curl -u "$private_auth_data" -d "$(generate_post_data_for_get_info_task "$task_id")" "$private_url/jsonrpc.php")
+  echo "$result"
 }
 
 function request_for_get_metadata_task() {
   local task_id=$1
 
-  result=$(curl -u "$private_auth_data" -d "$(generate_post_data_for_get_metadata_task $task_id)" $private_url/jsonrpc.php)
-  echo $result
+  result=$(curl -u "$private_auth_data" -d "$(generate_post_data_for_get_metadata_task "$task_id")" "$private_url/jsonrpc.php")
+  echo "$result"
 }
 
 function request_for_update_task_app_version() {
   local task_id=$1
   local app_version=$2
 
-  result=$(curl -u "$private_auth_data" -d "$(generate_post_data_for_update_task_app_version $task_id $app_version)" $private_url/jsonrpc.php)
-  echo $result
+  result=$(curl -u "$private_auth_data" -d "$(generate_post_data_for_update_task_app_version "$task_id" "$app_version")" "$private_url/jsonrpc.php")
+  echo "$result"
 }
+
+# --- Формирование человекочитаемого отчёта в $private_file_path (message.tmpl) ---
+# result == "true" трактуется как успех, любое другое значение — как ошибка.
 
 function save_message_header_in_file() {
   local result=$1
@@ -177,7 +191,7 @@ function save_message_in_file() {
   fi
 
   save_separator_in_file
-  save_message_header_in_file $result
+  save_message_header_in_file "$result"
 
   case $result in
     true)
@@ -193,8 +207,8 @@ function save_message_in_file() {
       ;;
   esac
 
-  save_raw_message_in_file $raw_message $result
-  save_task_link_in_file $task_id
+  save_raw_message_in_file "$raw_message" "$result"
+  save_task_link_in_file "$task_id"
 }
 
 function save_message_in_file_for_deploy_get_task_info_error() {
@@ -205,8 +219,8 @@ function save_message_in_file_for_deploy_get_task_info_error() {
 
   save_message_header_in_file
   echo "An error occurred while getting information about a task with id $task_id" >> $private_file_path
-  save_raw_message_in_file $raw_message
-  save_task_link_in_file $task_id
+  save_raw_message_in_file "$raw_message"
+  save_task_link_in_file "$task_id"
 }
 
 function save_message_in_file_for_add_app_version() {
@@ -215,7 +229,7 @@ function save_message_in_file_for_add_app_version() {
   local result=$3
 
   save_separator_in_file
-  save_message_header_in_file $result
+  save_message_header_in_file "$result"
 
   case $result in
     true)
@@ -231,6 +245,6 @@ function save_message_in_file_for_add_app_version() {
       ;;
   esac
 
-  save_raw_message_in_file $raw_message $result
-  save_task_link_in_file $task_id
+  save_raw_message_in_file "$raw_message" "$result"
+  save_task_link_in_file "$task_id"
 }
