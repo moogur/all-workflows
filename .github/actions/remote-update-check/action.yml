@@ -1,0 +1,31 @@
+name: 'Check remote repository update'
+description: 'Считывает маркер свежести внешнего репозитория: время последнего коммита ветки (commit) либо самый свежий тег по дате создания (tag).'
+
+inputs:
+  repository_url:
+    description: 'URL отслеживаемого git-репозитория.'
+    required: true
+  type:
+    description: 'Критерий новизны: "commit" — время последнего коммита ветки; "tag" — самый свежий тег по дате создания.'
+    required: false
+    default: 'commit'
+  repository_branch:
+    description: 'Ветка для проверки (только для type=commit).'
+    required: false
+    default: 'master'
+
+outputs:
+  value:
+    description: 'Маркер свежести: unix-время коммита либо имя самого свежего тега'
+    value: ${{ steps.check.outputs.value }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: check
+      shell: bash
+      env:
+        REPOSITORY_URL: ${{ inputs.repository_url }}
+        CHECK_TYPE: ${{ inputs.type }}
+        REPOSITORY_BRANCH: ${{ inputs.repository_branch }}
+      run: bash "$GITHUB_ACTION_PATH/check.sh"

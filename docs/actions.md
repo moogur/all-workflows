@@ -1,6 +1,6 @@
 # Composite actions
 
-Повторяющиеся шаги вынесены в переиспользуемые [composite actions](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action) в каталоге [`.github/actions/`](../.github/actions/). Это убирает дублирование: версия Node/Go, npm-аутентификация, определение версии приложения и формирование тегов docker-образа описаны один раз.
+Повторяющиеся шаги вынесены в переиспользуемые [composite actions](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action) в каталоге [`.github/actions/`](../.github/actions/). Это убирает дублирование: версия Node/Go, npm-аутентификация, определение версии приложения, формирование тегов docker-образа и проверка обновлений внешнего репозитория описаны один раз.
 
 ← Назад к [README](../README.md) · [Справочник workflow'ов](workflows.md)
 
@@ -158,3 +158,51 @@ uses: moogur/all-workflows/.github/actions/<name>@master
 > Тег, не подходящий под `vX.Y.Z` (дата, предрелиз `v1.2.3-rc.1`, неполная версия), в режиме `semver` — ошибка: сборка падает вместо публикации мусорных тегов.
 
 Используется в [deploy_for_docker_container](../.github/workflows/deploy_for_docker_container.yml).
+
+## `remote-update-check`
+
+Считывает **маркер свежести** внешнего репозитория — по нему авто-деплой решает, появилось ли что-то новое.
+Используется в [auto_deploy_for_docker_container](../.github/workflows/auto_deploy_for_docker_container.yml)
+и [auto_deploy_for_build_application](../.github/workflows/auto_deploy_for_build_application.yml).
+
+| | |
+| --- | --- |
+| **Входы** | `repository_url` (обяз.) — URL отслеживаемого репозитория; `type` (необяз., по умолчанию `commit`) — критерий новизны; `repository_branch` (необяз., по умолчанию `master`) — ветка для `type=commit` |
+| **Выходы** | `value` — маркер свежести |
+
+**Критерии (`type`):**
+
+| Значение | Маркер | Как считается |
+| --- | --- | --- |
+| `commit` | unix-время последнего коммита ветки | `git clone --depth=1` нужной ветки и `git log -1 --format=%ct` |
+| `tag` | имя самого свежего тега | bare-клон без блобов (`--filter=blob:none`) и `git for-each-ref --sort=-creatordate --count=1` |
+
+> В режиме `tag` берётся **самый свежий тег по дате создания**, а не максимальный по имени: сортировка по имени
+> врёт на любых неверсионных тегах — среди датных тегов «максимумом» окажется `26.05.2023`, потому что `26 > 14`,
+> а год в сравнение не попадает. Формат имени тега при этом не важен: годятся и `v1.2.3`, и `14.03.2026`, и `nightly`.
+> `git ls-remote` дат не отдаёт, поэтому нужен клон — но без блобов, только рефы и история
+> (для `vrana/adminer` это ~1.5 с). Если тегов нет вовсе — ошибка, а не пустое значение.
+>
+> Маркеру не нужно быть «наибольшей версией» — ему достаточно **меняться** при появлении нового тега. Обратная
+> сторона: предрелизный тег апстрима тоже сдвинет маркер и вызовет пересборку (лишнюю, но не ошибочную).
+> Своего репозитория action не требует: `actions/checkout` перед ним не нужен.
+
+## `save-update-value`
+
+Записывает значение в переменную GitHub Environment: обновляет существующую (`PATCH`), а если переменной ещё
+нет — создаёт (`POST`). Отдельный шаг нужен потому, что `PATCH` умеет только обновлять и на первом запуске
+в новом Environment отвечает 404.
+
+| | |
+| --- | --- |
+| **Входы** | `environment` (обяз.) — имя GitHub Environment; `name` (обяз.) — имя переменной; `value` (обяз.) — значение; `token` (обяз.) — PAT с правом записи переменных |
+| **Выходы** | — |
+
+```yaml
+- uses: moogur/all-workflows/.github/actions/save-update-value@master
+  with:
+    environment: DEPLOY
+    name: LAST_UPDATE_VALUE
+    value: ${{ needs.checking_to_use_the_latest_version.outputs.last_update_value }}
+    token: ${{ secrets.UPDATE_VARIABLES_CLI_TOKEN }}
+```

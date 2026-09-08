@@ -1,7 +1,9 @@
 # Автодеплой: проверяет, появилась ли новая версия во внешнем репозитории,
 # и только тогда запускает deploy_for_docker_container.
 # «Последняя увиденная» версия хранится в переменной окружения LAST_UPDATE_VALUE
-# нужного GitHub Environment. Переиспользуемый workflow (workflow_call).
+# нужного GitHub Environment и записывается ТОЛЬКО после успешного деплоя:
+# иначе упавшая сборка считалась бы доставленной и уже не повторилась бы.
+# Переиспользуемый workflow (workflow_call).
 # Секреты: UPDATE_VARIABLES_CLI_TOKEN (PAT для записи переменной), GITHUB_TOKEN.
 name: Auto deploy for docker container
 
@@ -30,52 +32,46 @@ on:
 jobs:
   checking_to_use_the_latest_version:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: ${{ inputs.environment }}  # нужен для чтения vars.LAST_UPDATE_VALUE
+    outputs:
+      last_update_value: ${{ steps.check.outputs.value }}
 
     steps:
-      - name: 'Checkout'
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
+      # Свой репозиторий здесь не нужен: сравнение идёт по внешнему.
       # Маркер свежести: для type=commit — время последнего коммита ветки,
-      # для type=tag — последний тег внешнего репозитория.
+      # для type=tag — самый свежий по дате создания тег внешнего репозитория.
       - name: 'Check'
         id: check
-        run: |
-          if [[ "${{ inputs.type }}" == "commit" ]]; then
-            git clone --depth=1 --single-branch -b "${{ inputs.repository_branch }}" "${{ inputs.repository_url }}" temp_repository
-            cd temp_repository || exit
-            last_update_value=$(git log -1 --format=%ct)
-            cd ..
-            rm -fr temp_repository
-          else
-            last_update_value=$(git ls-remote --tags --refs --sort="v:refname" "${{ inputs.repository_url }}" | tail -n1 | sed 's/.*\///')
-          fi
-          echo "last_update_value=$last_update_value" >> $GITHUB_OUTPUT
+        uses: moogur/all-workflows/.github/actions/remote-update-check@master
+        with:
+          repository_url: ${{ inputs.repository_url }}
+          type: ${{ inputs.type }}
+          repository_branch: ${{ inputs.repository_branch }}
 
-      - name: 'Update variable'
-        if: steps.check.outputs.last_update_value != vars.LAST_UPDATE_VALUE
-        env:
-          GH_TOKEN: ${{ secrets.UPDATE_VARIABLES_CLI_TOKEN }}
-          OWNER: ${{ github.repository_owner }}
-          REPO: ${{ github.event.repository.name }}
-        run: |
-          gh api \
-            --method PATCH \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            /repos/$OWNER/$REPO/environments/${{ inputs.environment }}/variables/LAST_UPDATE_VALUE \
-            -f "name=LAST_UPDATE_VALUE" -f "value=${{ steps.check.outputs.last_update_value }}"
-
-      # Нет обновлений → намеренный `exit 1`: job падает, и зависящий от него
-      # auto_deploy не запускается (так пропускаются ВСЕ последующие шаги).
+      # Нет обновлений → намеренный `exit 1`: job падает, и зависящие от него
+      # jobs не запускаются (так пропускаются ВСЕ последующие шаги).
       # Подробнее о выборе — docs/modernization.md.
       - name: 'Cancel job'
-        if: steps.check.outputs.last_update_value == vars.LAST_UPDATE_VALUE
+        if: steps.check.outputs.value == vars.LAST_UPDATE_VALUE
         run: exit 1
 
   # Запускается только если предыдущий job прошёл (т.е. версия изменилась).
   auto_deploy:
     needs: checking_to_use_the_latest_version
     uses: ./.github/workflows/deploy_for_docker_container.yml
+    secrets: inherit
+
+  # Версию запоминаем только после успешного деплоя.
+  save_update_value:
+    needs: [checking_to_use_the_latest_version, auto_deploy]
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}  # на случай, если PAT — секрет окружения
+
+    steps:
+      - name: 'Save update value'
+        uses: moogur/all-workflows/.github/actions/save-update-value@master
+        with:
+          environment: ${{ inputs.environment }}
+          name: LAST_UPDATE_VALUE
+          value: ${{ needs.checking_to_use_the_latest_version.outputs.last_update_value }}
+          token: ${{ secrets.UPDATE_VARIABLES_CLI_TOKEN }}

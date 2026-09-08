@@ -194,7 +194,7 @@ jobs:
 
 ### `auto_deploy_for_docker_container.yml` — Автодеплой при обновлении
 
-Проверяет, появилась ли новая версия во внешнем репозитории, и только в этом случае запускает [`deploy_for_docker_container.yml`](#deploy_for_docker_containeryml--образ-по-локальному-dockerfile) (без `format_mode`, то есть в формате `date`: тега при запуске по расписанию нет). Состояние «последней увиденной версии» хранится в переменной окружения `LAST_UPDATE_VALUE` указанного GitHub Environment и обновляется через GitHub API.
+Проверяет, появилась ли новая версия во внешнем репозитории, и только в этом случае запускает [`deploy_for_docker_container.yml`](#deploy_for_docker_containeryml--образ-по-локальному-dockerfile) (без `format_mode`, то есть в формате `date`: тега при запуске по расписанию нет). Состояние «последней увиденной версии» хранится в переменной окружения `LAST_UPDATE_VALUE` указанного GitHub Environment.
 
 **Входные параметры:**
 
@@ -207,11 +207,19 @@ jobs:
 
 **Секреты:** `UPDATE_VARIABLES_CLI_TOKEN` (PAT для обновления переменной через API), `GITHUB_TOKEN`.
 
-**Логика:** для `commit` берётся время последнего коммита ветки, для `tag` — последний тег. Если значение отличается от `vars.LAST_UPDATE_VALUE` — переменная обновляется и запускается деплой; иначе job завершается с ошибкой (деплой не происходит).
+**Логика (три job'а):**
+
+1. `checking_to_use_the_latest_version` — [`remote-update-check`](actions.md#remote-update-check) считывает маркер свежести внешнего репозитория (`commit` — время последнего коммита ветки, `tag` — имя самого свежего по дате создания тега). Если он совпадает с `vars.LAST_UPDATE_VALUE`, job завершается с ошибкой и всё остальное пропускается.
+2. `auto_deploy` — сборка и публикация образа (`secrets: inherit`).
+3. `save_update_value` — [`save-update-value`](actions.md#save-update-value) записывает новый маркер в `LAST_UPDATE_VALUE`.
+
+> **Порядок важен:** переменная обновляется **после** успешного деплоя. Если бы она обновлялась в момент проверки (как было раньше), упавшая сборка считалась бы доставленной и следующий запуск по расписанию уже не повторил бы её.
+> Переменную не нужно заводить руками: при первом запуске в новом Environment она создаётся (`POST`), дальше обновляется (`PATCH`).
+> Если у Environment настроены required reviewers, job проверки встанет на ручное подтверждение — «авто»-деплой перестанет быть автоматическим.
 
 ### `auto_deploy_for_build_application.yml` — Автодеплой сборки приложения
 
-То же, что выше, но вместо Docker запускает [`deploy_for_build_application.yml`](#deploy_for_build_applicationyml--сборка-по-скрипту--релиз).
+То же, что выше (те же три job'а и тот же порядок сохранения маркера), но вместо Docker запускает [`deploy_for_build_application.yml`](#deploy_for_build_applicationyml--сборка-по-скрипту--релиз).
 
 **Входные параметры:** все параметры `auto_deploy_for_docker_container.yml` плюс:
 

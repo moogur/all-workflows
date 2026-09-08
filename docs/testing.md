@@ -22,6 +22,9 @@
 | [tests/app-version.bats](../tests/app-version.bats) | `app-version/resolve.sh` | режимы `git`/`ref`, снятие/сохранение префикса, дефолты, ошибка на неизвестном `mode` |
 | [tests/detect-node-version.bats](../tests/detect-node-version.bats) | `detect-node-version/detect.sh` | точная версия и диапазон из `engines.node` |
 | [tests/detect-go-version.bats](../tests/detect-go-version.bats) | `detect-go-version/detect.sh` | версия из директивы `go`, игнор `require`-блока |
+| [tests/remote-update-check.bats](../tests/remote-update-check.bats) | `remote-update-check/check.sh` | `commit` (время коммита, смена значения, выбор ветки), `tag` (самый свежий по дате, а не максимальный по имени — guard против возврата к сортировке по имени, которая на датных тегах выбирает старый; неверсионный тег как маркер; смена значения), ошибки: нет тегов, неизвестный `type`, недоступный репозиторий |
+| [tests/save-update-value.bats](../tests/save-update-value.bats) | `save-update-value/save.sh` | обновление существующей переменной одним `PATCH`, создание через `POST` при 404, отсутствие лишнего `POST`, падение обоих вызовов, обязательные переменные окружения (gh подменяется заглушкой) |
+| [tests/auto-deploy.bats](../tests/auto-deploy.bats) | конфигурация авто-деплоя | guard: маркер сохраняется отдельным job'ом после деплоя, вложенный деплой с `secrets: inherit`, проверка через общий action, отсутствие лишнего checkout, время в метке `-auto` |
 | [tests/docker-tags.bats](../tests/docker-tags.bats) | `docker-tags/tags.sh` | форматы `date`/`semver`, лестница `vX.Y.Z`/`vX.Y`/`vX`/`latest`, добавление префикса `v`, отклонение тега-даты/предрелиза/неполной версии, ошибка на неизвестном `format_mode` |
 | [tests/npm-auth.bats](../tests/npm-auth.bats) | `npm-auth/configure.sh` | содержимое и формат `.npmrc` |
 | [tests/commit-msg.bats](../tests/commit-msg.bats) | `.husky/commit-msg` | все допустимые типы, правила отклонения (номер задачи, регистр, скобки, пустые поля, граница длины 125/126), многострочные сообщения (валидируется только заголовок) + характеристика нестрогого совпадения типа |
@@ -66,7 +69,7 @@ yamllint -c .yamllint.yml .github
 
 **Высокая уверенность** (проверяется автоматически и детерминированно):
 - корректность проводки workflow'ов: нет битых ссылок `steps.<id>`, ошибок в выражениях, неверных `uses` — это ровно тот класс ошибок, что мы правили вручную (например, опечатка `steps.go-node-version`), и actionlint его ловит;
-- бизнес-логика скриптов: расчёт версии (оба режима и префикс), формирование тегов docker-образа (оба формата), парсинг версий Node/Go, генерация `.npmrc`, все правила `commit-msg`, формирование JSON-RPC payload Kanboard.
+- бизнес-логика скриптов: расчёт версии (оба режима и префикс), формирование тегов docker-образа (оба формата), выбор маркера свежести внешнего репозитория, запись переменной окружения (на заглушке `gh`), парсинг версий Node/Go, генерация `.npmrc`, все правила `commit-msg`, формирование JSON-RPC payload Kanboard.
 
 **Не покрывается (проверяется только реальным запуском на GitHub):**
 - что `wget` с `raw.githubusercontent.com/.../master/...` отдаёт нужные файлы;

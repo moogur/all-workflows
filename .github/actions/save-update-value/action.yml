@@ -1,0 +1,29 @@
+name: 'Save update value'
+description: 'Записывает значение в переменную GitHub Environment: обновляет существующую, а при первом запуске создаёт.'
+
+inputs:
+  environment:
+    description: 'Имя GitHub Environment, в котором лежит переменная.'
+    required: true
+  name:
+    description: 'Имя переменной.'
+    required: true
+  value:
+    description: 'Значение переменной.'
+    required: true
+  token:
+    description: 'PAT с правом записи переменных окружения (repo/actions:write).'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        OWNER: ${{ github.repository_owner }}
+        REPO: ${{ github.event.repository.name }}
+        ENVIRONMENT: ${{ inputs.environment }}
+        VARIABLE_NAME: ${{ inputs.name }}
+        VARIABLE_VALUE: ${{ inputs.value }}
+      run: bash "$GITHUB_ACTION_PATH/save.sh"

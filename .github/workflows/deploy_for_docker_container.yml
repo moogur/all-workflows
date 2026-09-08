@@ -40,7 +40,8 @@ jobs:
       # Версия сборки: тег, инициировавший запуск (push тега) — берём именно его,
       # а не `git describe`, чтобы не поймать другой тег того же коммита.
       # Без тега: в режиме semver — последний git-тег, в режиме date (авто-деплой
-      # по расписанию) — метка вида dd.mm.yyyy-auto. Своя inline-логика
+      # по расписанию) — метка вида dd.mm.yyyy-HHMM-auto (UTC; время в метке —
+      # чтобы две сборки за сутки не перезаписали друг друга). Своя inline-логика
       # (не app-version) именно из-за этого fallback.
       - name: "Determining the version"
         id: version
@@ -50,7 +51,7 @@ jobs:
           elif [[ ${{ inputs.format_mode }} == 'semver' ]]; then
             version=$(git describe --tags --abbrev=0)
           else
-            version=$(date +"%d.%m.%Y-auto")
+            version=$(date -u +"%d.%m.%Y-%H%M-auto")
           fi
           echo "VERSION=${version}" >> $GITHUB_OUTPUT
 

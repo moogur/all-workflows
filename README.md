@@ -9,7 +9,7 @@
 | Каталог / файл | Назначение |
 | --- | --- |
 | [`.github/workflows/`](.github/workflows/) | Переиспользуемые workflow'ы (основное содержимое репозитория) |
-| [`.github/actions/`](.github/actions/) | Composite actions — общие шаги (версии Node/Go, настройка Node с кэшем npm, npm-аутентификация, версия приложения, теги docker-образа) |
+| [`.github/actions/`](.github/actions/) | Composite actions — общие шаги (версии Node/Go, настройка Node с кэшем npm, npm-аутентификация, версия приложения, теги docker-образа, проверка обновлений внешнего репозитория) |
 | [`dockerfiles/`](dockerfiles/) | Dockerfile'ы и `.dockerignore`, которые workflow'ы скачивают на лету при сборке образов |
 | [`scripts/kanboard_requests.sh`](scripts/kanboard_requests.sh) | Bash-библиотека JSON-RPC запросов к Kanboard |
 | [`.husky/commit-msg`](.husky/commit-msg) | Git-хук валидации сообщения коммита |
