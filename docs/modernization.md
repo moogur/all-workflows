@@ -75,6 +75,7 @@ Docker-реестр GitHub Packages по адресу `docker.pkg.github.com` у
 ## Прочие наблюдения (не критично)
 
 - **`exit 1` при отсутствии обновлений** в auto-deploy workflow'ах помечает прогон красным. Оставлено намеренно: так гарантированно пропускаются все последующие шаги, а не только деплой (см. [workflows.md](workflows.md)).
+- **Недоступность Kanboard не роняет прогон.** Вызывающий код не проверяет код возврата `request_for_*`, поэтому задача просто не переезжает по колонкам, а деплой идёт дальше. С обёрткой `execute_request` это хотя бы видно в логе (`Kanboard request failed: <url>`). Если понадобится обратное поведение — `continue-on-error` на job и явная проверка статуса.
 - **Required reviewers у Environment** остановят job проверки в авто-деплое на ручном подтверждении — автоматическим такой деплой уже не будет. Ограничение самого GitHub, обходить нечем (кроме отказа от `environment:` и хранения состояния где-то ещё).
 
 ## Исправлено
@@ -95,3 +96,4 @@ Docker-реестр GitHub Packages по адресу `docker.pkg.github.com` у
 - **`echo $new_package_json > package.json` в [deploy_for_lerna](../.github/workflows/deploy_for_lerna.yml)** → `jq` пишет во временный файл: переменная без кавычек раскрывала глобы в значениях (например, `"files": ["*"]`).
 - **`detect-node-version` отдавал строку `null`**, а `detect-go-version` — пустую версию, если поля нет → оба падают с внятным сообщением.
 - **`cp -r dist/* .` в [deploy_for_frontend](../.github/workflows/deploy_for_frontend.yml)** → `cp -a dist/. .`: точечные файлы (`.nojekyll`, `.htaccess`) больше не теряются.
+- **`curl` к Kanboard без таймаутов, ретраев и `-f`** → общая обёртка `execute_request` (см. [kanboard.md](kanboard.md#скрипт-kanboard_requestssh)): запрос больше не висит две минуты на недоступном хосте, переживает короткие сбои и не выдаёт 5xx за успех.

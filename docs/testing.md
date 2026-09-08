@@ -31,6 +31,7 @@
 | [tests/npm-auth.bats](../tests/npm-auth.bats) | `npm-auth/configure.sh` | содержимое и формат `.npmrc` |
 | [tests/commit-msg.bats](../tests/commit-msg.bats) | `.husky/commit-msg` | все допустимые типы, правила отклонения (номер задачи, регистр, скобки, пустые поля, граница длины 125/126), многострочные сообщения (валидируется только заголовок) + характеристика нестрогого совпадения типа |
 | [tests/kanboard.bats](../tests/kanboard.bats) | `scripts/kanboard_requests.sh` (генераторы payload) | валидный JSON и методы, значения по умолчанию (`position`, `private_*`), типы полей (число/строка) + ломающий ввод |
+| [tests/kanboard-requests.bats](../tests/kanboard-requests.bats) | `scripts/kanboard_requests.sh` (обёртка `execute_request`) | таймауты и ретраи в аргументах curl, `-f`, адрес/авторизация/тело запроса, ненулевой код и сообщение при недоступном Kanboard (curl подменяется заглушкой) |
 | [tests/kanboard-messages.bats](../tests/kanboard-messages.bats) | `scripts/kanboard_requests.sh` (отчёт `message.tmpl`) | ветки success/error/unknown, `task_id=-1`, разделители, формат ссылки + регрессия на word-splitting многословного raw |
 | [tests/workflows-cache.bats](../tests/workflows-cache.bats) | конфигурация workflow'ов | guard: нет кэша `node_modules`/пропуска по `cache-hit`/`actions/cache`, npm-workflow'ы используют общий `setup-node` с кэшем npm |
 

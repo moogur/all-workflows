@@ -61,6 +61,24 @@ Bash-библиотека функций поверх [Kanboard JSON-RPC API](ht
 - `request_for_get_metadata_task` — получить метаданные;
 - `request_for_update_task_app_version` — обновить версию приложения в метаданных.
 
+Все четыре ходят через общую обёртку `execute_request`:
+
+```bash
+curl -fsS --connect-timeout 10 --max-time 30 \
+  --retry 3 --retry-delay 5 --retry-connrefused --retry-all-errors \
+  -u "$private_auth_data" -d "$data" "$private_url/jsonrpc.php"
+```
+
+Kanboard живёт на самохостинге и периодически недоступен с раннеров GitHub. Что это меняет:
+
+| Было | Стало |
+| --- | --- |
+| Запрос висел на TCP-коннекте до системного таймаута (наблюдали 135 с) | `--connect-timeout 10`, `--max-time 30` |
+| Короткая сетевая икота роняла шаг | три повтора с паузой 5 с (`--retry-connrefused`, `--retry-all-errors`) |
+| Любой HTTP-5xx выглядел успехом: без `-f` curl возвращал 0 и пустое тело | `-f` — ненулевой код и строка `Kanboard request failed: <url>` в stderr |
+
+> Шаг workflow при этом **не падает**: вызывающий код не проверяет код возврата, поэтому недоступность трекера по-прежнему не блокирует деплой — но теперь она видна в логе, а не притворяется успехом. Если захочется, чтобы деплой явно не зависел от Kanboard, это отдельная правка (`continue-on-error` на job).
+
 **Формирование отчёта** (запись в `message.tmpl`):
 
 - `save_message_in_file`, `save_message_in_file_for_add_app_version`, `save_message_in_file_for_deploy_get_task_info_error` — человекочитаемые сообщения об успехе/ошибке;

@@ -105,6 +105,25 @@ EOF
 
 # --- Выполнение запросов (curl на <url>/jsonrpc.php), печатают ответ в stdout ---
 
+# Единая обёртка над curl. Kanboard живёт на самохостинге и бывает недоступен:
+# без таймаутов запрос висел на TCP-коннекте больше двух минут, без ретраев
+# падал от короткой сетевой икоты, а без -f любой 5xx выглядел как успех.
+# Ошибка идёт в stderr (в stdout только ответ — его читает вызывающий код).
+function execute_request() {
+  local data=$1
+  local response
+
+  if ! response=$(curl -fsS \
+    --connect-timeout 10 --max-time 30 \
+    --retry 3 --retry-delay 5 --retry-connrefused --retry-all-errors \
+    -u "$private_auth_data" -d "$data" "$private_url/jsonrpc.php"); then
+    echo "Kanboard request failed: $private_url/jsonrpc.php" >&2
+    return 1
+  fi
+
+  echo "$response"
+}
+
 function request_for_move_task() {
   local column_id=$1
   local task_id=$2
@@ -112,8 +131,7 @@ function request_for_move_task() {
   local project_id=$4
   local swimlane_id=$5
 
-  result=$(curl -u "$private_auth_data" -d "$(generate_post_data_for_move_task "$column_id" "$task_id" "$position" "$project_id" "$swimlane_id")" "$private_url/jsonrpc.php")
-  echo "$result"
+  execute_request "$(generate_post_data_for_move_task "$column_id" "$task_id" "$position" "$project_id" "$swimlane_id")"
 }
 
 function request_for_get_info_task() {
@@ -123,23 +141,20 @@ function request_for_get_info_task() {
     task_id=$private_task_id
   fi
 
-  result=$(curl -u "$private_auth_data" -d "$(generate_post_data_for_get_info_task "$task_id")" "$private_url/jsonrpc.php")
-  echo "$result"
+  execute_request "$(generate_post_data_for_get_info_task "$task_id")"
 }
 
 function request_for_get_metadata_task() {
   local task_id=$1
 
-  result=$(curl -u "$private_auth_data" -d "$(generate_post_data_for_get_metadata_task "$task_id")" "$private_url/jsonrpc.php")
-  echo "$result"
+  execute_request "$(generate_post_data_for_get_metadata_task "$task_id")"
 }
 
 function request_for_update_task_app_version() {
   local task_id=$1
   local app_version=$2
 
-  result=$(curl -u "$private_auth_data" -d "$(generate_post_data_for_update_task_app_version "$task_id" "$app_version")" "$private_url/jsonrpc.php")
-  echo "$result"
+  execute_request "$(generate_post_data_for_update_task_app_version "$task_id" "$app_version")"
 }
 
 # --- Формирование человекочитаемого отчёта в $private_file_path (message.tmpl) ---
