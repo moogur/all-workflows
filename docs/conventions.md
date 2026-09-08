@@ -23,6 +23,8 @@ Git-хук [`.husky/commit-msg`](../.husky/commit-msg) валидирует ка
 | `scope` | Не пустой; только нижний регистр |
 | `subject` | Не пустой; нижний регистр; не длиннее 125 символов |
 
+Валидируется только **заголовок** (первая строка): тело коммита — свободный текст, регистр и длина строк в нём не проверяются.
+
 Хук подключается через [husky](https://typicode.github.io/husky/) (`npm run prepare` → `husky install`, см. `package.json`).
 
 > Префикс `GA-` и номер задачи используются также интеграцией с Kanboard для определения `task_id` (см. [kanboard.md](kanboard.md)).
@@ -35,6 +37,9 @@ Git-хук [`.husky/commit-msg`](../.husky/commit-msg) валидирует ка
   - в релизах — режим `mode: ref` (тег из `GITHUB_REF`, инициировавший запуск);
   - в Docker-сборках и сборке приложения — режим `mode: git` (`git describe --tags --abbrev=0`);
   - для авто-деплоя без тега — `dd.mm.yyyy-auto` (отдельная inline-логика в [deploy_for_docker_container.yml](../.github/workflows/deploy_for_docker_container.yml)).
+- **Формат git-тегов** зависит от репозитория и поддерживается в двух вариантах:
+  - старый — дата, `dd.mm.yyyy` (например, `14.03.2026`);
+  - новый — числовой, `vX.Y.Z` (например, `v1.0.0`); именно он ожидается при `format_mode: 'semver'`.
 
 ### Уровень версии в релизах
 
@@ -85,6 +90,15 @@ docker.pkg.github.com/<github_user>/<repo>/<repo>:latest
 ```
 
 `<github_user>` задаётся параметром `github_user` (по умолчанию `$GITHUB_ACTOR`), `<repo>` — `github.event.repository.name`.
+
+Набор тегов формирует composite action [`docker-tags`](actions.md#docker-tags). В [deploy_for_docker_container.yml](../.github/workflows/deploy_for_docker_container.yml) он выбирается параметром `format_mode`:
+
+| `format_mode` | Теги образа |
+| --- | --- |
+| `date` (по умолчанию) | `<version>`, `latest` |
+| `semver` | `vX.Y.Z`, `vX.Y`, `vX`, `latest` |
+
+Подвижные `vX` и `vX.Y` перезаписываются каждым новым патчем: потребитель может закрепиться на мажоре (`:v1`) или миноре (`:v1.2`) и получать обновления автоматически. Остальные Docker-workflow'ы (`deploy_for_backend`, `deploy_for_go_backend`, `deploy_for_full_app`) публикуют только `<version>` и `latest`.
 
 ## Стиль кода
 

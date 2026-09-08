@@ -96,6 +96,43 @@ expect_fail() {
   expect_fail "[GA-1] feature(api): $s"
 }
 
+# ---------- многострочные сообщения ----------
+# Регрессия: разбирался весь файл целиком, и awk склеивал токены всех строк,
+# из-за чего валидный коммит с телом отклонялся.
+
+expect_pass_multiline() {
+  printf '%s\n' "$@" > "$MSG"
+  run bash "$HOOK" "$MSG"
+  if [ "$status" -ne 0 ]; then
+    echo "Ожидалось ПРОХОЖДЕНИЕ для многострочного сообщения"
+    echo "status=$status output=$output"
+    return 1
+  fi
+}
+
+@test "заголовок с телом проходит" {
+  expect_pass_multiline "[GA-1] feature(api): add endpoint" "" "detail line one" "detail line two"
+}
+
+@test "тело в верхнем регистре не влияет на проверку" {
+  expect_pass_multiline "[GA-1] feature(api): add endpoint" "" "BREAKING CHANGE: Renamed input"
+}
+
+@test "тело длиннее 125 символов не влияет на проверку" {
+  local s; s=$(printf 'A%.0s' {1..200})
+  expect_pass_multiline "[GA-1] feature(api): add endpoint" "" "$s"
+}
+
+@test "тело со скобками и двоеточиями не подменяет scope и subject" {
+  expect_pass_multiline "[GA-1] feature(api): add endpoint" "" "see docker-tags(action): Details" "type: WRONG"
+}
+
+@test "битый заголовок отклоняется даже при валидной строке в теле" {
+  printf '%s\n' "wrong header" "" "[GA-1] feature(api): add endpoint" > "$MSG"
+  run bash "$HOOK" "$MSG"
+  [ "$status" -ne 0 ]
+}
+
 # ---------- характеристические особенности парсинга ----------
 # Эти тесты фиксируют фактическое (нестрогое) поведение валидатора,
 # чтобы изменения в нём были замечены. См. docs/modernization.md.
