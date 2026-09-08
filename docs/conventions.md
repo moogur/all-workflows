@@ -36,7 +36,7 @@ Git-хук [`.husky/commit-msg`](../.husky/commit-msg) валидирует ка
 - **Версия приложения / релиза** определяется по git-тегам через composite action `app-version` (см. [actions.md](actions.md)) со снятием параметризуемого префикса (по умолчанию `v`):
   - в релизах — режим `mode: ref` (тег из `GITHUB_REF`, инициировавший запуск);
   - в Docker-сборках и сборке приложения — режим `mode: git` (`git describe --tags --abbrev=0`);
-  - для авто-деплоя без тега — `dd.mm.yyyy-HHMM-auto` по UTC (отдельная inline-логика в [deploy_for_docker_container.yml](../.github/workflows/deploy_for_docker_container.yml)); время в метке — чтобы две автосборки за сутки не перезаписали друг друга.
+  - для любой сборки без тега (расписание, ручной запуск) — `dd.mm.yyyy-HHMM-auto` по UTC (отдельная inline-логика в [deploy_for_docker_container.yml](../.github/workflows/deploy_for_docker_container.yml)); время в метке — чтобы две сборки за сутки не перезаписали друг друга. В semver-репозиториях такая сборка тоже уходит в формате `date`, чтобы не переписать релизные `vX.Y.Z`.
 - **Формат git-тегов** зависит от репозитория и поддерживается в двух вариантах:
   - старый — дата, `dd.mm.yyyy` (например, `14.03.2026`);
   - новый — числовой, `vX.Y.Z` (например, `v1.0.0`); именно он ожидается при `format_mode: 'semver'`.

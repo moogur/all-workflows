@@ -49,3 +49,15 @@ setup() {
 @test "метка авто-сборки содержит время и берётся в UTC" {
   grep -qF 'date -u +"%d.%m.%Y-%H%M-auto"' "$WF/deploy_for_docker_container.yml"
 }
+
+@test "сборка без тега всегда идёт в формате date" {
+  # Иначе плановая пересборка semver-репозитория переписала бы релизные vX.Y.Z.
+  grep -qF 'mode=date' "$WF/deploy_for_docker_container.yml"
+  grep -qF 'format_mode: ${{ steps.version.outputs.FORMAT_MODE }}' "$WF/deploy_for_docker_container.yml"
+}
+
+@test "версия сборки не вычисляется через git describe" {
+  # Тег того же коммита мог оказаться из старого формата (дата) — берём ref_name.
+  run grep -qE 'version=\$\(git describe' "$WF/deploy_for_docker_container.yml"
+  [ "$status" -ne 0 ]
+}

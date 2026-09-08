@@ -154,6 +154,8 @@ uses: moogur/all-workflows/.github/actions/<name>@master
     docker build "${build_args[@]}" .
 ```
 
+> Формат выбирает вызывающий workflow: [deploy_for_docker_container](../.github/workflows/deploy_for_docker_container.yml)
+> передаёт `semver` только для сборки по тегу, а сборке без тега всегда ставит `date`.
 > В режиме `semver` префикс `v` в теги образа добавляется всегда, даже если git-тег был без него (`1.2.3` → `v1.2.3`).
 > Тег, не подходящий под `vX.Y.Z` (дата, предрелиз `v1.2.3-rc.1`, неполная версия), в режиме `semver` — ошибка: сборка падает вместо публикации мусорных тегов.
 

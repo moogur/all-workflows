@@ -37,23 +37,24 @@ jobs:
           echo "IMAGE_NAME=${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
           echo "DOCKERHUB_IMAGE_NAME=docker.pkg.github.com/${{ inputs.github_user }}/${{ github.event.repository.name }}/${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
 
-      # Версия сборки: тег, инициировавший запуск (push тега) — берём именно его,
-      # а не `git describe`, чтобы не поймать другой тег того же коммита.
-      # Без тега: в режиме semver — последний git-тег, в режиме date (авто-деплой
-      # по расписанию) — метка вида dd.mm.yyyy-HHMM-auto (UTC; время в метке —
-      # чтобы две сборки за сутки не перезаписали друг друга). Своя inline-логика
-      # (не app-version) именно из-за этого fallback.
+      # Версия сборки — тег, инициировавший запуск: берём именно его, а не
+      # `git describe`, чтобы не поймать другой тег того же коммита.
+      # Сборка без тега (расписание, ручной запуск) всегда идёт как
+      # dd.mm.yyyy-HHMM-auto в формате date, даже в semver-репозитории: иначе
+      # плановая пересборка переписала бы релизные vX.Y.Z другим содержимым.
+      # Время в метке — чтобы две сборки за сутки не затёрли друг друга, UTC.
       - name: "Determining the version"
         id: version
         run: |
           if [[ ${{ github.ref_type }} == 'tag' ]]; then
             version=${{ github.ref_name }}
-          elif [[ ${{ inputs.format_mode }} == 'semver' ]]; then
-            version=$(git describe --tags --abbrev=0)
+            mode=${{ inputs.format_mode }}
           else
             version=$(date -u +"%d.%m.%Y-%H%M-auto")
+            mode=date
           fi
           echo "VERSION=${version}" >> $GITHUB_OUTPUT
+          echo "FORMAT_MODE=${mode}" >> $GITHUB_OUTPUT
 
       # Полный список тегов образа по выбранному формату.
       - name: "Docker tags"
@@ -62,7 +63,7 @@ jobs:
         with:
           image: ${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}
           version: ${{ steps.version.outputs.VERSION }}
-          format_mode: ${{ inputs.format_mode }}
+          format_mode: ${{ steps.version.outputs.FORMAT_MODE }}
 
       - name: "Build and tag image"
         run: |
