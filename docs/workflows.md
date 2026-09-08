@@ -126,6 +126,8 @@
 
 Все Docker-workflow'ы публикуют образы в GitHub Packages по адресу
 `docker.pkg.github.com/<github_user>/<repo>/<repo>` с тегами `latest` и версией приложения.
+В [`deploy_for_docker_container.yml`](#deploy_for_docker_containeryml--образ-по-локальному-dockerfile) набор тегов
+выбирается параметром `format_mode` (см. [`docker-tags`](actions.md#docker-tags)).
 Подробнее про используемые Dockerfile'ы — в [docs/dockerfiles.md](dockerfiles.md).
 
 ### `deploy_for_backend.yml` — Docker-образ Node.js-бэкенда
@@ -158,15 +160,41 @@
 
 ### `deploy_for_docker_container.yml` — Образ по локальному Dockerfile
 
-Универсальная сборка: использует `Dockerfile`, лежащий в самом проекте (ничего не скачивает). Версия определяется по событию: при `push` — из git-тега, иначе — в формате `dd.mm.yyyy-auto`.
+Универсальная сборка: использует `Dockerfile`, лежащий в самом проекте (ничего не скачивает). Версия — тег, инициировавший запуск; при запуске без тега (авто-деплой по расписанию) в режиме `semver` берётся последний git-тег, а в режиме `date` — метка вида `dd.mm.yyyy-auto`.
 
-**Входные параметры:** `github_user` (`$GITHUB_ACTOR`).
+**Входные параметры:**
+
+| Параметр | Тип | Обяз. | По умолчанию | Описание |
+| --- | --- | --- | --- | --- |
+| `github_user` | string | нет | `$GITHUB_ACTOR` | Пользователь GitHub (владелец образа / логин в реестр) |
+| `format_mode` | string | нет | `'date'` | Формат тегов образа: `date` — `<версия>` + `latest`; `semver` — `vX.Y.Z`, `vX.Y`, `vX`, `latest` |
 
 **Секреты:** `GITHUB_TOKEN`.
 
+**Шаги:** checkout → формирование имени образа → определение версии → [`docker-tags`](actions.md#docker-tags) (список тегов по `format_mode`) → `docker build` со всеми тегами → `docker login` → `docker push` каждого тега.
+
+Пример вызова для репозитория с числовыми тегами:
+
+```yaml
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+jobs:
+  deploy:
+    uses: moogur/all-workflows/.github/workflows/deploy_for_docker_container.yml@master
+    secrets: inherit
+    with:
+      format_mode: 'semver'
+```
+
+> Параметр не задан → `date`, то есть старое поведение (репозитории с тегами-датами менять не нужно).
+> В режиме `semver` тег обязан подходить под `vX.Y.Z`, иначе сборка падает.
+
 ### `auto_deploy_for_docker_container.yml` — Автодеплой при обновлении
 
-Проверяет, появилась ли новая версия во внешнем репозитории, и только в этом случае запускает [`deploy_for_docker_container.yml`](#deploy_for_docker_containeryml--образ-по-локальному-dockerfile). Состояние «последней увиденной версии» хранится в переменной окружения `LAST_UPDATE_VALUE` указанного GitHub Environment и обновляется через GitHub API.
+Проверяет, появилась ли новая версия во внешнем репозитории, и только в этом случае запускает [`deploy_for_docker_container.yml`](#deploy_for_docker_containeryml--образ-по-локальному-dockerfile) (без `format_mode`, то есть в формате `date`: тега при запуске по расписанию нет). Состояние «последней увиденной версии» хранится в переменной окружения `LAST_UPDATE_VALUE` указанного GitHub Environment и обновляется через GitHub API.
 
 **Входные параметры:**
 

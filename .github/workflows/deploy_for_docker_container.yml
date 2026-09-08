@@ -11,6 +11,11 @@ on:
         type: string
         required: false
         default: $GITHUB_ACTOR
+      format_mode:
+        description: "Tag format: 'date' (legacy — version as is + latest) or 'semver' (vX.Y.Z, vX.Y, vX, latest)"
+        type: string
+        required: false
+        default: 'date'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -32,28 +37,41 @@ jobs:
           echo "IMAGE_NAME=${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
           echo "DOCKERHUB_IMAGE_NAME=docker.pkg.github.com/${{ inputs.github_user }}/${{ github.event.repository.name }}/${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
 
-      # Версия тега: при push берём последний git-тег, иначе (ручной/авто-запуск)
-      # генерим метку вида dd.mm.yyyy-auto. Здесь своя inline-логика (не app-version)
-      # именно из-за этого fallback без тега.
+      # Версия сборки: тег, инициировавший запуск (push тега) — берём именно его,
+      # а не `git describe`, чтобы не поймать другой тег того же коммита.
+      # Без тега: в режиме semver — последний git-тег, в режиме date (авто-деплой
+      # по расписанию) — метка вида dd.mm.yyyy-auto. Своя inline-логика
+      # (не app-version) именно из-за этого fallback.
       - name: "Determining the version"
         id: version
         run: |
-          if [[ ${{ github.event_name }} == 'push' ]]; then
-            raw_tag=`echo $(git describe --tags --abbrev=0)`
-            echo "VERSION=${raw_tag}" >> $GITHUB_OUTPUT
+          if [[ ${{ github.ref_type }} == 'tag' ]]; then
+            version=${{ github.ref_name }}
+          elif [[ ${{ inputs.format_mode }} == 'semver' ]]; then
+            version=$(git describe --tags --abbrev=0)
           else
             version=$(date +"%d.%m.%Y-auto")
-            echo "VERSION=${version}" >> $GITHUB_OUTPUT
           fi
+          echo "VERSION=${version}" >> $GITHUB_OUTPUT
+
+      # Полный список тегов образа по выбранному формату.
+      - name: "Docker tags"
+        id: tags
+        uses: moogur/all-workflows/.github/actions/docker-tags@master
+        with:
+          image: ${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}
+          version: ${{ steps.version.outputs.VERSION }}
+          format_mode: ${{ inputs.format_mode }}
 
       - name: "Build and tag image"
         run: |
-          docker build -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:latest" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}" .
+          build_args=()
+          for ref in ${{ steps.tags.outputs.tags }}; do build_args+=(-t "$ref"); done
+          docker build "${build_args[@]}" .
 
       - name: "docker login"
         run: docker login docker.pkg.github.com -u ${{ inputs.github_user }} -p ${{ secrets.GITHUB_TOKEN }}
 
       - name: "Publish image"
         run: |
-          docker push "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}"
-          docker push "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:latest"
+          for ref in ${{ steps.tags.outputs.tags }}; do docker push "$ref"; done

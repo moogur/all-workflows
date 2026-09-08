@@ -1,6 +1,6 @@
 # Composite actions
 
-Повторяющиеся шаги вынесены в переиспользуемые [composite actions](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action) в каталоге [`.github/actions/`](../.github/actions/). Это убирает дублирование: версия Node/Go, npm-аутентификация и определение версии приложения описаны один раз.
+Повторяющиеся шаги вынесены в переиспользуемые [composite actions](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action) в каталоге [`.github/actions/`](../.github/actions/). Это убирает дублирование: версия Node/Go, npm-аутентификация, определение версии приложения и формирование тегов docker-образа описаны один раз.
 
 ← Назад к [README](../README.md) · [Справочник workflow'ов](workflows.md)
 
@@ -122,3 +122,39 @@ uses: moogur/all-workflows/.github/actions/<name>@master
 
 > В режиме `git` требуется полная история тегов: в шаге `actions/checkout` должно стоять `fetch-depth: 0`.
 > Режим `ref` используют релизные workflow'ы ([release.yml](../.github/workflows/release.yml), [release_frontend.yml](../.github/workflows/release_frontend.yml), [release_with_artifacts.yml](../.github/workflows/release_with_artifacts.yml)).
+
+## `docker-tags`
+
+Формирует полный список тегов docker-образа по версии сборки. Поддерживает **два формата** (`format_mode`): старый (`date`) и семантический (`semver`).
+
+| | |
+| --- | --- |
+| **Входы** | `image` (обяз.) — имя образа без тега; `version` (обяз.) — версия сборки (git-тег как есть либо `dd.mm.yyyy-auto`); `format_mode` (необяз., по умолчанию `date`) — формат тегов |
+| **Выходы** | `tags` — полные ссылки `<image>:<tag>`, разделённые пробелом |
+
+**Форматы (`format_mode`):**
+
+| Значение | Теги образа | Когда использовать |
+| --- | --- | --- |
+| `date` | `<version>`, `latest` | Старое поведение (тег-дата `14.03.2026`, метка авто-деплоя `dd.mm.yyyy-auto`). Формат по умолчанию — обратная совместимость |
+| `semver` | `vX.Y.Z`, `vX.Y`, `vX`, `latest` | Репозитории с числовыми тегами `vX.Y.Z`: подвижные `vX` / `vX.Y` дают «последний патч мажора/минора» |
+
+```yaml
+- id: tags
+  uses: moogur/all-workflows/.github/actions/docker-tags@master
+  with:
+    image: docker.pkg.github.com/user/repo/repo
+    version: v1.2.3
+    format_mode: semver
+# tags = ...:v1.2.3 ...:v1.2 ...:v1 ...:latest
+
+- run: |
+    build_args=()
+    for ref in ${{ steps.tags.outputs.tags }}; do build_args+=(-t "$ref"); done
+    docker build "${build_args[@]}" .
+```
+
+> В режиме `semver` префикс `v` в теги образа добавляется всегда, даже если git-тег был без него (`1.2.3` → `v1.2.3`).
+> Тег, не подходящий под `vX.Y.Z` (дата, предрелиз `v1.2.3-rc.1`, неполная версия), в режиме `semver` — ошибка: сборка падает вместо публикации мусорных тегов.
+
+Используется в [deploy_for_docker_container](../.github/workflows/deploy_for_docker_container.yml).
