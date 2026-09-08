@@ -17,6 +17,10 @@ on:
         required: false
         default: 'date'
 
+permissions:
+  contents: read
+  packages: write
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

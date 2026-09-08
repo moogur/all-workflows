@@ -17,6 +17,13 @@ on:
         default: '.'
 
 # Новый запуск для той же ветки/папки отменяет предыдущий незавершённый.
+# pull-requests/checks: write — сторонний action оставляет отчёт и аннотации в PR.
+permissions:
+  contents: read
+  packages: read
+  pull-requests: write
+  checks: write
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.folder }}
   cancel-in-progress: true

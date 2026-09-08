@@ -6,6 +6,11 @@ name: Deploy frontend to builds branch
 on:
   workflow_call:
 
+# contents: write — force-push собранного dist в ветку builds.
+permissions:
+  contents: write
+  packages: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -40,11 +45,13 @@ jobs:
           git config --global user.email 'actions@github.com'
 
       # Пересобираем ветку builds: содержимое dist становится корнем ветки.
+      # `dist/.` вместо `dist/*` — иначе точечные файлы (.nojekyll, .htaccess)
+      # остались бы за бортом.
       - name: 'Create a build branch'
         run: |
           git checkout -b builds
           git rm -rf .
-          cp -r dist/* .
+          cp -a dist/. .
           rm -fr node_modules
           rm -fr dist
           git add .

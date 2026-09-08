@@ -90,3 +90,8 @@ Docker-реестр GitHub Packages по адресу `docker.pkg.github.com` у
 - **Вложенный вызов деплоя без `secrets: inherit`** в авто-деплое → секреты прокидываются явно (работало только потому, что вложенному workflow хватало автоматического `GITHUB_TOKEN`).
 - **Метка авто-сборки `dd.mm.yyyy-auto`** → `dd.mm.yyyy-HHMM-auto` (UTC): две автосборки за сутки больше не перезаписывают друг друга.
 - **Лишний `actions/checkout` в авто-деплое** → убран: сравнение идёт по внешнему репозиторию, своя история не нужна.
+- **Права `GITHUB_TOKEN` брались из дефолта потребителя** → в каждом workflow объявлен явный минимальный `permissions` (таблица — в [conventions.md](conventions.md#права-github_token)).
+- **`deploy_for_backend` / `deploy_for_go_backend` / `deploy_for_full_app` отставали от `deploy_for_docker_container`** → версия берётся из тега, инициировавшего запуск (а не `git describe`, который на коммите с несколькими тегами мог выбрать не тот), теги образа собирает [`docker-tags`](actions.md#docker-tags), появился `format_mode`.
+- **`echo $new_package_json > package.json` в [deploy_for_lerna](../.github/workflows/deploy_for_lerna.yml)** → `jq` пишет во временный файл: переменная без кавычек раскрывала глобы в значениях (например, `"files": ["*"]`).
+- **`detect-node-version` отдавал строку `null`**, а `detect-go-version` — пустую версию, если поля нет → оба падают с внятным сообщением.
+- **`cp -r dist/* .` в [deploy_for_frontend](../.github/workflows/deploy_for_frontend.yml)** → `cp -a dist/. .`: точечные файлы (`.nojekyll`, `.htaccess`) больше не теряются.

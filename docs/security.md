@@ -12,8 +12,9 @@ Workflow'ы [pr_annotation.yml](../.github/workflows/pr_annotation.yml) и [pr_a
 
 **Рекомендации:**
 - использовать эти workflow'ы только во внутренних (доверенных) репозиториях;
-- для публичных репозиториев рассмотреть `pull_request_target` с осторожностью либо запуск без секретов;
-- ограничить права `GITHUB_TOKEN` (`permissions:` на уровне job) до минимально необходимых.
+- для публичных репозиториев рассмотреть `pull_request_target` с осторожностью либо запуск без секретов.
+
+> Права `GITHUB_TOKEN` теперь заданы явно в каждом workflow (таблица — в [conventions.md](conventions.md#права-github_token)); для `pr_annotation` это `contents: read`, `packages: read`, `pull-requests: write`, `checks: write`. Доступ к секретам репозитория это не ограничивает — только права токена.
 
 ## 2. Передача токена в `docker login`
 
@@ -52,6 +53,12 @@ run: |
 
 Находка оставлена как есть (kanboard не меняется) и вынесена в `-ignore` в CI ([testing.md](testing.md)), чтобы не блокировать проверку. Устранить при ближайшей правке `kanboard.yml`.
 
-## 6. Секреты, используемые workflow'ами
+## 6. `.npmrc` с токеном в слое сборки
+
+[`deploy_backend.dockerfile`](../dockerfiles/deploy_backend.dockerfile) копирует `.npmrc` внутрь образа (`COPY package.json package-lock.json .npmrc ./`), а файл содержит `_authToken`. В **финальный** образ токен не попадает — сборка многоступенчатая, наружу копируется только `dist`, — но он остаётся в слоях builder-стадии и в кэше сборки раннера.
+
+**Рекомендация:** пробрасывать токен секрет-маунтом BuildKit (`RUN --mount=type=secret,id=npmrc ...`) либо удалять `.npmrc` тем же слоем, что и установка (`RUN npm ci && rm -f .npmrc`). Для `full_deploy.dockerfile` то же самое с `.npmrc` в `frontend/`.
+
+## 7. Секреты, используемые workflow'ами
 
 Полный перечень секретов и их назначение — в [conventions.md](conventions.md#секреты). Передавайте их через `secrets: inherit` либо явным списком и не логируйте значения.

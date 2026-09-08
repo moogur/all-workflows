@@ -104,6 +104,7 @@ jobs:
 - **Версия Node.js** берётся из поля `engines.node` в `package.json` проекта.
 - **Версия Go** берётся из директивы `go` в `go.mod`.
 - **Версия приложения** определяется по git-тегу (`git describe --tags`).
+- **Права `GITHUB_TOKEN`** объявлены явно в каждом workflow (минимально необходимые).
 - **Docker-образы** публикуются в GitHub Packages (`docker.pkg.github.com`) с тегами `<версия>` и `latest`; в `deploy_for_docker_container` с `format_mode: 'semver'` — `vX.Y.Z`, `vX.Y`, `vX`, `latest`.
 - **npm-пакеты** области `@moogur` ставятся из приватного реестра GitHub Packages.
 - **Сообщения коммитов** проверяются хуком и должны иметь вид `[GA-123] type(scope): subject`.

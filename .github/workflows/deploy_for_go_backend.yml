@@ -10,6 +10,15 @@ on:
         type: string
         required: false
         default: $GITHUB_ACTOR
+      format_mode:
+        description: "Tag format: 'date' (legacy — version as is + latest) or 'semver' (vX.Y.Z, vX.Y, vX, latest)"
+        type: string
+        required: false
+        default: 'date'
+
+permissions:
+  contents: read
+  packages: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -38,10 +47,24 @@ jobs:
           echo "IMAGE_NAME=${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
           echo "DOCKERHUB_IMAGE_NAME=docker.pkg.github.com/${{ inputs.github_user }}/${{ github.event.repository.name }}/${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
 
-      # Версия приложения из последнего git-тега (v1.2.3 → 1.2.3).
+      # Версия приложения из тега, инициировавшего запуск (v1.2.3 → 1.2.3).
+      # Именно из него, а не из `git describe`: на коммите может висеть больше
+      # одного тега. Запуск без тега — последний тег в истории.
       - name: 'Version'
         id: version
         uses: moogur/all-workflows/.github/actions/app-version@master
+        with:
+          mode: ${{ github.ref_type == 'tag' && 'ref' || 'git' }}
+
+      # Полный список тегов образа. semver действует только на сборку по тегу:
+      # пересборка без тега не должна переписывать релизные vX.Y.Z.
+      - name: 'Docker tags'
+        id: tags
+        uses: moogur/all-workflows/.github/actions/docker-tags@master
+        with:
+          image: ${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}
+          version: ${{ steps.version.outputs.version }}
+          format_mode: ${{ github.ref_type == 'tag' && inputs.format_mode || 'date' }}
 
       # Dockerfile и .dockerignore тянутся из этого же репозитория (ветка master).
       - name: 'Add docker file'
@@ -51,12 +74,13 @@ jobs:
 
       - name: 'Build and tag image'
         run: |
-          docker build --build-arg ARG_GO_VERSION="${{ steps.go.outputs.version }}" --build-arg ARG_APP_VERSION="${{ steps.version.outputs.version }}" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:latest" -t "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:${{ steps.version.outputs.version }}" .
+          build_args=()
+          for ref in ${{ steps.tags.outputs.tags }}; do build_args+=(-t "$ref"); done
+          docker build --build-arg ARG_GO_VERSION="${{ steps.go.outputs.version }}" --build-arg ARG_APP_VERSION="${{ steps.version.outputs.version }}" "${build_args[@]}" .
 
       - name: 'docker login'
         run: docker login docker.pkg.github.com -u ${{ inputs.github_user }} -p ${{ secrets.GITHUB_TOKEN }}
 
       - name: 'Publish image'
         run: |
-          docker push "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:${{ steps.version.outputs.version }}"
-          docker push "${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}:latest"
+          for ref in ${{ steps.tags.outputs.tags }}; do docker push "$ref"; done

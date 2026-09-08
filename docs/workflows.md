@@ -6,6 +6,7 @@
 
 ## Общие моменты
 
+- **`permissions`** — каждый workflow объявляет права `GITHUB_TOKEN` явно (минимально необходимые). Вызванный workflow не может просить больше, чем есть у вызвавшего: если в репозитории-потребителе токен урезан, запуск упадёт сразу с понятной ошибкой, а не на середине деплоя. Полная таблица — в [conventions.md](conventions.md#права-github_token).
 - **`concurrency`** — почти все workflow'ы группируют запуски по `${{ github.workflow }}-${{ github.ref }}` (а где есть параметр `folder` — ещё и по нему) с `cancel-in-progress: true`. Это значит, что новый запуск отменяет предыдущий незавершённый для той же ветки/папки.
 - **Версия Node.js** извлекается из `package.json` (`jq '.engines.node'`).
 - **Версия Go** извлекается из `go.mod` (строка `go ...`).
@@ -89,6 +90,8 @@
 
 **Шаги:** checkout → версия из тега → публикация релиза → `download-artifact` (`<projectname>`) → загрузка `<projectname>.tar.gz` как `<projectname><suffixname>.tar.gz`.
 
+> **Артефакт виден только внутри одного прогона.** `actions/download-artifact` без `run-id` ищет артефакт текущего run'а, поэтому [`go_build_with_artifacts`](#go_build_with_artifactsyml--сборка-go-бинарника) и этот workflow должны вызываться из **одного** caller-workflow (тогда у них общий run). Если сборка живёт в отдельном workflow, шаг ничего не найдёт — понадобятся `run-id` и `github-token`.
+
 ### `go_build_with_artifacts.yml` — Сборка Go-бинарника
 
 Кросс-компилирует Go-проект через `make build` и сохраняет результат как артефакт GitHub Actions (хранится 1 день). Обычно используется в паре с `release_with_artifacts.yml`.
@@ -137,16 +140,19 @@
 | Параметр | Тип | Обяз. | По умолчанию | Описание |
 | --- | --- | --- | --- | --- |
 | `github_user` | string | нет | `$GITHUB_ACTOR` | Пользователь GitHub (владелец образа / логин в реестр) |
+| `format_mode` | string | нет | `'date'` | Формат тегов образа: `date` — `<версия>` + `latest`; `semver` — `vX.Y.Z`, `vX.Y`, `vX`, `latest` |
 
 **Секреты:** `GITHUB_TOKEN`.
 
-**Шаги:** checkout → версия Node → формирование имени образа → версия из git-тега → создание `.npmrc` для приватного реестра → скачивание `.dockerignore` и `deploy_backend.dockerfile` из этого репозитория → `docker build` (с `ARG_NODE_VERSION`, `ARG_APP_VERSION`) → `docker login` → `docker push`.
+**Шаги:** checkout → версия Node → формирование имени образа → версия из тега, инициировавшего запуск → [`docker-tags`](actions.md#docker-tags) → создание `.npmrc` для приватного реестра → скачивание `.dockerignore` и `deploy_backend.dockerfile` из этого репозитория → `docker build` (с `ARG_NODE_VERSION`, `ARG_APP_VERSION`) со всеми тегами → `docker login` → `docker push` каждого тега.
+
+> Как и в [`deploy_for_docker_container`](#deploy_for_docker_containeryml--образ-по-локальному-dockerfile), `format_mode` действует только на сборку по тегу: запуск без тега публикует `<версия>` и `latest`.
 
 ### `deploy_for_go_backend.yml` — Docker-образ Go-бэкенда
 
 Аналогичен предыдущему, но для Go: скачивает `.full.dockerignore` и `deploy_go_backend.dockerfile`, собирает многоступенчатый образ на `scratch`.
 
-**Входные параметры:** `github_user` (`$GITHUB_ACTOR`).
+**Входные параметры:** `github_user` (`$GITHUB_ACTOR`), `format_mode` (`'date'`).
 
 **Секреты:** `GITHUB_TOKEN`.
 
@@ -154,7 +160,7 @@
 
 Собирает единый образ для приложения, состоящего из Go-бэкенда и Node.js-фронтенда (использует `full_deploy.dockerfile`). Создаёт `.npmrc` в папке `frontend`.
 
-**Входные параметры:** `github_user` (`$GITHUB_ACTOR`).
+**Входные параметры:** `github_user` (`$GITHUB_ACTOR`), `format_mode` (`'date'`).
 
 **Секреты:** `GITHUB_TOKEN`.
 

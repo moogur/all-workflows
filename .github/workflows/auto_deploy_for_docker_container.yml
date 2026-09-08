@@ -29,6 +29,12 @@ on:
         required: false
         default: "master"
 
+# Не уже прав вложенного deploy_for_docker_container: вызванный workflow
+# не может просить больше, чем есть у вызвавшего.
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   checking_to_use_the_latest_version:
     runs-on: ubuntu-latest

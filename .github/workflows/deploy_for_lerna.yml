@@ -6,6 +6,10 @@ name: Lerna publish packages
 on:
   workflow_call:
 
+permissions:
+  contents: read
+  packages: write
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -29,11 +33,12 @@ jobs:
           git config user.email "${{ github.actor}}@users.noreply.github.com"
 
       # Убираем скрипт prepare (husky), чтобы он не выполнялся при установке в CI.
+      # jq пишет во временный файл: `echo $var > package.json` раскрывал глобы
+      # в значениях (например, "files": ["*"]) и схлопывал JSON в одну строку.
       - name: "Remove husky from package.json"
         run: |
-          new_package_json=$(jq 'del(.scripts.prepare)' package.json)
-          rm -f package.json
-          echo $new_package_json > package.json
+          jq 'del(.scripts.prepare)' package.json > package.json.tmp
+          mv package.json.tmp package.json
 
       - name: 'Configure npm auth'
         uses: moogur/all-workflows/.github/actions/npm-auth@master

@@ -50,9 +50,16 @@ detect_with() {
   [ "$(output_value version)" = "16.20.0" ]
 }
 
-@test "(особенность) отсутствие engines.node даёт строку null" {
-  # jq -r на отсутствующем поле возвращает 'null' — фиксируем фактическое поведение.
+@test "отсутствие engines.node — ошибка с сообщением" {
+  # Раньше jq -r отдавал строку 'null', и setup-node падал невнятным
+  # «Unable to find Node version null».
   detect_with '{ "name": "x" }'
-  [ "$status" -eq 0 ]
-  [ "$(output_value version)" = "null" ]
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"engines.node is not set"* ]]
+}
+
+@test "пустой engines.node — ошибка с сообщением" {
+  detect_with '{ "engines": { "node": "" } }'
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"engines.node is not set"* ]]
 }

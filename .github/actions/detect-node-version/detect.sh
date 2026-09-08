@@ -3,4 +3,11 @@
 # Выход: строка "version=<...>" в файл $GITHUB_OUTPUT.
 set -euo pipefail
 
-echo "version=$(jq -r '.engines.node' package.json)" >> "$GITHUB_OUTPUT"
+version=$(jq -r '.engines.node // empty' package.json)
+
+if [[ -z "$version" ]]; then
+  echo "engines.node is not set in package.json" >&2
+  exit 1
+fi
+
+echo "version=$version" >> "$GITHUB_OUTPUT"

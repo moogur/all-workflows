@@ -83,3 +83,13 @@ go 1.20
   [ "$status" -eq 0 ]
   [ "$(output_value version)" = "1.20" ]
 }
+
+@test "отсутствие директивы go — ошибка с сообщением" {
+  # Раньше пустая версия молча уезжала в setup-go.
+  detect_with 'module example.com/x
+
+require golang.org/x/sys v0.1.0
+'
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"go directive is not found"* ]]
+}

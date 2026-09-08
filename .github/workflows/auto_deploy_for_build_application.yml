@@ -31,6 +31,10 @@ on:
         type: string
         required: true
 
+# Не уже прав вложенного deploy_for_build_application.
+permissions:
+  contents: write
+
 jobs:
   checking_to_use_the_latest_version:
     runs-on: ubuntu-latest

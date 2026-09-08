@@ -17,6 +17,10 @@ on:
         default: '.'
 
 # Новый запуск для той же ветки/папки отменяет предыдущий незавершённый.
+permissions:
+  contents: read
+  packages: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.folder }}
   cancel-in-progress: true
