@@ -1,0 +1,80 @@
+name: 'Build and publish docker image'
+description: "Общее тело docker-workflow'ов: версия сборки, теги, Dockerfile из этого репозитория, сборка и публикация в GitHub Packages."
+
+inputs:
+  github_user:
+    description: 'Владелец образа и логин в реестр'
+    required: true
+  format_mode:
+    description: 'Формат тегов для сборки по тегу: date или semver. Сборка без тега всегда идёт как date.'
+    required: false
+    default: 'date'
+  dockerfile:
+    description: 'Имя файла в dockerfiles/ этого репозитория. Пустая строка — у проекта свой Dockerfile.'
+    required: false
+    default: ''
+  dockerignore:
+    description: 'Имя файла .dockerignore в dockerfiles/. Пустая строка — не подменять.'
+    required: false
+    default: ''
+  build_args:
+    description: 'Дополнительные build-arg в формате KEY=VALUE, по одному на строку. ARG_APP_VERSION добавляется сам.'
+    required: false
+    default: ''
+  context:
+    description: 'Контекст сборки'
+    required: false
+    default: '.'
+  token:
+    description: 'Токен с правом packages: write, обычно GITHUB_TOKEN'
+    required: true
+
+outputs:
+  version:
+    description: 'Версия сборки'
+    value: ${{ steps.resolve.outputs.version }}
+  tags:
+    description: 'Полные ссылки на образ со всеми тегами'
+    value: ${{ steps.tags.outputs.tags }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: resolve
+      shell: bash
+      env:
+        GITHUB_USER: ${{ inputs.github_user }}
+        REPOSITORY_NAME: ${{ github.event.repository.name }}
+        FORMAT_MODE: ${{ inputs.format_mode }}
+        REF_TYPE: ${{ github.ref_type }}
+        REF_NAME: ${{ github.ref_name }}
+      run: bash "$GITHUB_ACTION_PATH/resolve.sh"
+
+    # Полный список тегов образа по выбранному формату.
+    - id: tags
+      uses: moogur/all-workflows/.github/actions/docker-tags@master
+      with:
+        image: ${{ steps.resolve.outputs.image }}
+        version: ${{ steps.resolve.outputs.version }}
+        format_mode: ${{ steps.resolve.outputs.format_mode }}
+
+    - shell: bash
+      env:
+        DOCKERFILE: ${{ inputs.dockerfile }}
+        DOCKERIGNORE: ${{ inputs.dockerignore }}
+      run: bash "$GITHUB_ACTION_PATH/dockerfile.sh"
+
+    - shell: bash
+      env:
+        TAGS: ${{ steps.tags.outputs.tags }}
+        VERSION: ${{ steps.resolve.outputs.version }}
+        BUILD_ARGS: ${{ inputs.build_args }}
+        CONTEXT: ${{ inputs.context }}
+      run: bash "$GITHUB_ACTION_PATH/build.sh"
+
+    - shell: bash
+      env:
+        GITHUB_USER: ${{ inputs.github_user }}
+        TOKEN: ${{ inputs.token }}
+        TAGS: ${{ steps.tags.outputs.tags }}
+      run: bash "$GITHUB_ACTION_PATH/publish.sh"

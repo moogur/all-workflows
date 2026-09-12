@@ -51,12 +51,6 @@
 
 **Шаги:** checkout → подготовка папки → setup-node (с кэшем npm) → npm-auth → `npm ci` → action покрытия с `test-script: npm run test:coverage`.
 
-### `pr_annotation_go.yml` — Аннотации тестов Go (заготовка)
-
-Подготавливает окружение Go для аннотаций тестов в PR. На текущий момент шаг запуска тестов закомментирован — workflow выполняет только установку Go.
-
-**Входные параметры:** `skip_tests` (`'false'`), `folder` (`'.'`).
-
 ---
 
 ## Релизы и артефакты
@@ -70,6 +64,8 @@
 | Параметр | Тип | Обяз. | По умолчанию | Описание |
 | --- | --- | --- | --- | --- |
 | `notes_source` | string | нет | `'drafter'` | Источник тела релиза: `drafter` — смёрженные PR через Release Drafter; `commits` — коммиты между текущим и предыдущим тегом |
+| `artifact` | string | нет | `''` | Имя артефакта прогона, который приложить к релизу как `<artifact><artifact_suffix>.tar.gz`. Пусто — релиз без ассетов |
+| `artifact_suffix` | string | нет | `''` | Суффикс к имени файла ассета |
 
 **Секреты:** `GITHUB_TOKEN`.
 
@@ -78,6 +74,8 @@
 **`notes_source: 'commits'`** — для трунковой разработки: пилим в `master` без PR, ставим тег, по нему идёт сборка и релиз. Тело собирает [`release-notes`](actions.md#release-notes) из коммитов между запушенным тегом и предыдущим, релиз публикует [`publish-release`](actions.md#publish-release).
 
 **Шаги (`commits`):** checkout с `fetch-depth: 0` → [`release-notes`](actions.md#release-notes) (диапазон, группировка, число коммитов) → [`publish-release`](actions.md#publish-release).
+
+С непустым `artifact` перед публикацией добавляются два шага: `download-artifact` и переименование файла в `<artifact><artifact_suffix>.tar.gz` (`gh` публикует ассет под именем файла, отдельного `asset_name` у него нет). Так этот workflow закрывает и сценарий бывшего `release_with_artifacts`.
 
 > **Почему Release Drafter не годится для трунка.** Он строит changelog из PR и считает инкремент версии по их меткам. Без PR тело релиза выходит пустым (версия при этом остаётся корректной — она приходит из тега, а не из `version-resolver`).
 >
@@ -106,25 +104,21 @@
 > Тег для ассета в режиме `drafter` берётся из вывода Release Drafter (`tag_name`), а не из `github.ref_name`:
 > его `tag-template` может отличаться от имени запушенного тега (`1.2.3` → `v1.2.3`).
 
-### `release_with_artifacts.yml` — Релиз + готовый артефакт
+### `release_with_artifacts.yml` — Релиз + готовый артефакт (обёртка)
 
-Публикует релиз и прикладывает к нему ранее собранный артефакт `*.tar.gz` (обычно подготовленный workflow'ом [`go_build_with_artifacts.yml`](#go_build_with_artifactsyml--сборка-go-бинарника)).
+**Устарело.** Тело переехало в [`release.yml`](#releaseyml--публикация-релиза); файл остался тонкой обёрткой, потому что потребители ссылаются на его путь. Новые вызовы идут в `release.yml` с параметрами `artifact` / `artifact_suffix`.
 
 **Входные параметры:**
 
 | Параметр | Тип | Обяз. | По умолчанию | Описание |
 | --- | --- | --- | --- | --- |
-| `projectname` | string | нет | `'main'` | Имя проекта = имя скачиваемого артефакта |
-| `suffixname` | string | нет | `''` | Суффикс к имени файла ассета |
-| `notes_source` | string | нет | `'drafter'` | Источник тела релиза — как в [`release.yml`](#releaseyml--публикация-релиза) |
+| `projectname` | string | нет | `'main'` | Имя артефакта → `artifact` |
+| `suffixname` | string | нет | `''` | Суффикс имени ассета → `artifact_suffix` |
+| `notes_source` | string | нет | `'drafter'` | Источник тела релиза |
 
 **Секреты:** `GITHUB_TOKEN`.
 
-**Шаги:** checkout (глубина зависит от `notes_source`) → публикация релиза Release Drafter'ом (`drafter`) либо сбор тела через [`release-notes`](actions.md#release-notes) (`commits`) → `download-artifact` (`<projectname>`) → переименование в `<projectname><suffixname>.tar.gz` → [`publish-release`](actions.md#publish-release) с ассетом.
-
-> Суффикс проставляется переименованием файла: `gh` публикует ассет под именем файла, отдельного `asset_name` у него нет.
-
-> **Артефакт виден только внутри одного прогона.** `actions/download-artifact` без `run-id` ищет артефакт текущего run'а, поэтому [`go_build_with_artifacts`](#go_build_with_artifactsyml--сборка-go-бинарника) и этот workflow должны вызываться из **одного** caller-workflow (тогда у них общий run). Если сборка живёт в отдельном workflow, шаг ничего не найдёт — понадобятся `run-id` и `github-token`.
+> **Артефакт виден только внутри одного прогона.** `actions/download-artifact` без `run-id` ищет артефакт текущего run'а, поэтому [`go_build_with_artifacts`](#go_build_with_artifactsyml--сборка-go-бинарника) и релиз должны вызываться из **одного** caller-workflow (тогда у них общий run). Если сборка живёт в отдельном workflow, шаг ничего не найдёт — понадобятся `run-id` и `github-token`.
 
 ### `go_build_with_artifacts.yml` — Сборка Go-бинарника
 
@@ -171,56 +165,53 @@
 ## Docker-образы
 
 Все Docker-workflow'ы публикуют образы в GitHub Packages по адресу
-`docker.pkg.github.com/<github_user>/<repo>/<repo>` с тегами `latest` и версией приложения.
-В [`deploy_for_docker_container.yml`](#deploy_for_docker_containeryml--образ-по-локальному-dockerfile) набор тегов
-выбирается параметром `format_mode` (см. [`docker-tags`](actions.md#docker-tags)).
-Подробнее про используемые Dockerfile'ы — в [docs/dockerfiles.md](dockerfiles.md).
+`docker.pkg.github.com/<github_user>/<repo>/<repo>`. Набор тегов выбирается параметром `format_mode`
+(см. [`docker-tags`](actions.md#docker-tags)). Подробнее про используемые Dockerfile'ы — в [docs/dockerfiles.md](dockerfiles.md).
+
+**Тело сборки у всех четырёх общее** — action [`docker-image`](actions.md#docker-image): версия, теги, подмена
+Dockerfile, `docker build`, логин и пуш. Сами workflow'ы отличаются только спецификой стека (какую версию языка
+определить, нужен ли `.npmrc`, какой Dockerfile взять), поэтому у них одинаковые входы и секреты:
+
+| Параметр | Тип | Обяз. | По умолчанию | Описание |
+| --- | --- | --- | --- | --- |
+| `github_user` | string | нет | `$GITHUB_ACTOR` | Пользователь GitHub (владелец образа / логин в реестр) |
+| `format_mode` | string | нет | `'date'` | Формат тегов образа: `date` — `<версия>` + `latest`; `semver` — `vX.Y.Z`, `vX.Y`, `vX`, `latest` |
+
+**Секреты:** `GITHUB_TOKEN`.
+
+| Workflow | Версия языка | `.npmrc` | Dockerfile |
+| --- | --- | --- | --- |
+| `deploy_for_backend` | Node | в корне | `deploy_backend.dockerfile` + `.dockerignore` |
+| `deploy_for_go_backend` | Go | — | `deploy_go_backend.dockerfile` + `.full.dockerignore` |
+| `deploy_for_full_app` | Node + Go | в `frontend/` | `full_deploy.dockerfile` + `.full.dockerignore` |
+| `deploy_for_docker_container` | — | — | свой, из проекта |
+
+> **Версия сборки везде одинакова:** тег, инициировавший запуск, а запуск без тега (расписание, ручной) —
+> `dd.mm.yyyy-HHMM-auto` в формате `date`, даже в semver-репозитории. Раньше так вёл себя только
+> `deploy_for_docker_container`, а остальные три брали последний тег из истории и плановой пересборкой могли
+> переписать релизный `vX.Y.Z` другим содержимым.
 
 ### `deploy_for_backend.yml` — Docker-образ Node.js-бэкенда
 
-**Входные параметры:**
-
-| Параметр | Тип | Обяз. | По умолчанию | Описание |
-| --- | --- | --- | --- | --- |
-| `github_user` | string | нет | `$GITHUB_ACTOR` | Пользователь GitHub (владелец образа / логин в реестр) |
-| `format_mode` | string | нет | `'date'` | Формат тегов образа: `date` — `<версия>` + `latest`; `semver` — `vX.Y.Z`, `vX.Y`, `vX`, `latest` |
-
-**Секреты:** `GITHUB_TOKEN`.
-
-**Шаги:** checkout → версия Node → формирование имени образа → версия из тега, инициировавшего запуск → [`docker-tags`](actions.md#docker-tags) → создание `.npmrc` для приватного реестра → скачивание `.dockerignore` и `deploy_backend.dockerfile` из этого репозитория → `docker build` (с `ARG_NODE_VERSION`, `ARG_APP_VERSION`) со всеми тегами → `docker login` → `docker push` каждого тега.
-
-> Как и в [`deploy_for_docker_container`](#deploy_for_docker_containeryml--образ-по-локальному-dockerfile), `format_mode` действует только на сборку по тегу: запуск без тега публикует `<версия>` и `latest`.
+**Шаги:** checkout → [`detect-node-version`](actions.md#detect-node-version) → [`npm-auth`](actions.md#npm-auth) в корне → [`docker-image`](actions.md#docker-image) с `deploy_backend.dockerfile` и `ARG_NODE_VERSION`.
 
 ### `deploy_for_go_backend.yml` — Docker-образ Go-бэкенда
 
-Аналогичен предыдущему, но для Go: скачивает `.full.dockerignore` и `deploy_go_backend.dockerfile`, собирает многоступенчатый образ на `scratch`.
+Многоступенчатый образ на `scratch`.
 
-**Входные параметры:** `github_user` (`$GITHUB_ACTOR`), `format_mode` (`'date'`).
-
-**Секреты:** `GITHUB_TOKEN`.
+**Шаги:** checkout → [`detect-go-version`](actions.md#detect-go-version) → [`docker-image`](actions.md#docker-image) с `deploy_go_backend.dockerfile` и `ARG_GO_VERSION`.
 
 ### `deploy_for_full_app.yml` — Docker-образ полного приложения
 
-Собирает единый образ для приложения, состоящего из Go-бэкенда и Node.js-фронтенда (использует `full_deploy.dockerfile`). Создаёт `.npmrc` в папке `frontend`.
+Единый образ для приложения из Go-бэкенда и Node.js-фронтенда.
 
-**Входные параметры:** `github_user` (`$GITHUB_ACTOR`), `format_mode` (`'date'`).
-
-**Секреты:** `GITHUB_TOKEN`.
+**Шаги:** checkout → версии Node и Go → [`npm-auth`](actions.md#npm-auth) в `frontend/` → [`docker-image`](actions.md#docker-image) с `full_deploy.dockerfile` и обоими build-arg.
 
 ### `deploy_for_docker_container.yml` — Образ по локальному Dockerfile
 
-Универсальная сборка: использует `Dockerfile`, лежащий в самом проекте (ничего не скачивает). Версия — тег, инициировавший запуск. Сборка **без тега** (расписание, ручной запуск) всегда идёт как `dd.mm.yyyy-HHMM-auto` в формате `date`, даже если репозиторий настроен на `semver`.
+Сборка по `Dockerfile`, который лежит в самом проекте: ничего не подменяется.
 
-**Входные параметры:**
-
-| Параметр | Тип | Обяз. | По умолчанию | Описание |
-| --- | --- | --- | --- | --- |
-| `github_user` | string | нет | `$GITHUB_ACTOR` | Пользователь GitHub (владелец образа / логин в реестр) |
-| `format_mode` | string | нет | `'date'` | Формат тегов образа: `date` — `<версия>` + `latest`; `semver` — `vX.Y.Z`, `vX.Y`, `vX`, `latest` |
-
-**Секреты:** `GITHUB_TOKEN`.
-
-**Шаги:** checkout → формирование имени образа → определение версии → [`docker-tags`](actions.md#docker-tags) (список тегов по `format_mode`) → `docker build` со всеми тегами → `docker login` → `docker push` каждого тега.
+**Шаги:** checkout → [`docker-image`](actions.md#docker-image) без `dockerfile`.
 
 Пример вызова для репозитория с числовыми тегами:
 

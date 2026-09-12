@@ -1,5 +1,6 @@
 # Сборка единого Docker-образа приложения «бэкенд (Go) + фронтенд (Node.js)»
 # и публикация в GitHub Packages. Ожидает структуру проекта backend/ и frontend/.
+# Тело сборки — в общем action docker-image.
 # Переиспользуемый workflow (workflow_call). Секрет: GITHUB_TOKEN.
 name: Deploy full application
 
@@ -43,55 +44,21 @@ jobs:
         id: go
         uses: moogur/all-workflows/.github/actions/detect-go-version@master
 
-      # Имя образа в GitHub Packages: <user>/<repo>/<repo>.
-      # ПРИМЕЧАНИЕ: docker.pkg.github.com устарел; см. docs/modernization.md.
-      - name: 'Global env'
-        id: global_env
-        run: |
-          echo "IMAGE_NAME=${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
-          echo "DOCKERHUB_IMAGE_NAME=docker.pkg.github.com/${{ inputs.github_user }}/${{ github.event.repository.name }}/${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
-
-      # Версия приложения из тега, инициировавшего запуск (v1.2.3 → 1.2.3).
-      # Именно из него, а не из `git describe`: на коммите может висеть больше
-      # одного тега. Запуск без тега — последний тег в истории.
-      - name: 'Version'
-        id: version
-        uses: moogur/all-workflows/.github/actions/app-version@master
-        with:
-          mode: ${{ github.ref_type == 'tag' && 'ref' || 'git' }}
-
-      # Полный список тегов образа. semver действует только на сборку по тегу:
-      # пересборка без тега не должна переписывать релизные vX.Y.Z.
-      - name: 'Docker tags'
-        id: tags
-        uses: moogur/all-workflows/.github/actions/docker-tags@master
-        with:
-          image: ${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}
-          version: ${{ steps.version.outputs.version }}
-          format_mode: ${{ github.ref_type == 'tag' && inputs.format_mode || 'date' }}
-
       # .npmrc создаётся в frontend/ — именно там выполняется npm-сборка внутри образа.
-      - name: "Setup npm"
+      - name: 'Setup npm'
         uses: moogur/all-workflows/.github/actions/npm-auth@master
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           working-directory: frontend
 
-      # Dockerfile и .dockerignore тянутся из этого же репозитория (ветка master).
-      - name: 'Add docker file'
-        run: |
-          wget -O ./.dockerignore https://raw.githubusercontent.com/moogur/all-workflows/master/dockerfiles/.full.dockerignore
-          wget -O ./Dockerfile https://raw.githubusercontent.com/moogur/all-workflows/master/dockerfiles/full_deploy.dockerfile
-
-      - name: 'Build and tag image'
-        run: |
-          build_args=()
-          for ref in ${{ steps.tags.outputs.tags }}; do build_args+=(-t "$ref"); done
-          docker build --build-arg ARG_NODE_VERSION="${{ steps.node.outputs.version }}" --build-arg ARG_GO_VERSION="${{ steps.go.outputs.version }}" --build-arg ARG_APP_VERSION="${{ steps.version.outputs.version }}" "${build_args[@]}" .
-
-      - name: 'docker login'
-        run: docker login docker.pkg.github.com -u ${{ inputs.github_user }} -p ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 'Publish image'
-        run: |
-          for ref in ${{ steps.tags.outputs.tags }}; do docker push "$ref"; done
+      - name: 'Build and publish image'
+        uses: moogur/all-workflows/.github/actions/docker-image@master
+        with:
+          github_user: ${{ inputs.github_user }}
+          format_mode: ${{ inputs.format_mode }}
+          dockerfile: full_deploy.dockerfile
+          dockerignore: .full.dockerignore
+          build_args: |
+            ARG_NODE_VERSION=${{ steps.node.outputs.version }}
+            ARG_GO_VERSION=${{ steps.go.outputs.version }}
+          token: ${{ secrets.GITHUB_TOKEN }}

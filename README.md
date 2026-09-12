@@ -9,7 +9,7 @@
 | Каталог / файл | Назначение |
 | --- | --- |
 | [`.github/workflows/`](.github/workflows/) | Переиспользуемые workflow'ы (основное содержимое репозитория) |
-| [`.github/actions/`](.github/actions/) | Composite actions — общие шаги (версии Node/Go, настройка Node с кэшем npm, npm-аутентификация, версия приложения, тело релиза по коммитам, публикация релиза, теги docker-образа, проверка обновлений внешнего репозитория) |
+| [`.github/actions/`](.github/actions/) | Composite actions — общие шаги (версии Node/Go, настройка Node с кэшем npm, npm-аутентификация, версия приложения, тело релиза по коммитам, публикация релиза, сборка docker-образа, проверка обновлений внешнего репозитория) |
 | [`dockerfiles/`](dockerfiles/) | Dockerfile'ы и `.dockerignore`, которые workflow'ы скачивают на лету при сборке образов |
 | [`scripts/kanboard_requests.sh`](scripts/kanboard_requests.sh) | Bash-библиотека JSON-RPC запросов к Kanboard |
 | [`.husky/commit-msg`](.husky/commit-msg) | Git-хук валидации сообщения коммита |
@@ -51,15 +51,14 @@ jobs:
 | [`actions_for_push.yml`](.github/workflows/actions_for_push.yml) | Node.js | Lint → build → test |
 | [`actions_for_push_go.yml`](.github/workflows/actions_for_push_go.yml) | Go | `go vet`, `staticcheck`, `golint`, тесты |
 | [`pr_annotation.yml`](.github/workflows/pr_annotation.yml) | Node.js | Аннотации покрытия Jest в Pull Request |
-| [`pr_annotation_go.yml`](.github/workflows/pr_annotation_go.yml) | Go | Заготовка под аннотации тестов Go |
 
 ### Релизы и артефакты
 
 | Workflow | Что делает |
 | --- | --- |
-| [`release.yml`](.github/workflows/release.yml) | Публикация GitHub-релиза: по PR (Release Drafter) или по коммитам между тегами |
+| [`release.yml`](.github/workflows/release.yml) | Публикация GitHub-релиза: по PR (Release Drafter) или по коммитам между тегами, с ассетом из артефакта |
 | [`release_frontend.yml`](.github/workflows/release_frontend.yml) | Релиз (PR или коммиты) + сборка фронтенда и загрузка `application.zip` |
-| [`release_with_artifacts.yml`](.github/workflows/release_with_artifacts.yml) | Релиз (PR или коммиты) + загрузка ранее собранного `*.tar.gz` |
+| [`release_with_artifacts.yml`](.github/workflows/release_with_artifacts.yml) | Устаревшая обёртка над `release.yml` с ассетом-артефактом |
 | [`go_build_with_artifacts.yml`](.github/workflows/go_build_with_artifacts.yml) | Сборка Go-бинарника и загрузка артефакта |
 | [`deploy_for_build_application.yml`](.github/workflows/deploy_for_build_application.yml) | Сборка по скрипту + создание релиза с `application.zip` (тело — пустое, по PR или по коммитам) |
 

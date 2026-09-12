@@ -1,5 +1,6 @@
-# Универсальная сборка и публикация Docker-образа по локальному Dockerfile проекта
-# (в отличие от deploy_for_backend/go — здесь Dockerfile не скачивается).
+# Сборка и публикация Docker-образа по локальному Dockerfile проекта
+# (в отличие от deploy_for_backend/go — здесь Dockerfile не подменяется).
+# Тело сборки — в общем action docker-image.
 # Переиспользуемый workflow (workflow_call). Секрет: GITHUB_TOKEN.
 name: Deploy for docker container
 
@@ -30,54 +31,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: "Checkout"
+      - name: 'Checkout'
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: "Global env"
-        id: global_env
-        run: |
-          echo "IMAGE_NAME=${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
-          echo "DOCKERHUB_IMAGE_NAME=docker.pkg.github.com/${{ inputs.github_user }}/${{ github.event.repository.name }}/${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
-
-      # Версия сборки — тег, инициировавший запуск: берём именно его, а не
-      # `git describe`, чтобы не поймать другой тег того же коммита.
-      # Сборка без тега (расписание, ручной запуск) всегда идёт как
-      # dd.mm.yyyy-HHMM-auto в формате date, даже в semver-репозитории: иначе
-      # плановая пересборка переписала бы релизные vX.Y.Z другим содержимым.
-      # Время в метке — чтобы две сборки за сутки не затёрли друг друга, UTC.
-      - name: "Determining the version"
-        id: version
-        run: |
-          if [[ ${{ github.ref_type }} == 'tag' ]]; then
-            version=${{ github.ref_name }}
-            mode=${{ inputs.format_mode }}
-          else
-            version=$(date -u +"%d.%m.%Y-%H%M-auto")
-            mode=date
-          fi
-          echo "VERSION=${version}" >> $GITHUB_OUTPUT
-          echo "FORMAT_MODE=${mode}" >> $GITHUB_OUTPUT
-
-      # Полный список тегов образа по выбранному формату.
-      - name: "Docker tags"
-        id: tags
-        uses: moogur/all-workflows/.github/actions/docker-tags@master
+      - name: 'Build and publish image'
+        uses: moogur/all-workflows/.github/actions/docker-image@master
         with:
-          image: ${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}
-          version: ${{ steps.version.outputs.VERSION }}
-          format_mode: ${{ steps.version.outputs.FORMAT_MODE }}
-
-      - name: "Build and tag image"
-        run: |
-          build_args=()
-          for ref in ${{ steps.tags.outputs.tags }}; do build_args+=(-t "$ref"); done
-          docker build "${build_args[@]}" .
-
-      - name: "docker login"
-        run: docker login docker.pkg.github.com -u ${{ inputs.github_user }} -p ${{ secrets.GITHUB_TOKEN }}
-
-      - name: "Publish image"
-        run: |
-          for ref in ${{ steps.tags.outputs.tags }}; do docker push "$ref"; done
+          github_user: ${{ inputs.github_user }}
+          format_mode: ${{ inputs.format_mode }}
+          token: ${{ secrets.GITHUB_TOKEN }}

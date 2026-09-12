@@ -6,7 +6,7 @@
 
 ## 1. Секреты и Pull Request из форков
 
-Workflow'ы [pr_annotation.yml](../.github/workflows/pr_annotation.yml) и [pr_annotation_go.yml](../.github/workflows/pr_annotation_go.yml) запускаются в контексте Pull Request, имеют доступ к секретам и выполняют установку зависимостей (`npm ci`).
+Workflow [pr_annotation.yml](../.github/workflows/pr_annotation.yml) запускается в контексте Pull Request, имеет доступ к секретам и выполняет установку зависимостей (`npm ci`).
 
 **Риск:** если такой пайплайн когда-либо будет запущен на PR из **форка**, то lifecycle-скрипты npm (`postinstall` и т. п.) из недоверенного кода смогут получить доступ к секретам раннера.
 
@@ -16,11 +16,11 @@ Workflow'ы [pr_annotation.yml](../.github/workflows/pr_annotation.yml) и [pr_a
 
 > Права `GITHUB_TOKEN` теперь заданы явно в каждом workflow (таблица — в [conventions.md](conventions.md#права-github_token)); для `pr_annotation` это `contents: read`, `packages: read`, `pull-requests: write`, `checks: write`. Доступ к секретам репозитория это не ограничивает — только права токена.
 
-## 2. Передача токена в `docker login`
+## 2. Передача токена в `docker login` — исправлено
 
-В docker-workflow'ах используется `docker login ... -p ${{ secrets.GITHUB_TOKEN }}`. Токен в виде аргумента командной строки может попасть в список процессов раннера.
+Раньше токен уходил аргументом командной строки (`docker login ... -p <token>`) и мог попасть в список процессов раннера. Теперь логин выполняет action [`docker-image`](actions.md#docker-image) через `--password-stdin`.
 
-**Рекомендация:** передавать токен через stdin (`--password-stdin`) или использовать [`docker/login-action`](https://github.com/docker/login-action), где это сделано из коробки. (См. также [modernization.md](modernization.md).)
+**Осталось на будущее:** [`docker/login-action`](https://github.com/docker/login-action) при переезде на `ghcr.io` (см. [modernization.md](modernization.md)).
 
 ## 3. Загрузка ресурсов в рантайме с `master`
 
@@ -30,11 +30,11 @@ Dockerfile'ы и composite actions подтягиваются по ссылке 
 
 **Рекомендация:** пинить ресурсы и сторонние actions к тегу или SHA. Подробнее — в [modernization.md](modernization.md).
 
-> Скрипт Kanboard уже исправлен: [kanboard.yml](../.github/workflows/kanboard.yml) берёт `kanboard_requests.sh` через `actions/checkout`, запиненный к `github.job_workflow_sha`, а не через `wget` с `master`.
+> Частично закрыто: [kanboard.yml](../.github/workflows/kanboard.yml) берёт `kanboard_requests.sh` через `actions/checkout`, запиненный к `github.job_workflow_sha`, а Dockerfile'ы [`docker-image`](actions.md#docker-image) копирует из копии репозитория рядом с экшеном — обе ссылки на `master` в рантайме ушли. Осталась ссылка `@master` в самих `uses:`.
 
 ## 4. Пин сторонних actions
 
-Сторонние actions пинятся по тегам (`@v4`, `@v2`), а архивные release-actions — по `@master` / `@main`.
+Сторонние actions пинятся по тегам (`@v7`, `@v2`); архивные release-actions по `@master` / `@main` больше не используются.
 
 **Рекомендация:** для повышения уровня безопасности пинить сторонние actions по полному SHA коммита; как минимум — не использовать `@master`/`@main` у сторонних зависимостей.
 

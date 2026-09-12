@@ -1,4 +1,5 @@
 # Сборка и публикация Docker-образа Go-бэкенда (multi-stage на scratch) в GitHub Packages.
+# Тело сборки — в общем action docker-image; здесь только специфика Go.
 # Переиспользуемый workflow (workflow_call). Секрет: GITHUB_TOKEN.
 name: Deploy for golang docker
 
@@ -32,55 +33,19 @@ jobs:
       - name: 'Checkout'
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0  # полная история — для версии по git-тегу
+          fetch-depth: 0
 
       # Версия Go для build-arg сборки образа.
       - name: 'Detect Go version'
         id: go
         uses: moogur/all-workflows/.github/actions/detect-go-version@master
 
-      # Имя образа в GitHub Packages: <user>/<repo>/<repo>.
-      # ПРИМЕЧАНИЕ: docker.pkg.github.com устарел; см. docs/modernization.md.
-      - name: 'Global env'
-        id: global_env
-        run: |
-          echo "IMAGE_NAME=${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
-          echo "DOCKERHUB_IMAGE_NAME=docker.pkg.github.com/${{ inputs.github_user }}/${{ github.event.repository.name }}/${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
-
-      # Версия приложения из тега, инициировавшего запуск (v1.2.3 → 1.2.3).
-      # Именно из него, а не из `git describe`: на коммите может висеть больше
-      # одного тега. Запуск без тега — последний тег в истории.
-      - name: 'Version'
-        id: version
-        uses: moogur/all-workflows/.github/actions/app-version@master
+      - name: 'Build and publish image'
+        uses: moogur/all-workflows/.github/actions/docker-image@master
         with:
-          mode: ${{ github.ref_type == 'tag' && 'ref' || 'git' }}
-
-      # Полный список тегов образа. semver действует только на сборку по тегу:
-      # пересборка без тега не должна переписывать релизные vX.Y.Z.
-      - name: 'Docker tags'
-        id: tags
-        uses: moogur/all-workflows/.github/actions/docker-tags@master
-        with:
-          image: ${{ steps.global_env.outputs.DOCKERHUB_IMAGE_NAME }}
-          version: ${{ steps.version.outputs.version }}
-          format_mode: ${{ github.ref_type == 'tag' && inputs.format_mode || 'date' }}
-
-      # Dockerfile и .dockerignore тянутся из этого же репозитория (ветка master).
-      - name: 'Add docker file'
-        run: |
-          wget -O ./.dockerignore https://raw.githubusercontent.com/moogur/all-workflows/master/dockerfiles/.full.dockerignore
-          wget -O ./Dockerfile https://raw.githubusercontent.com/moogur/all-workflows/master/dockerfiles/deploy_go_backend.dockerfile
-
-      - name: 'Build and tag image'
-        run: |
-          build_args=()
-          for ref in ${{ steps.tags.outputs.tags }}; do build_args+=(-t "$ref"); done
-          docker build --build-arg ARG_GO_VERSION="${{ steps.go.outputs.version }}" --build-arg ARG_APP_VERSION="${{ steps.version.outputs.version }}" "${build_args[@]}" .
-
-      - name: 'docker login'
-        run: docker login docker.pkg.github.com -u ${{ inputs.github_user }} -p ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 'Publish image'
-        run: |
-          for ref in ${{ steps.tags.outputs.tags }}; do docker push "$ref"; done
+          github_user: ${{ inputs.github_user }}
+          format_mode: ${{ inputs.format_mode }}
+          dockerfile: deploy_go_backend.dockerfile
+          dockerignore: .full.dockerignore
+          build_args: ARG_GO_VERSION=${{ steps.go.outputs.version }}
+          token: ${{ secrets.GITHUB_TOKEN }}

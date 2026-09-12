@@ -47,13 +47,13 @@ setup() {
 }
 
 @test "метка авто-сборки содержит время и берётся в UTC" {
-  grep -qF 'date -u +"%d.%m.%Y-%H%M-auto"' "$WF/deploy_for_docker_container.yml"
+  # Логика живёт в общем action docker-image (поведение — в tests/docker-image.bats).
+  grep -qF "date -u +'%d.%m.%Y-%H%M-auto'" "$ROOT/.github/actions/docker-image/resolve.sh"
 }
 
 @test "сборка без тега всегда идёт в формате date" {
   # Иначе плановая пересборка semver-репозитория переписала бы релизные vX.Y.Z.
-  grep -qF 'mode=date' "$WF/deploy_for_docker_container.yml"
-  grep -qF 'format_mode: ${{ steps.version.outputs.FORMAT_MODE }}' "$WF/deploy_for_docker_container.yml"
+  grep -qF "format_mode='date'" "$ROOT/.github/actions/docker-image/resolve.sh"
 }
 
 @test "версия сборки не вычисляется через git describe" {

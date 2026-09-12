@@ -76,13 +76,13 @@ Git-хук [`.husky/commit-msg`](../.husky/commit-msg) валидирует ка
 | Workflow | Права |
 | --- | --- |
 | `actions_for_push` | `contents: read`, `packages: read` |
-| `actions_for_push_go`, `pr_annotation_go`, `go_build_with_artifacts`, `kanboard` | `contents: read` |
+| `actions_for_push_go`, `go_build_with_artifacts`, `kanboard` | `contents: read` |
 | `pr_annotation` | `contents: read`, `packages: read`, `pull-requests: write`, `checks: write` |
 | `publish_package`, `deploy_for_lerna` | `contents: read`, `packages: write` |
 | `deploy_for_backend`, `deploy_for_go_backend`, `deploy_for_full_app`, `deploy_for_docker_container` | `contents: read`, `packages: write` |
 | `deploy_for_frontend` | `contents: write`, `packages: read` |
 | `deploy_for_build_application` | `contents: write`, `pull-requests: read` |
-| `release`, `release_with_artifacts` | `contents: write`, `pull-requests: read` |
+| `release`, `release_with_artifacts` (обёртка) | `contents: write`, `pull-requests: read` |
 | `release_frontend` | `contents: write`, `packages: read`, `pull-requests: read` |
 | `auto_deploy_for_docker_container` | `contents: read`, `packages: write` |
 | `auto_deploy_for_build_application` | `contents: write`, `pull-requests: read` |

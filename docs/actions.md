@@ -1,6 +1,6 @@
 # Composite actions
 
-Повторяющиеся шаги вынесены в переиспользуемые [composite actions](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action) в каталоге [`.github/actions/`](../.github/actions/). Это убирает дублирование: версия Node/Go, npm-аутентификация, определение версии приложения, тело релиза по коммитам, публикация релиза, формирование тегов docker-образа и проверка обновлений внешнего репозитория описаны один раз.
+Повторяющиеся шаги вынесены в переиспользуемые [composite actions](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action) в каталоге [`.github/actions/`](../.github/actions/). Это убирает дублирование: версия Node/Go, npm-аутентификация, определение версии приложения, тело релиза по коммитам, публикация релиза, сборка docker-образа и проверка обновлений внешнего репозитория описаны один раз.
 
 ← Назад к [README](../README.md) · [Справочник workflow'ов](workflows.md)
 
@@ -250,6 +250,47 @@ uses: moogur/all-workflows/.github/actions/<name>@master
 > Тег, не подходящий под `vX.Y.Z` (дата, предрелиз `v1.2.3-rc.1`, неполная версия), в режиме `semver` — ошибка: сборка падает вместо публикации мусорных тегов.
 
 Используется в [deploy_for_docker_container](../.github/workflows/deploy_for_docker_container.yml).
+
+## `docker-image`
+
+Общее тело docker-workflow'ов: версия сборки, теги, подмена Dockerfile, `docker build`, логин и публикация.
+Раньше эти ~45 строк были скопированы в [deploy_for_backend](../.github/workflows/deploy_for_backend.yml),
+[deploy_for_go_backend](../.github/workflows/deploy_for_go_backend.yml),
+[deploy_for_full_app](../.github/workflows/deploy_for_full_app.yml) и
+[deploy_for_docker_container](../.github/workflows/deploy_for_docker_container.yml) — и успели разойтись.
+
+| | |
+| --- | --- |
+| **Входы** | `github_user` (обяз.) — владелец образа и логин в реестр; `format_mode` (необяз., по умолчанию `date`); `dockerfile` (необяз.) — имя файла в `dockerfiles/`, пусто — Dockerfile проекта; `dockerignore` (необяз.) — имя файла `.dockerignore` там же; `build_args` (необяз.) — строки `KEY=VALUE`, по одной на строку; `context` (необяз., по умолчанию `.`); `token` (обяз.) — токен с `packages: write` |
+| **Выходы** | `version` — версия сборки; `tags` — полные ссылки на образ со всеми тегами |
+
+```yaml
+- id: node
+  uses: moogur/all-workflows/.github/actions/detect-node-version@master
+
+- uses: moogur/all-workflows/.github/actions/docker-image@master
+  with:
+    github_user: ${{ inputs.github_user }}
+    format_mode: ${{ inputs.format_mode }}
+    dockerfile: deploy_backend.dockerfile
+    dockerignore: .dockerignore
+    build_args: ARG_NODE_VERSION=${{ steps.node.outputs.version }}
+    token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+**Версия сборки.** Тег, инициировавший запуск. Запуск без тега (расписание, ручной) всегда идёт как
+`dd.mm.yyyy-HHMM-auto` в формате `date`, даже в semver-репозитории: иначе плановая пересборка переписала бы
+релизные `vX.Y.Z` другим содержимым. Время в метке — чтобы две сборки за сутки не затёрли друг друга (UTC).
+
+**Build-arg'и.** `ARG_APP_VERSION` экшен добавляет сам, остальные приходят списком `KEY=VALUE` — по строке на
+аргумент. Для Dockerfile, который такой аргумент не объявляет, docker ограничится предупреждением.
+
+> **Dockerfile берётся из копии этого репозитория рядом с экшеном.** Каталог `$GITHUB_ACTION_PATH` лежит внутри
+> выкачанной копии `all-workflows` той же версии, что и сам экшен, поэтому `dockerfiles/` доступен как
+> `$GITHUB_ACTION_PATH/../../../dockerfiles` — без `wget` с `master` и без расхождения версий. Если раскладка
+> когда-нибудь изменится и файла там не окажется, шаг печатает `::warning::` и тянет файл с `master`, как раньше.
+>
+> Логин идёт через `--password-stdin`: токен не попадает ни в список процессов, ни в лог.
 
 ## `remote-update-check`
 

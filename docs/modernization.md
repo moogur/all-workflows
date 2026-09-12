@@ -32,7 +32,6 @@ Docker-реестр GitHub Packages по адресу `docker.pkg.github.com` у
 
 | Где | Что тянется | Ссылка |
 | --- | --- | --- |
-| [deploy_for_backend.yml](../.github/workflows/deploy_for_backend.yml), [deploy_for_go_backend.yml](../.github/workflows/deploy_for_go_backend.yml), [deploy_for_full_app.yml](../.github/workflows/deploy_for_full_app.yml) | Dockerfile и `.dockerignore` через `wget` с `raw.githubusercontent.com/.../master/...` | хардкод `master` |
 | Все workflow'ы | composite actions `moogur/all-workflows/.github/actions/*@master` | хардкод `master` |
 
 > Оставлено как есть по решению владельца репозитория. При желании можно заменить `master` на конкретный тег/SHA, чтобы привязать ресурсы к версии вызываемого workflow.
@@ -85,6 +84,11 @@ Docker-реестр GitHub Packages по адресу `docker.pkg.github.com` у
 - **`echo $new_package_json > package.json` в [deploy_for_lerna](../.github/workflows/deploy_for_lerna.yml)** → `jq` пишет во временный файл: переменная без кавычек раскрывала глобы в значениях (например, `"files": ["*"]`).
 - **`detect-node-version` отдавал строку `null`**, а `detect-go-version` — пустую версию, если поля нет → оба падают с внятным сообщением.
 - **`cp -r dist/* .` в [deploy_for_frontend](../.github/workflows/deploy_for_frontend.yml)** → `cp -a dist/. .`: точечные файлы (`.nojekyll`, `.htaccess`) больше не теряются.
+- **Четыре docker-workflow'а были копиями друг друга** и успели разойтись (версия, теги, `format_mode`). → Тело вынесено в action [`docker-image`](actions.md#docker-image), workflow'ы оставляют себе только специфику стека. Заодно выровнено поведение: сборка без тега везде идёт датной меткой и не переписывает релизные `vX.Y.Z`.
+- **Dockerfile'ы тянулись `wget`'ом с `master`** (версия ресурса не совпадала с версией вызванного workflow). → [`docker-image`](actions.md#docker-image) копирует их из выкачанной копии репозитория рядом с экшеном; `wget` с `master` остался запасным путём с предупреждением в логе.
+- **Токен уходил в `docker login` аргументом** и мог попасть в список процессов. → Логин через `--password-stdin`.
+- **`release_with_artifacts` дублировал `release.yml`.** → Тело в `release.yml` (входы `artifact` / `artifact_suffix`), старый путь остался тонкой обёрткой ради совместимости потребителей.
+- **`pr_annotation_go` ничего не делал** (шаг с тестами закомментирован, оставалась только установка Go). → Удалён.
 - **Сторонние actions работали на node20**, который GitHub выводит из эксплуатации (прогон уже предупреждал: «forced to run on Node.js 24»). → Подняты до мажоров на node24: `actions/checkout@v7`, `actions/setup-go@v7`, `actions/setup-node@v7`, `actions/upload-artifact@v7`, `actions/download-artifact@v7`, `release-drafter/release-drafter@v7`. Минимальные мажоры зафиксированы guard-тестом [action-versions.bats](../tests/action-versions.bats).
 - **Заархивированные `actions/create-release` и `actions/upload-release-asset`** → общий action [`publish-release`](actions.md#publish-release) на `gh`: создаёт релиз или обновляет существующий и грузит ассеты с `--clobber`. Перезапуск job'а по уже выпущенному тегу больше не падает.
 - **`curl` к Kanboard без таймаутов, ретраев и `-f`** → общая обёртка `execute_request` (см. [kanboard.md](kanboard.md#скрипт-kanboard_requestssh)): запрос больше не висит две минуты на недоступном хосте, переживает короткие сбои и не выдаёт 5xx за успех.

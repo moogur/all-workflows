@@ -1,7 +1,8 @@
-# Публикация GitHub-релиза по тегу. Источник тела релиза выбирается параметром
-# notes_source: 'drafter' — Release Drafter по смёрженным PR (категории/инкремент
-# версии — в .github/release-drafter.yml); 'commits' — коммиты между текущим и
-# предыдущим тегом (трунковая разработка в master, без PR).
+# Публикация GitHub-релиза по тегу, при необходимости — с ассетом из артефакта
+# прогона. Источник тела релиза выбирается параметром notes_source: 'drafter' —
+# Release Drafter по смёрженным PR (категории/инкремент версии — в
+# .github/release-drafter.yml); 'commits' — коммиты между текущим и предыдущим
+# тегом (трунковая разработка в master, без PR).
 # Переиспользуемый workflow (workflow_call); запускается на push тега.
 name: Release
 
@@ -13,6 +14,16 @@ on:
         type: string
         required: false
         default: 'drafter'
+      artifact:
+        description: "Artifact name to attach as <artifact><artifact_suffix>.tar.gz. Empty — release without assets"
+        type: string
+        required: false
+        default: ''
+      artifact_suffix:
+        description: "Suffix for the asset file name"
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -43,6 +54,7 @@ jobs:
           mode: ref
 
       - name: 'Publish release (drafter)'
+        id: create_release
         if: inputs.notes_source == 'drafter'
         uses: release-drafter/release-drafter@v7
         with:
@@ -56,11 +68,28 @@ jobs:
         if: inputs.notes_source == 'commits'
         uses: moogur/all-workflows/.github/actions/release-notes@master
 
-      # Общий action: создаёт релиз или обновляет существующий (перезапуск не падает).
-      - name: 'Publish release (commits)'
-        if: inputs.notes_source == 'commits'
+      # Артефакт, загруженный другим workflow в рамках того же прогона/тега.
+      - name: 'Download artifact'
+        if: inputs.artifact != ''
+        uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.artifact }}
+          path: ./
+
+      # gh грузит ассет под именем файла, поэтому суффикс проставляем переименованием.
+      - name: 'Prepare asset'
+        if: inputs.artifact != '' && inputs.artifact_suffix != ''
+        env:
+          ARTIFACT: ${{ inputs.artifact }}
+          SUFFIX: ${{ inputs.artifact_suffix }}
+        run: mv "${ARTIFACT}.tar.gz" "${ARTIFACT}${SUFFIX}.tar.gz"
+
+      # В режиме drafter релиз уже создан — шаг только приложит ассет; в режиме
+      # commits создаст релиз с телом из коммитов. Перезапуск не падает: релиз обновляется.
+      - name: 'Publish release'
         uses: moogur/all-workflows/.github/actions/publish-release@master
         with:
-          tag: ${{ github.ref_name }}
+          tag: ${{ inputs.notes_source == 'drafter' && steps.create_release.outputs.tag_name || github.ref_name }}
           notes_file: ${{ steps.notes.outputs.notes_file }}
+          assets: ${{ inputs.artifact != '' && format('{0}{1}.tar.gz', inputs.artifact, inputs.artifact_suffix) || '' }}
           token: ${{ secrets.GITHUB_TOKEN }}

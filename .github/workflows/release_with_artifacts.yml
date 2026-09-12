@@ -1,7 +1,6 @@
-# Публикует GitHub-релиз и прикладывает заранее собранный артефакт *.tar.gz
-# (обычно из go_build_with_artifacts). Источник тела релиза выбирается параметром
-# notes_source: 'drafter' — Release Drafter по смёрженным PR; 'commits' — коммиты
-# между текущим и предыдущим тегом. Переиспользуемый workflow (workflow_call).
+# УСТАРЕЛО: тонкая обёртка над release.yml, оставленная ради совместимости —
+# потребители ссылаются на путь этого файла. Новые вызовы идут в release.yml
+# напрямую, с параметрами artifact / artifact_suffix.
 name: Release with artifacts
 
 on:
@@ -27,64 +26,11 @@ permissions:
   contents: write
   pull-requests: read
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   release:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: 'Checkout'
-        uses: actions/checkout@v7
-        with:
-          # Режиму commits нужны вся история и теги, чтобы посчитать диапазон.
-          # Строки, а не числа: 0 в выражении GitHub ложно и схлопнет условие в 1.
-          fetch-depth: ${{ inputs.notes_source == 'commits' && '0' || '1' }}
-
-      # mode: ref — версия из тега, инициировавшего запуск.
-      - name: 'Version'
-        id: version
-        if: inputs.notes_source == 'drafter'
-        uses: moogur/all-workflows/.github/actions/app-version@master
-        with:
-          mode: ref
-
-      - name: 'Publish release (drafter)'
-        id: create_release
-        if: inputs.notes_source == 'drafter'
-        uses: release-drafter/release-drafter@v7
-        with:
-          version: ${{ steps.version.outputs.version }}
-          publish: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 'Release notes'
-        id: notes
-        if: inputs.notes_source == 'commits'
-        uses: moogur/all-workflows/.github/actions/release-notes@master
-
-      # Артефакт, загруженный другим workflow в рамках того же прогона/тега.
-      - name: 'Download artifact'
-        uses: actions/download-artifact@v7
-        with:
-          name: ${{ inputs.projectname }}
-          path: ./
-
-      # gh грузит ассет под именем файла, поэтому суффикс проставляем переименованием.
-      - name: 'Prepare asset'
-        env:
-          PROJECT: ${{ inputs.projectname }}
-          SUFFIX: ${{ inputs.suffixname }}
-        run: |
-          [[ -z "$SUFFIX" ]] || mv "${PROJECT}.tar.gz" "${PROJECT}${SUFFIX}.tar.gz"
-
-      - name: 'Publish release'
-        uses: moogur/all-workflows/.github/actions/publish-release@master
-        with:
-          tag: ${{ inputs.notes_source == 'drafter' && steps.create_release.outputs.tag_name || github.ref_name }}
-          notes_file: ${{ steps.notes.outputs.notes_file }}
-          assets: ${{ inputs.projectname }}${{ inputs.suffixname }}.tar.gz
-          token: ${{ secrets.GITHUB_TOKEN }}
+    uses: ./.github/workflows/release.yml
+    secrets: inherit
+    with:
+      artifact: ${{ inputs.projectname }}
+      artifact_suffix: ${{ inputs.suffixname }}
+      notes_source: ${{ inputs.notes_source }}

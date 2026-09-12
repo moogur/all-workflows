@@ -1,18 +1,16 @@
 #!/usr/bin/env bats
-# Guard-тесты: фиксируют конфигурацию релизных workflow'ов — два источника тела
-# релиза (drafter по PR, commits по коммитам между тегами), общую публикацию
-# через publish-release и отсутствие заархивированных release-экшенов.
+# Guard-тесты релизных workflow'ов: два источника тела релиза (drafter по PR,
+# commits по коммитам между тегами), общая публикация через publish-release
+# и отсутствие заархивированных release-экшенов.
 
 setup() {
   load helpers
   ROOT="$(repo_root)"
   WF="$ROOT/.github/workflows"
-  # Workflow'ы, которые создают релиз.
-  RELEASE_WORKFLOWS=(release release_frontend release_with_artifacts deploy_for_build_application)
+  # Workflow'ы, которые сами создают релиз.
+  RELEASE_WORKFLOWS=(release release_frontend deploy_for_build_application)
   # Из них — те, у кого drafter стоит источником по умолчанию.
   DRAFTER_DEFAULT_WORKFLOWS=(release release_frontend release_with_artifacts)
-  # Те, что прикладывают ассеты к релизу и потому берут тег у создателя релиза.
-  ASSET_WORKFLOWS=(release_frontend release_with_artifacts deploy_for_build_application)
 }
 
 # default_of <файл> — значение default у input notes_source.
@@ -40,7 +38,7 @@ default_of() {
 }
 
 @test "режим commits забирает полную историю тегов" {
-  for wf in "${DRAFTER_DEFAULT_WORKFLOWS[@]}"; do
+  for wf in release release_frontend; do
     # Строки, а не числа: 0 в выражении GitHub ложно, и условие всегда дало бы 1.
     grep -qF "inputs.notes_source == 'commits' && '0' || '1'" "$WF/$wf.yml" \
       || { echo "В $wf.yml нет условной глубины checkout"; return 1; }
@@ -70,7 +68,7 @@ default_of() {
 
 @test "в режиме drafter тег для ассетов берётся из вывода release-drafter" {
   # tag-template драфтера может разойтись с именем тега в репозитории (1.2.3 -> v1.2.3).
-  for wf in "${ASSET_WORKFLOWS[@]}"; do
+  for wf in "${RELEASE_WORKFLOWS[@]}"; do
     grep -qF "steps.create_release.outputs.tag_name ||" "$WF/$wf.yml" \
       || { echo "В $wf.yml тег ассетов не из вывода драфтера"; return 1; }
   done
@@ -81,9 +79,23 @@ default_of() {
   grep -qF "inputs.notes_source != 'drafter' && format('Release {0}'" "$WF/deploy_for_build_application.yml"
 }
 
-@test "оба шага публикации в release.yml стоят под взаимоисключающими условиями" {
-  [ "$(grep -cF "if: inputs.notes_source == 'drafter'" "$WF/release.yml")" -eq 2 ]
-  [ "$(grep -cF "if: inputs.notes_source == 'commits'" "$WF/release.yml")" -eq 2 ]
+@test "в release.yml один шаг публикации на оба режима" {
+  # Ветки drafter и commits взаимоисключающие, а публикация после них общая.
+  [ "$(grep -cF "actions/publish-release@master" "$WF/release.yml")" -eq 1 ]
+  grep -qF "if: inputs.notes_source == 'drafter'" "$WF/release.yml"
+  grep -qF "if: inputs.notes_source == 'commits'" "$WF/release.yml"
+}
+
+@test "ассет подключается только когда артефакт запрошен" {
+  grep -qF "if: inputs.artifact != ''" "$WF/release.yml"
+  grep -qF "assets: \${{ inputs.artifact != '' &&" "$WF/release.yml"
+}
+
+@test "release_with_artifacts — тонкая обёртка над release.yml" {
+  # Своих шагов у неё быть не должно: тело живёт в release.yml.
+  grep -qF "uses: ./.github/workflows/release.yml" "$WF/release_with_artifacts.yml"
+  run grep -qE '^ +steps:' "$WF/release_with_artifacts.yml"
+  [ "$status" -ne 0 ]
 }
 
 @test "release-drafter остаётся источником для PR-флоу" {

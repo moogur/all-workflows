@@ -1,6 +1,6 @@
 # Dockerfile'ы
 
-В каталоге [`dockerfiles/`](../dockerfiles/) лежат шаблоны Dockerfile и `.dockerignore`, которые Docker-workflow'ы **скачивают на лету** во время сборки (через `wget` с `raw.githubusercontent.com`) и кладут в корень собираемого проекта под именами `Dockerfile` и `.dockerignore`.
+В каталоге [`dockerfiles/`](../dockerfiles/) лежат шаблоны Dockerfile и `.dockerignore`. Action [`docker-image`](actions.md#docker-image) кладёт их в корень собираемого проекта под именами `Dockerfile` и `.dockerignore` — копией из выкачанной версии этого репозитория, той же, что и сам экшен.
 
 ← Назад к [README](../README.md) · [Справочник workflow'ов](workflows.md)
 
@@ -10,7 +10,7 @@
 
 ## Зачем так сделано
 
-Dockerfile'ы хранятся централизованно в этом репозитории, а не дублируются в каждом проекте. Workflow подставляет версии через build-args, поэтому один шаблон подходит для проектов с разными версиями Node/Go.
+Dockerfile'ы хранятся централизованно в этом репозитории, а не дублируются в каждом проекте. Версии подставляются через build-args, поэтому один шаблон подходит для проектов с разными версиями Node/Go.
 
 Передаваемые build-args:
 
