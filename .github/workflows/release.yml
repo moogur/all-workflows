@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: 'Checkout'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # Режиму commits нужны вся история и теги, чтобы посчитать диапазон.
           # Строки, а не числа: 0 в выражении GitHub ложно и схлопнет условие в 1.
@@ -44,7 +44,7 @@ jobs:
 
       - name: 'Publish release (drafter)'
         if: inputs.notes_source == 'drafter'
-        uses: release-drafter/release-drafter@v6
+        uses: release-drafter/release-drafter@v7
         with:
           version: ${{ steps.version.outputs.version }}
           publish: true

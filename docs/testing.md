@@ -36,6 +36,7 @@
 | [tests/kanboard.bats](../tests/kanboard.bats) | `scripts/kanboard_requests.sh` (генераторы payload) | валидный JSON и методы, значения по умолчанию (`position`, `private_*`), типы полей (число/строка) + ломающий ввод |
 | [tests/kanboard-requests.bats](../tests/kanboard-requests.bats) | `scripts/kanboard_requests.sh` (обёртка `execute_request`) | таймауты и ретраи в аргументах curl, `-f`, адрес/авторизация/тело запроса, ненулевой код и сообщение при недоступном Kanboard (curl подменяется заглушкой) |
 | [tests/kanboard-messages.bats](../tests/kanboard-messages.bats) | `scripts/kanboard_requests.sh` (отчёт `message.tmpl`) | ветки success/error/unknown, `task_id=-1`, разделители, формат ссылки + регрессия на word-splitting многословного raw |
+| [tests/action-versions.bats](../tests/action-versions.bats) | версии сторонних actions | guard: ни один `actions/*` и `release-drafter` не откатывается на мажор с node20 (GitHub выводит его из эксплуатации) |
 | [tests/workflows-cache.bats](../tests/workflows-cache.bats) | конфигурация workflow'ов | guard: нет кэша `node_modules`/пропуска по `cache-hit`/`actions/cache`, npm-workflow'ы используют общий `setup-node` с кэшем npm |
 
 ## Запуск локально

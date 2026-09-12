@@ -13,7 +13,7 @@ jobs:
     name: actionlint (статика workflow'ов)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install actionlint
         run: bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) 1.7.12
       - name: Run actionlint
@@ -30,7 +30,7 @@ jobs:
     name: shellcheck (bash-скрипты)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Lint scripts
         run: shellcheck .github/actions/*/*.sh scripts/*.sh .husky/commit-msg tests/helpers.bash
 
@@ -38,7 +38,7 @@ jobs:
     name: yamllint (структура YAML)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install yamllint
         run: pipx install yamllint
       - name: Run yamllint
@@ -48,7 +48,7 @@ jobs:
     name: bats (unit-тесты)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install bats and jq
         run: sudo apt-get update && sudo apt-get install -y bats jq
       - name: Run tests

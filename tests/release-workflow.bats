@@ -88,7 +88,7 @@ default_of() {
 
 @test "release-drafter остаётся источником для PR-флоу" {
   for wf in "${RELEASE_WORKFLOWS[@]}"; do
-    grep -qF "release-drafter/release-drafter@v6" "$WF/$wf.yml" \
+    grep -qF "release-drafter/release-drafter@" "$WF/$wf.yml" \
       || { echo "В $wf.yml нет release-drafter"; return 1; }
   done
 }

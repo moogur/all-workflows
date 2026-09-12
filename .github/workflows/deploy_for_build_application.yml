@@ -33,7 +33,7 @@ jobs:
 
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -58,7 +58,7 @@ jobs:
       - name: 'Publish release (drafter)'
         id: create_release
         if: inputs.notes_source == 'drafter'
-        uses: release-drafter/release-drafter@v6
+        uses: release-drafter/release-drafter@v7
         with:
           version: ${{ steps.drafter_version.outputs.version }}
           publish: true
