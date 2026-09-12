@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Собирает тело GitHub-релиза из коммитов между текущим и предыдущим тегом.
-# Заголовки разбираются по формату хука .husky/commit-msg ([GA-123] type(scope): subject)
+# Заголовки разбираются по формату хука commit-msg ([<ПРЕФИКС>-123] type(scope): subject)
 # и группируются по тем же категориям, что и .github/release-drafter.yml.
 # Вход (env): TAG (по умолчанию тег из GITHUB_REF), PREVIOUS_TAG (пусто — считаем сами),
 #   NOTES_FILE (пусто — $RUNNER_TEMP/release-notes.md), GITHUB_SERVER_URL, GITHUB_REPOSITORY, GITHUB_OUTPUT.
@@ -55,9 +55,10 @@ declare -A category_of=(
   [ci]=configuration
 )
 
-# Формат заголовка коммита из .husky/commit-msg. Регэксп — в переменной:
-# в [[ ]] скобка внутри [^)] ломает разбор условного выражения.
-subject_regexp='^\[(GA-[0-9]+)\][[:space:]]+([a-z]+)\(([^)]+)\):[[:space:]]*(.+)$'
+# Формат заголовка коммита из .husky/commit-msg. Префикс задачи любой: потребители
+# живут со своими (GA-123, IPB-456). Регэксп — в переменной: в [[ ]] скобка внутри
+# [^)] ломает разбор условного выражения.
+subject_regexp='^\[([A-Z][A-Z0-9]*-[0-9]+)\][[:space:]]+([a-z]+)\(([^)]+)\):[[:space:]]*(.+)$'
 
 declare -A entries=()
 count=0

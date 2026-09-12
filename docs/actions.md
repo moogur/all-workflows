@@ -163,6 +163,9 @@ uses: moogur/all-workflows/.github/actions/<name>@master
 | 🛠 Configuration | `config`, `ci` |
 | 🧩 Other | всё, что не разобралось по формату |
 
+Префикс задачи может быть любым (`GA-123`, `IPB-456`): у каждого репозитория-потребителя свой, и экшен
+принимает `[<ПРЕФИКС>-<номер>]`.
+
 Результат — заголовок `# What's Changed`, строка с числом коммитов («**3 commits** since `v1.2.2`.»),
 категории со строками вида `- [GA-557] frontend: add deploy spa and pwa (a1b2c3d)` и ссылка
 `**Full Changelog**` на сравнение тегов.

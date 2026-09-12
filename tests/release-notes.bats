@@ -127,6 +127,18 @@ run_notes() {
   [ "$configuration_line" -lt "$config_line" ]
 }
 
+@test "префикс задачи может быть любым: потребители живут со своими" {
+  commit 'init' 2024-01-01T10:00:00
+  tag v1.0.0 2024-01-01T10:00:00
+  commit '[IPB-572] refactor(src): развести ответственности' 2024-01-02T10:00:00
+  tag v1.1.0 2024-01-02T11:00:00
+
+  run_notes v1.1.0
+  [ "$status" -eq 0 ]
+  grep -qF '## 🧰 Maintenance' "$NOTES"
+  grep -q '^- \[IPB-572\] src: развести ответственности ([0-9a-f]\{7,\})$' "$NOTES"
+}
+
 @test "коммит не по формату попадает в Other как есть" {
   commit 'init' 2024-01-01T10:00:00
   tag v1.0.0 2024-01-01T10:00:00
