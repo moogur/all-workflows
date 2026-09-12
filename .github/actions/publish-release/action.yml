@@ -1,0 +1,34 @@
+name: 'Publish GitHub release'
+description: 'Создаёт релиз по тегу или обновляет существующий и прикладывает ассеты. Повторный запуск по тому же тегу не падает.'
+
+inputs:
+  tag:
+    description: 'Тег релиза'
+    required: true
+  title:
+    description: 'Заголовок релиза. Пустая строка — не трогать существующий, а при создании взять имя тега.'
+    required: false
+    default: ''
+  notes_file:
+    description: 'Файл с телом релиза. Пустая строка — не трогать существующее тело, а при создании оставить пустым.'
+    required: false
+    default: ''
+  assets:
+    description: 'Пути к файлам-ассетам через пробел. Пустая строка — ассетов нет.'
+    required: false
+    default: ''
+  token:
+    description: 'Токен с правом contents: write, обычно GITHUB_TOKEN'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - shell: bash
+      env:
+        TAG: ${{ inputs.tag }}
+        RELEASE_TITLE: ${{ inputs.title }}
+        NOTES_FILE: ${{ inputs.notes_file }}
+        ASSETS: ${{ inputs.assets }}
+        GH_TOKEN: ${{ inputs.token }}
+      run: bash "$GITHUB_ACTION_PATH/publish.sh"

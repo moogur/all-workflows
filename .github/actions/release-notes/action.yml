@@ -1,0 +1,38 @@
+name: 'Build release notes from commits'
+description: 'Собирает тело GitHub-релиза из коммитов между текущим и предыдущим тегом. Категории — как в release-drafter.yml.'
+
+inputs:
+  tag:
+    description: 'Тег релиза. Пустая строка — тег, инициировавший запуск (GITHUB_REF).'
+    required: false
+    default: ''
+  previous_tag:
+    description: 'Тег, с которым сравнивать. Пустая строка — соседний по дате создания.'
+    required: false
+    default: ''
+  notes_file:
+    description: 'Куда записать тело релиза. Пустая строка — $RUNNER_TEMP/release-notes.md.'
+    required: false
+    default: ''
+
+outputs:
+  notes_file:
+    description: 'Путь к файлу с телом релиза'
+    value: ${{ steps.notes.outputs.notes_file }}
+  previous_tag:
+    description: 'Тег, с которым сравнивали (пусто, если релиз первый)'
+    value: ${{ steps.notes.outputs.previous_tag }}
+  commit_count:
+    description: 'Число коммитов в диапазоне (без слияний)'
+    value: ${{ steps.notes.outputs.commit_count }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: notes
+      shell: bash
+      env:
+        TAG: ${{ inputs.tag }}
+        PREVIOUS_TAG: ${{ inputs.previous_tag }}
+        NOTES_FILE: ${{ inputs.notes_file }}
+      run: bash "$GITHUB_ACTION_PATH/notes.sh"

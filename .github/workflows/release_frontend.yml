@@ -1,10 +1,17 @@
-# Публикует релиз (Release Drafter), собирает фронтенд и прикладывает к релизу
-# application.zip. Переиспользуемый workflow (workflow_call); запускается на push тега.
-# Секрет: GITHUB_TOKEN.
+# Публикует релиз, собирает фронтенд и прикладывает к релизу application.zip.
+# Источник тела релиза выбирается параметром notes_source: 'drafter' — Release Drafter
+# по смёрженным PR; 'commits' — коммиты между текущим и предыдущим тегом (разработка
+# в одной ветке). Переиспользуемый workflow (workflow_call). Секрет: GITHUB_TOKEN.
 name: Release
 
 on:
   workflow_call:
+    inputs:
+      notes_source:
+        description: "Release notes source: 'drafter' (PRs) or 'commits' (commits between tags)"
+        type: string
+        required: false
+        default: 'drafter'
 
 permissions:
   contents: write
@@ -22,6 +29,10 @@ jobs:
     steps:
       - name: 'Checkout'
         uses: actions/checkout@v4
+        with:
+          # Режиму commits нужны вся история и теги, чтобы посчитать диапазон.
+          # Строки, а не числа: 0 в выражении GitHub ложно и схлопнет условие в 1.
+          fetch-depth: ${{ inputs.notes_source == 'commits' && '0' || '1' }}
 
       # mode: ref — версия из тега, инициировавшего запуск (идёт и в VITE_VERSION).
       - name: 'Version'
@@ -30,14 +41,20 @@ jobs:
         with:
           mode: ref
 
-      - name: 'Publish release'
-        uses: release-drafter/release-drafter@v6
+      - name: 'Publish release (drafter)'
         id: create_release
+        if: inputs.notes_source == 'drafter'
+        uses: release-drafter/release-drafter@v6
         with:
           version: ${{ steps.version.outputs.version }}
           publish: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 'Release notes'
+        id: notes
+        if: inputs.notes_source == 'commits'
+        uses: moogur/all-workflows/.github/actions/release-notes@master
 
       - name: 'Setup node'
         uses: moogur/all-workflows/.github/actions/setup-node@master
@@ -58,13 +75,12 @@ jobs:
           mv dist application/dist
           zip -r application.zip application
 
-      # ПРИМЕЧАНИЕ: upload-release-asset заархивирован; см. docs/modernization.md.
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # В режиме drafter релиз уже создан — шаг только приложит ассет; в режиме
+      # commits создаст релиз с телом из коммитов. Тег берём у того, кто релиз завёл.
+      - name: 'Publish release'
+        uses: moogur/all-workflows/.github/actions/publish-release@master
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./application.zip
-          asset_name: application.zip
-          asset_content_type: application/zip
+          tag: ${{ inputs.notes_source == 'drafter' && steps.create_release.outputs.tag_name || github.ref_name }}
+          notes_file: ${{ steps.notes.outputs.notes_file }}
+          assets: ./application.zip
+          token: ${{ secrets.GITHUB_TOKEN }}

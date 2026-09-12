@@ -53,6 +53,10 @@ Git-хук [`.husky/commit-msg`](../.husky/commit-msg) валидирует ка
 
 Категории в changelog: 🚀 New Features, 🐞 Bugs Fixes, 📚 Documentation, 🧰 Maintenance, 🛠 Configuration.
 
+Это работает, пока изменения приезжают через Pull Request. При разработке в одной ветке (пилим в `master`, релиз по тегу) меток и PR нет, поэтому релизные workflow'ы принимают `notes_source: 'commits'`: тело релиза собирается из коммитов между запушенным тегом и предыдущим через action [`release-notes`](actions.md#release-notes), а `type` из заголовка коммита раскладывается по тем же категориям. Версия в обоих режимах берётся из тега, а не из меток.
+
+Параметр есть у [release.yml](../.github/workflows/release.yml), [release_frontend.yml](../.github/workflows/release_frontend.yml) и [release_with_artifacts.yml](../.github/workflows/release_with_artifacts.yml) (по умолчанию `'drafter'` — прежнее поведение), а у [deploy_for_build_application.yml](../.github/workflows/deploy_for_build_application.yml) — с тремя: `none` (по умолчанию, пустое тело как раньше), `drafter` и `commits`. Сам релиз во всех четырёх публикует [`publish-release`](actions.md#publish-release).
+
 ## Секреты
 
 | Секрет | Где используется | Назначение |
@@ -77,11 +81,11 @@ Git-хук [`.husky/commit-msg`](../.husky/commit-msg) валидирует ка
 | `publish_package`, `deploy_for_lerna` | `contents: read`, `packages: write` |
 | `deploy_for_backend`, `deploy_for_go_backend`, `deploy_for_full_app`, `deploy_for_docker_container` | `contents: read`, `packages: write` |
 | `deploy_for_frontend` | `contents: write`, `packages: read` |
-| `deploy_for_build_application` | `contents: write` |
+| `deploy_for_build_application` | `contents: write`, `pull-requests: read` |
 | `release`, `release_with_artifacts` | `contents: write`, `pull-requests: read` |
 | `release_frontend` | `contents: write`, `packages: read`, `pull-requests: read` |
 | `auto_deploy_for_docker_container` | `contents: read`, `packages: write` |
-| `auto_deploy_for_build_application` | `contents: write` |
+| `auto_deploy_for_build_application` | `contents: write`, `pull-requests: read` |
 
 > Вызванный workflow не может получить больше прав, чем есть у вызвавшего, поэтому у `auto_deploy_*` права не уже, чем у вложенных в них деплоев. Если в репозитории-потребителе дефолтный токен урезан до read-only, запуск упадёт сразу и с внятной причиной, а не на шаге `docker push`.
 

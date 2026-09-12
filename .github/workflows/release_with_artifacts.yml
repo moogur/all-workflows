@@ -1,6 +1,7 @@
-# Публикует GitHub-релиз (Release Drafter) и прикладывает заранее собранный
-# артефакт *.tar.gz (обычно из go_build_with_artifacts).
-# Переиспользуемый workflow (workflow_call); запускается на push тега.
+# Публикует GitHub-релиз и прикладывает заранее собранный артефакт *.tar.gz
+# (обычно из go_build_with_artifacts). Источник тела релиза выбирается параметром
+# notes_source: 'drafter' — Release Drafter по смёрженным PR; 'commits' — коммиты
+# между текущим и предыдущим тегом. Переиспользуемый workflow (workflow_call).
 name: Release with artifacts
 
 on:
@@ -16,6 +17,11 @@ on:
         type: string
         required: false
         default: ''
+      notes_source:
+        description: "Release notes source: 'drafter' (PRs) or 'commits' (commits between tags)"
+        type: string
+        required: false
+        default: 'drafter'
 
 permissions:
   contents: write
@@ -32,16 +38,22 @@ jobs:
     steps:
       - name: 'Checkout'
         uses: actions/checkout@v4
+        with:
+          # Режиму commits нужны вся история и теги, чтобы посчитать диапазон.
+          # Строки, а не числа: 0 в выражении GitHub ложно и схлопнет условие в 1.
+          fetch-depth: ${{ inputs.notes_source == 'commits' && '0' || '1' }}
 
       # mode: ref — версия из тега, инициировавшего запуск.
       - name: 'Version'
         id: version
+        if: inputs.notes_source == 'drafter'
         uses: moogur/all-workflows/.github/actions/app-version@master
         with:
           mode: ref
 
-      - name: 'Publish release'
+      - name: 'Publish release (drafter)'
         id: create_release
+        if: inputs.notes_source == 'drafter'
         uses: release-drafter/release-drafter@v6
         with:
           version: ${{ steps.version.outputs.version }}
@@ -49,20 +61,30 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: 'Release notes'
+        id: notes
+        if: inputs.notes_source == 'commits'
+        uses: moogur/all-workflows/.github/actions/release-notes@master
+
       # Артефакт, загруженный другим workflow в рамках того же прогона/тега.
-      - name: Download artifact
+      - name: 'Download artifact'
         uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.projectname }}
           path: ./
 
-      # ПРИМЕЧАНИЕ: upload-release-asset заархивирован; см. docs/modernization.md.
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+      # gh грузит ассет под именем файла, поэтому суффикс проставляем переименованием.
+      - name: 'Prepare asset'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROJECT: ${{ inputs.projectname }}
+          SUFFIX: ${{ inputs.suffixname }}
+        run: |
+          [[ -z "$SUFFIX" ]] || mv "${PROJECT}.tar.gz" "${PROJECT}${SUFFIX}.tar.gz"
+
+      - name: 'Publish release'
+        uses: moogur/all-workflows/.github/actions/publish-release@master
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ inputs.projectname }}.tar.gz
-          asset_name: ${{ inputs.projectname }}${{ inputs.suffixname }}.tar.gz
-          asset_content_type: application/gzip
+          tag: ${{ inputs.notes_source == 'drafter' && steps.create_release.outputs.tag_name || github.ref_name }}
+          notes_file: ${{ steps.notes.outputs.notes_file }}
+          assets: ${{ inputs.projectname }}${{ inputs.suffixname }}.tar.gz
+          token: ${{ secrets.GITHUB_TOKEN }}

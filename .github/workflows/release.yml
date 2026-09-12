@@ -1,10 +1,18 @@
-# Публикация GitHub-релиза по тегу через Release Drafter
-# (категории/инкремент версии — в .github/release-drafter.yml).
+# Публикация GitHub-релиза по тегу. Источник тела релиза выбирается параметром
+# notes_source: 'drafter' — Release Drafter по смёрженным PR (категории/инкремент
+# версии — в .github/release-drafter.yml); 'commits' — коммиты между текущим и
+# предыдущим тегом (трунковая разработка в master, без PR).
 # Переиспользуемый workflow (workflow_call); запускается на push тега.
 name: Release
 
 on:
   workflow_call:
+    inputs:
+      notes_source:
+        description: "Release notes source: 'drafter' (PRs) or 'commits' (commits between tags)"
+        type: string
+        required: false
+        default: 'drafter'
 
 permissions:
   contents: write
@@ -21,18 +29,38 @@ jobs:
     steps:
       - name: 'Checkout'
         uses: actions/checkout@v4
+        with:
+          # Режиму commits нужны вся история и теги, чтобы посчитать диапазон.
+          # Строки, а не числа: 0 в выражении GitHub ложно и схлопнет условие в 1.
+          fetch-depth: ${{ inputs.notes_source == 'commits' && '0' || '1' }}
 
       # mode: ref — версия берётся из тега, инициировавшего запуск (GITHUB_REF).
       - name: 'Version'
         id: version
+        if: inputs.notes_source == 'drafter'
         uses: moogur/all-workflows/.github/actions/app-version@master
         with:
           mode: ref
 
-      - name: 'Publish release'
+      - name: 'Publish release (drafter)'
+        if: inputs.notes_source == 'drafter'
         uses: release-drafter/release-drafter@v6
         with:
           version: ${{ steps.version.outputs.version }}
           publish: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 'Release notes'
+        id: notes
+        if: inputs.notes_source == 'commits'
+        uses: moogur/all-workflows/.github/actions/release-notes@master
+
+      # Общий action: создаёт релиз или обновляет существующий (перезапуск не падает).
+      - name: 'Publish release (commits)'
+        if: inputs.notes_source == 'commits'
+        uses: moogur/all-workflows/.github/actions/publish-release@master
+        with:
+          tag: ${{ github.ref_name }}
+          notes_file: ${{ steps.notes.outputs.notes_file }}
+          token: ${{ secrets.GITHUB_TOKEN }}

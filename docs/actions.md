@@ -1,6 +1,6 @@
 # Composite actions
 
-Повторяющиеся шаги вынесены в переиспользуемые [composite actions](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action) в каталоге [`.github/actions/`](../.github/actions/). Это убирает дублирование: версия Node/Go, npm-аутентификация, определение версии приложения, формирование тегов docker-образа и проверка обновлений внешнего репозитория описаны один раз.
+Повторяющиеся шаги вынесены в переиспользуемые [composite actions](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action) в каталоге [`.github/actions/`](../.github/actions/). Это убирает дублирование: версия Node/Go, npm-аутентификация, определение версии приложения, тело релиза по коммитам, публикация релиза, формирование тегов docker-образа и проверка обновлений внешнего репозитория описаны один раз.
 
 ← Назад к [README](../README.md) · [Справочник workflow'ов](workflows.md)
 
@@ -122,6 +122,93 @@ uses: moogur/all-workflows/.github/actions/<name>@master
 
 > В режиме `git` требуется полная история тегов: в шаге `actions/checkout` должно стоять `fetch-depth: 0`.
 > Режим `ref` используют релизные workflow'ы ([release.yml](../.github/workflows/release.yml), [release_frontend.yml](../.github/workflows/release_frontend.yml), [release_with_artifacts.yml](../.github/workflows/release_with_artifacts.yml)).
+
+## `release-notes`
+
+Собирает тело GitHub-релиза из коммитов между текущим и предыдущим тегом — для репозиториев,
+где разработка идёт в одной ветке и PR нет, так что [Release Drafter](https://github.com/release-drafter/release-drafter)
+собирать changelog не из чего. Используется в [release.yml](../.github/workflows/release.yml) при `notes_source: 'commits'`.
+
+| | |
+| --- | --- |
+| **Входы** | `tag` (необяз., по умолчанию пусто) — тег релиза, пусто — тег из `GITHUB_REF`; `previous_tag` (необяз.) — с чем сравнивать, пусто — соседний тег по дате создания; `notes_file` (необяз.) — куда записать тело, пусто — `$RUNNER_TEMP/release-notes.md` |
+| **Выходы** | `notes_file` — путь к файлу с телом релиза; `previous_tag` — тег, с которым сравнивали (пусто, если релиз первый); `commit_count` — число коммитов в диапазоне без слияний |
+
+```yaml
+- name: 'Checkout'
+  uses: actions/checkout@v4
+  with:
+    fetch-depth: 0           # нужны вся история и теги
+
+- id: notes
+  uses: moogur/all-workflows/.github/actions/release-notes@master
+
+- env:
+    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    TAG: ${{ github.ref_name }}
+    NOTES_FILE: ${{ steps.notes.outputs.notes_file }}
+  run: gh release create "$TAG" --title "$TAG" --notes-file "$NOTES_FILE"
+```
+
+**Как разбираются коммиты.** Заголовок читается по формату хука [`commit-msg`](conventions.md#формат-сообщений-коммитов)
+(`[GA-123] type(scope): subject`) и раскладывается по тем же категориям, что и
+[`.github/release-drafter.yml`](../.github/release-drafter.yml) — чтобы релизы двух режимов выглядели одинаково:
+
+| Категория | `type` коммита |
+| --- | --- |
+| 🚀 New Features | `feature`, `test` |
+| 🐞 Bugs Fixes | `bugfix` |
+| 📚 Documentation | `docs` |
+| 🧰 Maintenance | `refactor` |
+| 🛠 Configuration | `config`, `ci` |
+| 🧩 Other | всё, что не разобралось по формату |
+
+Результат — заголовок `# What's Changed`, строка с числом коммитов («**3 commits** since `v1.2.2`.»),
+категории со строками вида `- [GA-557] frontend: add deploy spa and pwa (a1b2c3d)` и ссылка
+`**Full Changelog**` на сравнение тегов.
+
+> **Предыдущий тег берётся соседним по дате создания** (`git for-each-ref --sort=-creatordate`), а не
+> максимальным по имени: сортировка по имени врёт на датных тегах — «максимумом» окажется `26.05.2023`,
+> потому что `26 > 14` (та же причина, что и в [`remote-update-check`](#remote-update-check)).
+> Слияния (`--no-merges`) в тело не идут; если предыдущего тега нет, берётся вся история, а ссылка
+> ведёт на `/commits/<тег>`. Тега нет в репозитории — ошибка с подсказкой про `fetch-depth: 0`,
+> потому что без полной истории диапазон посчитать нечем.
+
+## `publish-release`
+
+Публикует GitHub-релиз по тегу и прикладывает ассеты. **Идемпотентен**: если релиз по тегу уже есть — обновляет
+его, а не падает, поэтому перезапуск упавшего job'а безопасен. Используется всеми workflow'ами, которые создают
+релиз: [release](../.github/workflows/release.yml), [release_frontend](../.github/workflows/release_frontend.yml),
+[release_with_artifacts](../.github/workflows/release_with_artifacts.yml),
+[deploy_for_build_application](../.github/workflows/deploy_for_build_application.yml).
+
+| | |
+| --- | --- |
+| **Входы** | `tag` (обяз.) — тег релиза; `title` (необяз.) — заголовок, пусто — не трогать существующий, а при создании взять имя тега; `notes_file` (необяз.) — файл с телом, пусто — не трогать существующее тело; `assets` (необяз.) — пути к файлам через пробел; `token` (обяз.) — токен с `contents: write` |
+| **Выходы** | — |
+
+```yaml
+- id: notes
+  uses: moogur/all-workflows/.github/actions/release-notes@master
+
+- uses: moogur/all-workflows/.github/actions/publish-release@master
+  with:
+    tag: ${{ github.ref_name }}
+    notes_file: ${{ steps.notes.outputs.notes_file }}
+    assets: ./application.zip
+    token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+> **Пустые входы значат «не трогать».** Это то, что позволяет одному шагу обслуживать оба режима тела релиза:
+> в режиме `drafter` релиз уже создан и описан, `notes_file` приходит пустым — шаг только догружает ассеты;
+> в режиме `commits` он же создаёт релиз с телом. При создании флаги обязательны: без `--notes` `gh` в
+> неинтерактивном режиме не работает, поэтому пустое тело задаётся явно (`--notes ''`).
+>
+> Ассеты грузятся с `--clobber` — перезапуск заменяет файл, а не спотыкается об уже загруженный. Имя ассета
+> у `gh` — это имя файла: чтобы опубликовать его под другим именем, файл нужно переименовать (так сделано в
+> [release_with_artifacts](../.github/workflows/release_with_artifacts.yml)).
+>
+> Заменяет заархивированные `actions/create-release` и `actions/upload-release-asset` (см. [modernization.md](modernization.md)).
 
 ## `docker-tags`
 

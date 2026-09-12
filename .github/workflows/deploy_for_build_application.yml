@@ -1,5 +1,7 @@
 # Выполняет произвольный скрипт сборки, создаёт GitHub-релиз и прикладывает
 # application.zip (скрипт должен сам создать этот файл в корне).
+# Тело релиза: 'none' — пустое (как было), 'drafter' — смёрженные PR через
+# Release Drafter, 'commits' — коммиты между текущим и предыдущим тегом.
 # Переиспользуемый workflow (workflow_call). Секрет: GITHUB_TOKEN.
 name: Deploy for build application
 
@@ -10,9 +12,16 @@ on:
         description: "The path to the execution file"  # скрипт сборки, запускается через `. <file_path>`
         type: string
         required: true
+      notes_source:
+        description: "Release notes source: 'none' (empty body), 'drafter' (PRs) or 'commits' (commits between tags)"
+        type: string
+        required: false
+        default: 'none'
 
+# pull-requests: read — для Release Drafter; остальным режимам хватает contents.
 permissions:
   contents: write
+  pull-requests: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -40,24 +49,38 @@ jobs:
         run: |
           . ${{ inputs.file_path }}
 
-      # ПРИМЕЧАНИЕ: create-release/upload-release-asset заархивированы; см. docs/modernization.md.
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.version.outputs.version }}
-          release_name: Release ${{ steps.version.outputs.version }}
-          draft: false
-          prerelease: false
+      # Release Drafter ждёт версию без префикса: его tag-template сам добавит v.
+      - name: 'Version for drafter'
+        id: drafter_version
+        if: inputs.notes_source == 'drafter'
+        uses: moogur/all-workflows/.github/actions/app-version@master
 
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@master
+      - name: 'Publish release (drafter)'
+        id: create_release
+        if: inputs.notes_source == 'drafter'
+        uses: release-drafter/release-drafter@v6
+        with:
+          version: ${{ steps.drafter_version.outputs.version }}
+          publish: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Тег берётся из истории (запуск бывает и не по тегу), поэтому передаём явно.
+      - name: 'Release notes'
+        id: notes
+        if: inputs.notes_source == 'commits'
+        uses: moogur/all-workflows/.github/actions/release-notes@master
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./application.zip
-          asset_name: application.zip
-          asset_content_type: application/zip
+          tag: ${{ steps.version.outputs.version }}
+
+      # В режиме drafter релиз уже создан и описан — шаг только приложит ассет,
+      # поэтому заголовок передаётся «наоборот»: пустая строка в выражении GitHub
+      # ложна, и условие пришлось бы писать через отрицание в любом случае.
+      - name: 'Publish release'
+        uses: moogur/all-workflows/.github/actions/publish-release@master
+        with:
+          tag: ${{ inputs.notes_source == 'drafter' && steps.create_release.outputs.tag_name || steps.version.outputs.version }}
+          title: ${{ inputs.notes_source != 'drafter' && format('Release {0}', steps.version.outputs.version) || '' }}
+          notes_file: ${{ steps.notes.outputs.notes_file }}
+          assets: ./application.zip
+          token: ${{ secrets.GITHUB_TOKEN }}

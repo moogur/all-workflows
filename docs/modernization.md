@@ -18,17 +18,7 @@ Docker-реестр GitHub Packages по адресу `docker.pkg.github.com` у
 
 > Оставлено как есть по решению владельца репозитория.
 
-### 2. Архивные actions для релизов
-
-**Где:** [deploy_for_build_application.yml](../.github/workflows/deploy_for_build_application.yml), [release_frontend.yml](../.github/workflows/release_frontend.yml), [release_with_artifacts.yml](../.github/workflows/release_with_artifacts.yml).
-
-Используются заархивированные (не поддерживаемые) actions:
-- `actions/create-release` (запинен на `@master`);
-- `actions/upload-release-asset` (запинен на `@master` / `@main`).
-
-**Замена:** [`softprops/action-gh-release`](https://github.com/softprops/action-gh-release) или CLI `gh release create` / `gh release upload`.
-
-### 3. `golint`
+### 2. `golint`
 
 **Где:** [actions_for_push_go.yml](../.github/workflows/actions_for_push_go.yml).
 
@@ -44,7 +34,6 @@ Docker-реестр GitHub Packages по адресу `docker.pkg.github.com` у
 | --- | --- | --- |
 | [deploy_for_backend.yml](../.github/workflows/deploy_for_backend.yml), [deploy_for_go_backend.yml](../.github/workflows/deploy_for_go_backend.yml), [deploy_for_full_app.yml](../.github/workflows/deploy_for_full_app.yml) | Dockerfile и `.dockerignore` через `wget` с `raw.githubusercontent.com/.../master/...` | хардкод `master` |
 | Все workflow'ы | composite actions `moogur/all-workflows/.github/actions/*@master` | хардкод `master` |
-| [deploy_for_build_application.yml](../.github/workflows/deploy_for_build_application.yml), [release_frontend.yml](../.github/workflows/release_frontend.yml) | `actions/*-release@master` / `@main` | сторонние actions |
 
 > Оставлено как есть по решению владельца репозитория. При желании можно заменить `master` на конкретный тег/SHA, чтобы привязать ресурсы к версии вызываемого workflow.
 
@@ -96,4 +85,5 @@ Docker-реестр GitHub Packages по адресу `docker.pkg.github.com` у
 - **`echo $new_package_json > package.json` в [deploy_for_lerna](../.github/workflows/deploy_for_lerna.yml)** → `jq` пишет во временный файл: переменная без кавычек раскрывала глобы в значениях (например, `"files": ["*"]`).
 - **`detect-node-version` отдавал строку `null`**, а `detect-go-version` — пустую версию, если поля нет → оба падают с внятным сообщением.
 - **`cp -r dist/* .` в [deploy_for_frontend](../.github/workflows/deploy_for_frontend.yml)** → `cp -a dist/. .`: точечные файлы (`.nojekyll`, `.htaccess`) больше не теряются.
+- **Заархивированные `actions/create-release` и `actions/upload-release-asset`** → общий action [`publish-release`](actions.md#publish-release) на `gh`: создаёт релиз или обновляет существующий и грузит ассеты с `--clobber`. Перезапуск job'а по уже выпущенному тегу больше не падает.
 - **`curl` к Kanboard без таймаутов, ретраев и `-f`** → общая обёртка `execute_request` (см. [kanboard.md](kanboard.md#скрипт-kanboard_requestssh)): запрос больше не висит две минуты на недоступном хосте, переживает короткие сбои и не выдаёт 5xx за успех.

@@ -25,6 +25,9 @@
 | [tests/remote-update-check.bats](../tests/remote-update-check.bats) | `remote-update-check/check.sh` | `commit` (время коммита, смена значения, выбор ветки), `tag` (самый свежий по дате, а не максимальный по имени — guard против возврата к сортировке по имени, которая на датных тегах выбирает старый; неверсионный тег как маркер; смена значения), ошибки: нет тегов, неизвестный `type`, недоступный репозиторий |
 | [tests/save-update-value.bats](../tests/save-update-value.bats) | `save-update-value/save.sh` | обновление существующей переменной одним `PATCH`, создание через `POST` при 404, отсутствие лишнего `POST`, падение обоих вызовов, обязательные переменные окружения (gh подменяется заглушкой) |
 | [tests/auto-deploy.bats](../tests/auto-deploy.bats) | конфигурация авто-деплоя | guard: маркер сохраняется отдельным job'ом после деплоя, вложенный деплой с `secrets: inherit`, проверка через общий action, отсутствие лишнего checkout, время в метке `-auto` |
+| [tests/release-notes.bats](../tests/release-notes.bats) | `release-notes/notes.sh` | выбор предыдущего тега по дате создания (guard против сортировки по имени), переопределение через `previous_tag`, первый релиз без предыдущего тега, раскладка типов коммитов по категориям, коммит не по формату в Other, игнор слияний, число коммитов и ссылка на сравнение, ошибки: неизвестный тег (с подсказкой про `fetch-depth`), отсутствие тега и `GITHUB_REF` |
+| [tests/publish-release.bats](../tests/publish-release.bats) | `publish-release/publish.sh` | создание релиза (тело из файла, пустое тело, заголовок), обновление существующего вместо падения, «менять нечего» без лишних вызовов, неперетирание тела в режиме `drafter`, загрузка ассетов с `--clobber`, ошибки: отсутствующий файл тела, отсутствие тега (gh подменяется заглушкой) |
+| [tests/release-workflow.bats](../tests/release-workflow.bats) | конфигурация релизных workflow'ов | guard: источник тела по умолчанию (`drafter`, у `deploy_for_build_application` — `none`), полная история тегов в режиме `commits` (строки `'0'`/`'1'` в выражении), публикация через общий `publish-release`, отсутствие архивных release-экшенов, тег ассетов и заголовок из вывода драфтера, права под драфтер у вложенного и вызывающего workflow |
 | [tests/docker-workflows.bats](../tests/docker-workflows.bats) | конфигурация docker-workflow'ов | guard: теги через общий action, версия из тега запуска (а не `git describe`), semver только для сборки по тегу, пуш всех тегов циклом |
 | [tests/workflows-permissions.bats](../tests/workflows-permissions.bats) | права `GITHUB_TOKEN` | guard: `permissions` объявлены в каждом workflow, нет `write-all`, `auto_deploy_*` не уже вложенных деплоев |
 | [tests/docker-tags.bats](../tests/docker-tags.bats) | `docker-tags/tags.sh` | форматы `date`/`semver`, лестница `vX.Y.Z`/`vX.Y`/`vX`/`latest`, добавление префикса `v`, отклонение тега-даты/предрелиза/неполной версии, ошибка на неизвестном `format_mode` |
@@ -79,7 +82,7 @@ yamllint -c .yamllint.yml .github
 - что секреты корректно прокидываются через `workflow_call` во вложенные workflow'ы;
 - что `docker push` в `docker.pkg.github.com` проходит с данным токеном;
 - что `gh api` обновляет переменную окружения с правами `UPDATE_VARIABLES_CLI_TOKEN`;
-- поведение сторонних actions (release-drafter, jest-coverage).
+- поведение сторонних actions (release-drafter, jest-coverage) и публикация релиза через `gh release create` (тело релиза собирается локально и покрыто тестами, сам вызов `gh` — нет).
 
 Это «слепая зона» внешней среды. Закрыть её можно только smoke-прогоном на реальном GitHub (отдельный объём работ, в текущий набор не входит) — см. также [modernization.md](modernization.md).
 

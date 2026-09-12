@@ -30,3 +30,8 @@ setup() {
   # deploy_for_build_application создаёт релиз, значит нужен contents: write.
   grep -qE '^  contents: write' "$WF/auto_deploy_for_build_application.yml"
 }
+
+@test "auto_deploy не уже вложенного деплоя по pull-requests" {
+  # deploy_for_build_application умеет режим drafter, а тому нужны PR.
+  grep -qE '^  pull-requests: read' "$WF/auto_deploy_for_build_application.yml"
+}
