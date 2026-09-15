@@ -49,7 +49,9 @@
 
 **Секреты:** `GITHUB_TOKEN`.
 
-**Шаги:** checkout → подготовка папки → setup-node (с кэшем npm) → npm-auth → `npm ci` → action покрытия с `test-script: npm run test:coverage`.
+**Шаги:** checkout → подготовка папки → setup-node (с кэшем npm) → npm-auth → `npm ci` → удаление `.npmrc` → action покрытия с `test-script: npm run test:coverage` и `skip-step: install`.
+
+Job не запускается на Pull Request из форка, а токен приватного scope не доживает до выполнения кода из PR — подробности в [security.md](security.md#1-недоверенный-код-из-pull-request).
 
 ---
 

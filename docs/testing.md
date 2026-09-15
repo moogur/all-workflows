@@ -31,6 +31,7 @@
 | [tests/docker-image.bats](../tests/docker-image.bats) | скрипты `docker-image/` | версия и формат тегов (сборка по тегу и датная метка без тега), имя образа, Dockerfile из копии рядом с экшеном и откат на `master` с предупреждением, `ARG_APP_VERSION` и дополнительные build-arg, логин через stdin без токена в аргументах, пуш каждого тега (docker и wget подменяются заглушками) |
 | [tests/docker-workflows.bats](../tests/docker-workflows.bats) | конфигурация docker-workflow'ов | guard: сборка только через общий `docker-image`, никаких своих `docker build/push/login`, `docker-tags` вызывается лишь из экшена, запрошенные Dockerfile существуют в `dockerfiles/` |
 | [tests/workflows-permissions.bats](../tests/workflows-permissions.bats) | права `GITHUB_TOKEN` | guard: `permissions` объявлены в каждом workflow, нет `write-all`, `auto_deploy_*` не уже вложенных деплоев |
+| [tests/pr-annotation.bats](../tests/pr-annotation.bats) | конфигурация `pr_annotation.yml` | guard: job не стартует на PR из форка (и не отсекает остальные события), `.npmrc` удаляется после `npm ci` и до выполнения кода из PR, сторонний action не ставит зависимости сам |
 | [tests/docker-tags.bats](../tests/docker-tags.bats) | `docker-tags/tags.sh` | форматы `date`/`semver`, лестница `vX.Y.Z`/`vX.Y`/`vX`/`latest`, добавление префикса `v`, отклонение тега-даты/предрелиза/неполной версии, ошибка на неизвестном `format_mode` |
 | [tests/npm-auth.bats](../tests/npm-auth.bats) | `npm-auth/configure.sh` | содержимое и формат `.npmrc` |
 | [tests/commit-msg.bats](../tests/commit-msg.bats) | `.husky/commit-msg` | все допустимые типы, правила отклонения (номер задачи, регистр, скобки, пустые поля, граница длины 125/126), многострочные сообщения (валидируется только заголовок) + характеристика нестрогого совпадения типа |
@@ -61,7 +62,7 @@ bats tests/
 shellcheck .github/actions/*/*.sh scripts/*.sh .husky/commit-msg tests/helpers.bash
 
 # Статика workflow'ов (нужен actionlint)
-SHELLCHECK_OPTS=--severity=error actionlint -ignore 'is potentially untrusted' -ignore 'job_workflow_sha'
+SHELLCHECK_OPTS=--severity=error actionlint -ignore 'job_workflow_sha'
 
 # Структура YAML (нужен yamllint)
 yamllint -c .yamllint.yml .github
@@ -91,5 +92,5 @@ yamllint -c .yamllint.yml .github
 ## Особенности, влияющие на проверки
 
 - В CI shellcheck для inline-скриптов workflow'ов (внутри actionlint) работает на уровне `--severity=error`: в существующих docker-командах есть намеренный word-splitting (`SC2086`), который не считается ошибкой. Все отдельные `.sh`-скрипты (экшены, `scripts/kanboard_requests.sh`, хук, хелперы) проверяются строго на всех уровнях, без исключений.
-- Находка actionlint про `github.head_ref` в [kanboard.yml](../.github/workflows/kanboard.yml) намеренно вынесена в `-ignore` и задокументирована в [security.md](security.md).
-- Второй `-ignore` — на `github.job_workflow_sha`: поле валидно (GitHub docs), но отсутствует в схеме actionlint 1.7.12; используется в [kanboard.yml](../.github/workflows/kanboard.yml) для пина версии при checkout.
+- Единственный `-ignore` — на `github.job_workflow_sha`: поле валидно (GitHub docs), но отсутствует в схеме actionlint 1.7.12; используется в [kanboard.yml](../.github/workflows/kanboard.yml) для пина версии при checkout. Прежний `-ignore 'is potentially untrusted'` снят: `github.head_ref` теперь приходит в шаг переменной окружения (см. [security.md](security.md#5-инъекция-через-githubhead_ref-в-kanboardyml--исправлено)).
+- actionlint в CI ставится не сторонним загрузчиком с ветки `main`, а скачиванием релиза с проверкой `sha256sum`. При обновлении версии в [ci.yml](../.github/workflows/ci.yml) нужно поменять и `ACTIONLINT_VERSION`, и `ACTIONLINT_SHA256` (хеш `actionlint_<version>_linux_amd64.tar.gz` берётся из `actionlint_<version>_checksums.txt` в релизе).

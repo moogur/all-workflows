@@ -13,10 +13,9 @@ BATS       ?= bats
 # Bash-скрипты, которые проверяются строго (без исключений).
 SH_FILES := .github/actions/*/*.sh scripts/*.sh .husky/commit-msg tests/helpers.bash
 
-# Игноры actionlint:
-#  - 'is potentially untrusted' — github.head_ref в kanboard.yml (см. docs/security.md);
-#  - 'job_workflow_sha' — валидное поле, отсутствует в схеме actionlint (см. docs/testing.md).
-ACTIONLINT_IGNORES := -ignore 'is potentially untrusted' -ignore 'job_workflow_sha'
+# Игнор actionlint: 'job_workflow_sha' — валидное поле, отсутствует в схеме
+# actionlint (см. docs/testing.md).
+ACTIONLINT_IGNORES := -ignore 'job_workflow_sha'
 # Для inline-скриптов workflow'ов shellcheck внутри actionlint — только ошибки
 # (в docker-командах есть намеренный word-splitting).
 export SHELLCHECK_OPTS := --severity=error

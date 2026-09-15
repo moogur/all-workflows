@@ -18,8 +18,8 @@ deployed from this repo itself — it only lints and unit-tests its own bash.
 - shellcheck is strict for standalone `.sh`, the hook and `tests/helpers.bash`; inline workflow
   scripts are checked (inside actionlint) only at `--severity=error` — docker commands rely on
   intentional word-splitting.
-- The two actionlint `-ignore` (`is potentially untrusted`, `job_workflow_sha`) are deliberate;
-  do not "fix" those findings. A third ignore needs a line in `docs/testing.md`.
+- The single actionlint `-ignore` (`job_workflow_sha`) is deliberate; do not "fix" that finding.
+  Any new ignore needs a line in `docs/testing.md`.
 
 ## Where logic goes
 

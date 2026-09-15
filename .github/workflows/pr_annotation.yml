@@ -31,6 +31,10 @@ concurrency:
 jobs:
   scanner:
     runs-on: ubuntu-latest
+    # На PR из форка здесь выполнялся бы чужой код (lifecycle-скрипты npm и сами
+    # тесты) в контексте базового репозитория. Секретов такому запуску GitHub не
+    # выдаёт, а прав на аннотации — тем более, так что гонять его незачем.
+    if: "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository"
 
     steps:
       - name: 'Checkout'
@@ -55,10 +59,18 @@ jobs:
       - name: 'Install'
         run: npm ci
 
+      # Токен нужен только на время установки. Дальше выполняется код проекта,
+      # поэтому .npmrc с _authToken рядом с ним не остаётся.
+      - name: 'Drop npm auth'
+        run: rm -f .npmrc
+
       # Сторонний action: гоняет test-script и оставляет аннотации в PR.
+      # skip-step: install — зависимости уже стоят, а свой install action
+      # сделал бы без .npmrc и без доступа к приватному scope.
       - name: 'Test coverage (jest)'
         if: "inputs.skip_tests != 'true'"
         uses: ArtiomTr/jest-coverage-report-action@v2
         with:
           annotations: failed-tests
           test-script: npm run test:coverage
+          skip-step: install

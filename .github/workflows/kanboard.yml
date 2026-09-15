@@ -60,11 +60,15 @@ jobs:
       - name: 'Set variables'
         if: "inputs.event_type != 'deploy'"
         id: variables
+        env:
+          # Имя ветки задаёт автор PR, поэтому оно приходит переменной окружения:
+          # интерполяция в тело скрипта позволила бы выполнить произвольные команды.
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           if [[ ${{ inputs.project_type }} == "single_branch" ]]; then
             task_id=`echo $(git log -1 --pretty=%B) | tr "-" " " | tr "]" " " | awk '{print $2 }'`
           elif [[ ${{ inputs.event_type }} == "pr" ]] || [[ ${{ inputs.event_type }} == "merge" ]]; then
-            task_id=`echo ${{ github.head_ref }} | tr "-" " " | tr "_" " " | awk '{print $2 }'`
+            task_id=`echo "$HEAD_REF" | tr "-" " " | tr "_" " " | awk '{print $2 }'`
           else
             task_id=`echo $GITHUB_REF_NAME | tr "-" " " | tr "_" " " | awk '{print $2 }'`
           fi

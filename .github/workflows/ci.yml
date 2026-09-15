@@ -14,17 +14,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # Релиз берётся напрямую и сверяется по sha256: сторонний загрузчик с ветки
+      # main исполнялся бы без всякой проверки (supply-chain). Хеш — linux_amd64,
+      # при смене версии обновить оба значения по <release>/..._checksums.txt.
       - name: Install actionlint
-        run: bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) 1.7.12
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          set -euo pipefail
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -fsSL -o "$archive" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${archive}"
+          echo "${ACTIONLINT_SHA256}  ${archive}" | sha256sum -c -
+          tar -xzf "$archive" actionlint
       - name: Run actionlint
         env:
           # inline-скрипты в существующих workflow'ах содержат намеренный
           # word-splitting (SC2086 и т.п.) — проверяем shellcheck'ом только ошибки.
           SHELLCHECK_OPTS: --severity=error
-        # -ignore #1: известная находка про github.head_ref в kanboard.yml (см. docs/security.md).
-        # -ignore #2: github.job_workflow_sha — валидное поле контекста (GitHub docs),
+        # -ignore: github.job_workflow_sha — валидное поле контекста (GitHub docs),
         #   но отсутствует в схеме actionlint 1.7.12; используется в kanboard.yml.
-        run: ./actionlint -color -ignore 'is potentially untrusted' -ignore 'job_workflow_sha'
+        run: ./actionlint -color -ignore 'job_workflow_sha'
 
   shellcheck:
     name: shellcheck (bash-скрипты)
