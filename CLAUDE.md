@@ -28,6 +28,8 @@ deployed from this repo itself — it only lints and unit-tests its own bash.
   Reason: bats then tests the exact file that runs in prod.
 - Steps shared by several workflows go to `.github/actions/`, not copy-pasted inline.
 - Every workflow declares an explicit minimal `permissions` block — enforced by a test.
+- A workflow that runs tests gates that step on `inputs.skip_tests` (`required: false`,
+  `default: 'false'`) so the consumer can switch them off — enforced by a test.
 
 ## Tests
 

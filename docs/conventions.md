@@ -89,6 +89,14 @@ Git-хук [`.husky/commit-msg`](../.husky/commit-msg) валидирует ка
 
 > Вызванный workflow не может получить больше прав, чем есть у вызвавшего, поэтому у `auto_deploy_*` права не уже, чем у вложенных в них деплоев. Если в репозитории-потребителе дефолтный токен урезан до read-only, запуск упадёт сразу и с внятной причиной, а не на шаге `docker push`.
 
+## Выключатель тестов
+
+Шаг с тестами в переиспользуемом workflow всегда закрыт условием `inputs.skip_tests`, а сам вход объявлен как `required: false` с `default: 'false'`. Решение принимает потребитель: ничего не передал — тесты идут, передал `skip_tests: 'true'` — шаг пропускается. Тесты нигде не выключаются правкой самого workflow и не комментируются.
+
+Сейчас так устроены [`actions_for_push.yml`](workflows.md#actions_for_pushyml--lint-build-test-nodejs), [`actions_for_push_go.yml`](workflows.md#actions_for_push_goyml--lint-build-test-go) и [`pr_annotation.yml`](workflows.md#pr_annotationyml--аннотации-покрытия-jest). Правило закреплено guard-тестом [tests/skip-tests.bats](../tests/skip-tests.bats): он же ловит и обратную ошибку — вход `skip_tests` без шага, который им закрыт.
+
+Линтеры и сборка выключателя не имеют намеренно: `npm run lint`, `go vet`, `staticcheck` и `golint` идут всегда.
+
 ## Переменные окружения (vars)
 
 | Переменная | Где используется | Назначение |
