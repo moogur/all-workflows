@@ -9,11 +9,10 @@
 | Каталог / файл | Назначение |
 | --- | --- |
 | [`.github/workflows/`](.github/workflows/) | Переиспользуемые workflow'ы (основное содержимое репозитория) |
-| [`.github/actions/`](.github/actions/) | Composite actions — общие шаги (версии Node/Go, настройка Node с кэшем npm, npm-аутентификация, версия приложения, проверка формата тега, тело релиза по коммитам, публикация релиза, сборка docker-образа и релиз по тегу сборки, проверка обновлений внешнего репозитория) |
+| [`.github/actions/`](.github/actions/) | Composite actions — общие шаги (версии Node/Go, настройка Node с кэшем npm, npm-аутентификация, версия приложения, проверка формата тега, тело релиза по PR/коммитам, публикация релиза, единая цепочка публикации GitHub-релиза, сборка docker-образа и релиз по тегу сборки, блок npm install, проверка обновлений внешнего репозитория) |
 | [`dockerfiles/`](dockerfiles/) | Dockerfile'ы и `.dockerignore`, которые workflow'ы скачивают на лету при сборке образов |
 | [`scripts/kanboard_requests.sh`](scripts/kanboard_requests.sh) | Bash-библиотека JSON-RPC запросов к Kanboard |
 | [`.husky/commit-msg`](.husky/commit-msg) | Git-хук валидации сообщения коммита |
-| [`.github/release-drafter.yml`](.github/release-drafter.yml) | Конфигурация [Release Drafter](https://github.com/release-drafter/release-drafter) |
 | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | CI самого репозитория: actionlint, shellcheck, yamllint, bats |
 | [`tests/`](tests/) | Unit-тесты ([bats](https://github.com/bats-core/bats-core)) на bash-логику экшенов, хука и скриптов |
 | [`Makefile`](Makefile) | Команды локальной разработки: `make check`/`lint`/`test` (повторяют CI), `make help` |
@@ -54,13 +53,13 @@ jobs:
 
 ### Релизы и артефакты
 
+Отдельного «релизного» workflow больше нет: каждая сборка, у которой есть что опубликовать, по тегу (`github.ref_type == 'tag'`) сама публикует GitHub-релиз через общую цепочку [`github-release`](docs/actions.md#github-release).
+
 | Workflow | Что делает |
 | --- | --- |
-| [`release.yml`](.github/workflows/release.yml) | Публикация GitHub-релиза: по PR (Release Drafter) или по коммитам между тегами, с ассетом из артефакта |
-| [`release_frontend.yml`](.github/workflows/release_frontend.yml) | Релиз (PR или коммиты) + сборка фронтенда и загрузка `application.zip` |
-| [`release_with_artifacts.yml`](.github/workflows/release_with_artifacts.yml) | Устаревшая обёртка над `release.yml` с ассетом-артефактом |
-| [`go_build_with_artifacts.yml`](.github/workflows/go_build_with_artifacts.yml) | Сборка Go-бинарника и загрузка артефакта |
-| [`deploy_for_build_application.yml`](.github/workflows/deploy_for_build_application.yml) | Сборка по скрипту + создание релиза с `application.zip` (тело — пустое, по PR или по коммитам) |
+| [`go_build_with_artifacts.yml`](.github/workflows/go_build_with_artifacts.yml) | Сборка Go-бинарника, загрузка артефакта, по тегу — релиз с бинарником (имя ассета включает `goos`/`goarch`) |
+| [`deploy_for_build_application.yml`](.github/workflows/deploy_for_build_application.yml) | Сборка по скрипту, по тегу — релиз с `application.zip` |
+| [`release_frontend.yml`](.github/workflows/release_frontend.yml) | Сборка фронтенда, по тегу — релиз с `application.zip` |
 
 ### Docker-образы
 
@@ -77,8 +76,8 @@ jobs:
 
 | Workflow | Что делает |
 | --- | --- |
-| [`publish_package.yml`](.github/workflows/publish_package.yml) | Публикация npm-пакета в GitHub Packages |
-| [`deploy_for_lerna.yml`](.github/workflows/deploy_for_lerna.yml) | Публикация пакетов монорепозитория через Lerna |
+| [`publish_package.yml`](.github/workflows/publish_package.yml) | Публикация npm-пакета в GitHub Packages, по тегу — релиз с командой `npm install` |
+| [`deploy_for_lerna.yml`](.github/workflows/deploy_for_lerna.yml) | Публикация пакетов монорепозитория через Lerna, по тегу — релиз с `npm install` на каждый пакет |
 | [`deploy_for_frontend.yml`](.github/workflows/deploy_for_frontend.yml) | Сборка фронтенда и пуш `dist` в ветку `builds` |
 
 ### Интеграции
@@ -107,6 +106,6 @@ jobs:
 - **Docker-образы** публикуются в GitHub Packages (`docker.pkg.github.com`) с тегами `<версия>` и `latest`; для semver-тега — `vX.Y.Z`, `vX.Y`, `vX`, `latest`. Сборка по тегу дополнительно публикует GitHub-релиз со ссылкой на образ.
 - **npm-пакеты** области `@moogur` ставятся из приватного реестра GitHub Packages.
 - **Сообщения коммитов** проверяются хуком и должны иметь вид `[GA-123] type(scope): subject`.
-- **Тело релиза** собирается из PR (Release Drafter) либо, для разработки в одной ветке, из коммитов между текущим и предыдущим тегом — параметр `notes_source` у релизных workflow'ов.
+- **Тело релиза** собирается автоматически: коммит, смёрженный через PR, даёт запись по PR (заголовок, автор, категория по меткам PR); коммит, запушенный напрямую, — по формату сообщения коммита. Отдельного «релизного» workflow нет — публикует каждая сборка сама, по тегу, через общую цепочку [`github-release`](docs/actions.md#github-release).
 
 Подробнее — в [docs/conventions.md](docs/conventions.md).

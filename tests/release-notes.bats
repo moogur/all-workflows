@@ -8,6 +8,7 @@ setup() {
   TMP="$(mktemp -d)"
   REPO="$TMP/repo"
   NOTES="$TMP/notes.md"
+  GH_FIXTURES="$TMP/prs"
   export GITHUB_OUTPUT="$TMP/output"
   : > "$GITHUB_OUTPUT"
 
@@ -40,6 +41,59 @@ run_notes() {
   shift
   run env TAG="$release_tag" NOTES_FILE="$NOTES" GITHUB_OUTPUT="$GITHUB_OUTPUT" \
     GITHUB_SERVER_URL=https://github.com GITHUB_REPOSITORY=user/repo "$@" \
+    bash -c "cd '$REPO' && bash '$SCRIPT'"
+}
+
+# Заглушка gh: "api repos/.../commits/<sha>/pulls" отвечает фикстурой
+# "$GH_FIXTURES/<sha>.json" (её нет — пустой список, PR не найден).
+make_gh_stub() {
+  mkdir -p "$TMP/bin" "$GH_FIXTURES"
+  {
+    echo '#!/usr/bin/env bash'
+    echo 'path="$2"'
+    echo 'sha="${path#repos/*/commits/}"'
+    echo 'sha="${sha%/pulls}"'
+    echo 'fixture="$GH_FIXTURES/$sha.json"'
+    echo '[[ -f "$fixture" ]] && cat "$fixture" || echo "[]"'
+  } > "$TMP/bin/gh"
+  chmod +x "$TMP/bin/gh"
+}
+
+# Заглушка gh, которая всегда падает — имитация недоступного API.
+make_gh_stub_failing() {
+  mkdir -p "$TMP/bin"
+  {
+    echo '#!/usr/bin/env bash'
+    echo 'exit 1'
+  } > "$TMP/bin/gh"
+  chmod +x "$TMP/bin/gh"
+}
+
+# Заглушка gh, которая завершается успешно, но отвечает не JSON'ом (например, HTML-страница сбоя).
+make_gh_stub_non_json() {
+  mkdir -p "$TMP/bin"
+  {
+    echo '#!/usr/bin/env bash'
+    echo 'echo "<html>Service Unavailable</html>"'
+  } > "$TMP/bin/gh"
+  chmod +x "$TMP/bin/gh"
+}
+
+# pr_fixture <sha> <номер> <заголовок> <автор> <метка>
+pr_fixture() {
+  local sha="$1" number="$2" title="$3" author="$4" label="$5"
+  jq -n --arg n "$number" --arg t "$title" --arg a "$author" --arg l "$label" \
+    '[{number: ($n|tonumber), title: $t, merged_at: "2024-01-01T00:00:00Z", user: {login: $a}, labels: [{name: $l}]}]' \
+    > "$GH_FIXTURES/$sha.json"
+}
+
+# run_notes_gh <тег> — как run_notes, но с заглушкой gh на PATH и GH_TOKEN.
+run_notes_gh() {
+  local release_tag="$1"
+  shift
+  run env TAG="$release_tag" NOTES_FILE="$NOTES" GITHUB_OUTPUT="$GITHUB_OUTPUT" \
+    GITHUB_SERVER_URL=https://github.com GITHUB_REPOSITORY=user/repo \
+    GH_TOKEN=token GH_FIXTURES="$GH_FIXTURES" PATH="$TMP/bin:$PATH" "$@" \
     bash -c "cd '$REPO' && bash '$SCRIPT'"
 }
 
@@ -88,7 +142,7 @@ run_notes() {
 
 # ---------- тело релиза ----------
 
-@test "коммиты раскладываются по категориям release-drafter" {
+@test "коммиты раскладываются по категориям релиза" {
   commit 'init' 2024-01-01T10:00:00
   tag v1.0.0 2024-01-01T10:00:00
   commit '[GA-557] feature(frontend): add deploy spa and pwa' 2024-01-02T10:00:00
@@ -225,4 +279,83 @@ run_notes() {
     bash -c "cd '$REPO' && bash '$SCRIPT'"
   [ "$status" -eq 0 ]
   [ "$(output_value previous_tag)" = "v1.0.0" ]
+}
+
+# ---------- автоопределение PR ----------
+
+@test "коммит смёрженного PR даёт запись PR, категория по метке" {
+  make_gh_stub
+  commit 'init' 2024-01-01T10:00:00
+  tag v1.0.0 2024-01-01T10:00:00
+  commit '[GA-1] feature(api): add endpoint' 2024-01-02T10:00:00
+  pr_fixture "$(git -C "$REPO" rev-parse HEAD)" 42 'Add cool endpoint' alice type:feature
+  tag v1.1.0 2024-01-02T11:00:00
+
+  run_notes_gh v1.1.0
+  [ "$status" -eq 0 ]
+  grep -qF '## 🚀 New Features' "$NOTES"
+  grep -qF -- '- Add cool endpoint (#42) @alice' "$NOTES"
+  run grep -cF 'GA-1' "$NOTES"
+  [ "$status" -ne 0 ]   # запись по PR, а не по формату коммита
+}
+
+@test "несколько коммитов одного PR дают одну запись (дедуп по номеру)" {
+  make_gh_stub
+  commit 'init' 2024-01-01T10:00:00
+  tag v1.0.0 2024-01-01T10:00:00
+  commit '[GA-1] feature(api): part one' 2024-01-02T10:00:00
+  pr_fixture "$(git -C "$REPO" rev-parse HEAD)" 42 'Add cool endpoint' alice type:feature
+  commit '[GA-1] feature(api): part two' 2024-01-02T11:00:00
+  pr_fixture "$(git -C "$REPO" rev-parse HEAD)" 42 'Add cool endpoint' alice type:feature
+  tag v1.1.0 2024-01-02T12:00:00
+
+  run_notes_gh v1.1.0
+  [ "$status" -eq 0 ]
+  [ "$(output_value commit_count)" = "2" ]   # оба коммита посчитаны
+  [ "$(grep -cF '#42' "$NOTES")" -eq 1 ]     # но запись в теле одна
+}
+
+@test "PR и прямой коммит вперемешку: у каждого своя запись" {
+  make_gh_stub
+  commit 'init' 2024-01-01T10:00:00
+  tag v1.0.0 2024-01-01T10:00:00
+  commit '[GA-1] feature(api): via pr' 2024-01-02T10:00:00
+  pr_fixture "$(git -C "$REPO" rev-parse HEAD)" 42 'Add cool endpoint' alice type:feature
+  commit '[GA-2] bugfix(api): pushed directly' 2024-01-02T11:00:00
+  tag v1.1.0 2024-01-02T12:00:00
+
+  run_notes_gh v1.1.0
+  [ "$status" -eq 0 ]
+  grep -qF -- '- Add cool endpoint (#42) @alice' "$NOTES"
+  grep -q '^- \[GA-2\] api: pushed directly ([0-9a-f]\{7,\})$' "$NOTES"
+}
+
+@test "gh недоступен: все коммиты падают в формат по коммитам, предупреждение одно" {
+  make_gh_stub_failing
+  commit 'init' 2024-01-01T10:00:00
+  tag v1.0.0 2024-01-01T10:00:00
+  commit '[GA-1] feature(api): one' 2024-01-02T10:00:00
+  commit '[GA-2] bugfix(api): two' 2024-01-02T11:00:00
+  tag v1.1.0 2024-01-02T12:00:00
+
+  run_notes_gh v1.1.0
+  [ "$status" -eq 0 ]
+  grep -q '^- \[GA-1\] api: one ([0-9a-f]\{7,\})$' "$NOTES"
+  grep -q '^- \[GA-2\] api: two ([0-9a-f]\{7,\})$' "$NOTES"
+  [ "$(grep -cF 'PR lookup unavailable' <<< "$output")" -eq 1 ]
+}
+
+@test "gh api отвечает не JSON'ом: коммиты падают в формат по коммитам, предупреждение одно" {
+  make_gh_stub_non_json
+  commit 'init' 2024-01-01T10:00:00
+  tag v1.0.0 2024-01-01T10:00:00
+  commit '[GA-1] feature(api): one' 2024-01-02T10:00:00
+  commit '[GA-2] bugfix(api): two' 2024-01-02T11:00:00
+  tag v1.1.0 2024-01-02T12:00:00
+
+  run_notes_gh v1.1.0
+  [ "$status" -eq 0 ]
+  grep -q '^- \[GA-1\] api: one ([0-9a-f]\{7,\})$' "$NOTES"
+  grep -q '^- \[GA-2\] api: two ([0-9a-f]\{7,\})$' "$NOTES"
+  [ "$(grep -cF 'unexpected gh api response' <<< "$output")" -eq 1 ]
 }

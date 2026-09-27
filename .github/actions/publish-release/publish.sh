@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Публикует GitHub-релиз по тегу: создаёт новый или обновляет уже существующий,
-# затем прикладывает ассеты. Перезапуск job'а по тому же тегу не падает.
+# затем прикладывает ассеты. Перезапуск job'а по тому же тегу не падает, как и
+# гонка параллельных job'ов матрицы за один и тот же тег (см. ниже).
 # Вход (env): TAG, RELEASE_TITLE (необяз.), NOTES_FILE (необяз.),
 #   ASSETS (необяз., пути через пробел), GH_TOKEN.
 set -euo pipefail
@@ -14,8 +15,8 @@ if [[ -n "$notes_file" && ! -f "$notes_file" ]]; then
   exit 1
 fi
 
-# Обновляем только то, что передали явно: в режиме drafter тело и заголовок
-# уже проставил release-drafter, и перетирать их нечем и незачем.
+# Обновляем только то, что передали явно: пустой вход значит «нечем перетирать»
+# (например, повторный запуск github-release без изменений в теле/заголовке).
 edit_args=()
 [[ -z "$title" ]] || edit_args+=(--title "$title")
 [[ -z "$notes_file" ]] || edit_args+=(--notes-file "$notes_file")
@@ -38,8 +39,19 @@ else
     create_args+=(--notes '')
   fi
 
-  gh release create "$tag" "${create_args[@]}"
-  echo "Release '${tag}' created"
+  if gh release create "$tag" "${create_args[@]}"; then
+    echo "Release '${tag}' created"
+  elif gh release view "$tag" >/dev/null 2>&1; then
+    # Гонка параллельных job'ов матрицы: релиз появился между проверкой и созданием —
+    # это не ошибка, доделываем как edit (пустые edit_args — победивший job уже всё проставил).
+    echo "Release '${tag}' created concurrently by another job, updating instead" >&2
+    if [[ "${#edit_args[@]}" -gt 0 ]]; then
+      gh release edit "$tag" "${edit_args[@]}" --draft=false
+    fi
+  else
+    echo "Release '${tag}' creation failed and still doesn't exist" >&2
+    exit 1
+  fi
 fi
 
 read -ra assets <<< "${ASSETS:-}"

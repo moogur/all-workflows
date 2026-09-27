@@ -1,6 +1,6 @@
 # Composite actions
 
-Повторяющиеся шаги вынесены в переиспользуемые [composite actions](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action) в каталоге [`.github/actions/`](../.github/actions/). Это убирает дублирование: версия Node/Go, npm-аутентификация, определение версии приложения, тело релиза по коммитам, публикация релиза, сборка docker-образа и проверка обновлений внешнего репозитория описаны один раз.
+Повторяющиеся шаги вынесены в переиспользуемые [composite actions](https://docs.github.com/en/actions/creating-actions/creating-a-composite-action) в каталоге [`.github/actions/`](../.github/actions/). Это убирает дублирование: версия Node/Go, npm-аутентификация, определение версии приложения, тело релиза по PR/коммитам, публикация релиза (и единая цепочка публикации GitHub-релиза целиком), сборка docker-образа и релиз по тегу сборки, блок `npm install` и проверка обновлений внешнего репозитория описаны один раз.
 
 ← Назад к [README](../README.md) · [Справочник workflow'ов](workflows.md)
 
@@ -121,28 +121,30 @@ uses: moogur/all-workflows/.github/actions/<name>@master
 ```
 
 > В режиме `git` требуется полная история тегов: в шаге `actions/checkout` должно стоять `fetch-depth: 0`.
-> Режим `ref` используют релизные workflow'ы ([release.yml](../.github/workflows/release.yml), [release_frontend.yml](../.github/workflows/release_frontend.yml), [release_with_artifacts.yml](../.github/workflows/release_with_artifacts.yml)).
+> Режим `ref` использует [`github-release`](#github-release) — единая точка публикации релиза.
 
 ## `release-notes`
 
-Собирает тело GitHub-релиза из коммитов между текущим и предыдущим тегом — для репозиториев,
-где разработка идёт в одной ветке и PR нет, так что [Release Drafter](https://github.com/release-drafter/release-drafter)
-собирать changelog не из чего. Используется в [release.yml](../.github/workflows/release.yml) при `notes_source: 'commits'`
-и в [`docker-release`](#docker-release).
+Собирает тело GitHub-релиза из коммитов между текущим и предыдущим тегом. Коммит, смёрженный через Pull
+Request, даёт одну запись **по PR** (заголовок, автор, категория по меткам PR — GitHub API, `gh api
+repos/<repo>/commits/<sha>/pulls`); коммит, запушенный напрямую, — запись **по коммиту** (заголовок разбирается
+по формату `commit-msg`). Используется только внутри [`github-release`](#github-release).
 
 | | |
 | --- | --- |
-| **Входы** | `tag` (необяз., по умолчанию пусто) — тег релиза, пусто — тег из `GITHUB_REF`; `previous_tag` (необяз.) — с чем сравнивать, пусто — соседний тег по дате создания; `notes_file` (необяз.) — куда записать тело, пусто — `$RUNNER_TEMP/release-notes.md` |
+| **Входы** | `tag` (необяз., по умолчанию пусто) — тег релиза, пусто — тег из `GITHUB_REF`; `previous_tag` (необяз.) — с чем сравнивать, пусто — соседний тег по дате создания; `notes_file` (необяз.) — куда записать тело, пусто — `$RUNNER_TEMP/release-notes.md`; `token` (необяз., по умолчанию пусто) — токен для поиска PR коммита (`pull-requests: read`), пусто — тело только из коммитов |
 | **Выходы** | `notes_file` — путь к файлу с телом релиза; `previous_tag` — тег, с которым сравнивали (пусто, если релиз первый); `commit_count` — число коммитов в диапазоне без слияний |
 
 ```yaml
 - name: 'Checkout'
-  uses: actions/checkout@v4
+  uses: actions/checkout@v7
   with:
     fetch-depth: 0           # нужны вся история и теги
 
 - id: notes
   uses: moogur/all-workflows/.github/actions/release-notes@master
+  with:
+    token: ${{ secrets.GITHUB_TOKEN }}
 
 - env:
     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -151,40 +153,51 @@ uses: moogur/all-workflows/.github/actions/<name>@master
   run: gh release create "$TAG" --title "$TAG" --notes-file "$NOTES_FILE"
 ```
 
-**Как разбираются коммиты.** Заголовок читается по формату хука [`commit-msg`](conventions.md#формат-сообщений-коммитов)
-(`[GA-123] type(scope): subject`) и раскладывается по тем же категориям, что и
-[`.github/release-drafter.yml`](../.github/release-drafter.yml) — чтобы релизы двух режимов выглядели одинаково:
+**Коммит, смёрженный через PR.** Для каждого коммита диапазона экшен спрашивает GitHub, к какому PR он
+относится (`gh api .../commits/<sha>/pulls`, берётся смёрженный). Несколько коммитов одного PR (squash из
+веб-интерфейса, ребейз) дают одну запись — дедупликация по номеру PR. Категория — по меткам PR (тот же
+список, что раньше жил в `.github/release-drafter.yml`):
 
-| Категория | `type` коммита |
+| Категория | Метка PR |
 | --- | --- |
-| 🚀 New Features | `feature`, `test` |
-| 🐞 Bugs Fixes | `bugfix` |
-| 📚 Documentation | `docs` |
-| 🧰 Maintenance | `refactor` |
-| 🛠 Configuration | `config`, `ci` |
-| 🧩 Other | всё, что не разобралось по формату |
+| 🚀 New Features | `type:feature`, `type:test` |
+| 🐞 Bugs Fixes | `type:bugfix` |
+| 📚 Documentation | `type:docs` |
+| 🧰 Maintenance | `type:refactor` |
+| 🛠 Configuration | `type:config`, `type:ci` |
+| 🧩 Other | без ни одной из этих меток |
 
-Префикс задачи может быть любым (`GA-123`, `IPB-456`): у каждого репозитория-потребителя свой, и экшен
-принимает `[<ПРЕФИКС>-<номер>]`.
+Запись: `- <заголовок PR> (#<номер>) @<автор>`.
+
+**Коммит без PR (запушен напрямую).** Заголовок читается по формату хука [`commit-msg`](conventions.md#формат-сообщений-коммитов)
+(`[GA-123] type(scope): subject`) и раскладывается по тем же категориям, но по `type` коммита (`feature`/`test` →
+New Features и т. д., как в таблице выше). Префикс задачи может быть любым (`GA-123`, `IPB-456`): у каждого
+репозитория-потребителя свой, и экшен принимает `[<ПРЕФИКС>-<номер>]`. Запись: `- [GA-557] frontend: add deploy
+spa and pwa (a1b2c3d)`. Заголовок не по формату (старые коммиты, merge из веб-интерфейса) идёт в Other как есть.
 
 Результат — заголовок `# What's Changed`, строка с числом коммитов («**3 commits** since `v1.2.2`.»),
-категории со строками вида `- [GA-557] frontend: add deploy spa and pwa (a1b2c3d)` и ссылка
-`**Full Changelog**` на сравнение тегов.
+категории с записями (PR и/или коммиты вперемешку, в порядке истории) и ссылка `**Full Changelog**` на
+сравнение тегов.
 
+> **Нет `token`, `GITHUB_REPOSITORY` или `gh` в `PATH` — тело собирается только из коммитов**, с одним
+> предупреждением в лог (не на каждый коммит). Это и держит рабочими локальные прогоны и тесты без сети:
+> без токена экшен даже не пытается звать `gh`.
+>
 > **Предыдущий тег берётся соседним по дате создания** (`git for-each-ref --sort=-creatordate`), а не
 > максимальным по имени: сортировка по имени врёт на датных тегах — «максимумом» окажется `26.05.2023`,
 > потому что `26 > 14` (та же причина, что и в [`remote-update-check`](#remote-update-check)).
 > Слияния (`--no-merges`) в тело не идут; если предыдущего тега нет, берётся вся история, а ссылка
 > ведёт на `/commits/<тег>`. Тега нет в репозитории — ошибка с подсказкой про `fetch-depth: 0`,
 > потому что без полной истории диапазон посчитать нечем.
+>
+> **Риск:** запрос к GitHub API идёт на каждый коммит диапазона (не пачкой) — большой диапазон коммитов
+> между тегами может упереться в лимит запросов API.
 
 ## `publish-release`
 
 Публикует GitHub-релиз по тегу и прикладывает ассеты. **Идемпотентен**: если релиз по тегу уже есть — обновляет
-его, а не падает, поэтому перезапуск упавшего job'а безопасен. Используется всеми workflow'ами, которые создают
-релиз: [release](../.github/workflows/release.yml), [release_frontend](../.github/workflows/release_frontend.yml),
-[release_with_artifacts](../.github/workflows/release_with_artifacts.yml),
-[deploy_for_build_application](../.github/workflows/deploy_for_build_application.yml), [`docker-release`](#docker-release).
+его, а не падает, поэтому перезапуск упавшего job'а безопасен. **Устойчив к гонке параллельных job'ов матрицы**
+за один и тот же тег (см. ниже). Используется только внутри [`github-release`](#github-release).
 
 | | |
 | --- | --- |
@@ -203,21 +216,57 @@ uses: moogur/all-workflows/.github/actions/<name>@master
     token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-> **Пустые входы значат «не трогать».** Это то, что позволяет одному шагу обслуживать оба режима тела релиза:
-> в режиме `drafter` релиз уже создан и описан, `notes_file` приходит пустым — шаг только догружает ассеты;
-> в режиме `commits` он же создаёт релиз с телом. При создании флаги обязательны: без `--notes` `gh` в
-> неинтерактивном режиме не работает, поэтому пустое тело задаётся явно (`--notes ''`).
+> **Пустые входы значат «не трогать».** При создании флаги обязательны: без `--notes` `gh` в неинтерактивном
+> режиме не работает, поэтому пустое тело задаётся явно (`--notes ''`). При правке существующего релиза
+> обновляется только то, что передали явно — пустой `title`/`notes_file` значит «здесь править нечего».
 >
 > Ассеты грузятся с `--clobber` — перезапуск заменяет файл, а не спотыкается об уже загруженный. Имя ассета
-> у `gh` — это имя файла: чтобы опубликовать его под другим именем, файл нужно переименовать (так сделано в
-> [release_with_artifacts](../.github/workflows/release_with_artifacts.yml)).
+> у `gh` — это имя файла: чтобы опубликовать его под другим именем, файл нужно переименовать (так делает
+> [`go_build_with_artifacts.yml`](../.github/workflows/go_build_with_artifacts.yml) — добавляет `goos`/`goarch`).
 >
 > **Правка существующего релиза снимает draft** (`--draft=false`): удаление git-тега переводит его GitHub-релиз
 > в draft, а повторный пуш того же тега находит именно его через `gh release view`. Флаг добавляется, только
 > когда правка вообще происходит (`title` или `notes_file` непустые) — в ветке «менять нечего» лишнего вызова
-> `gh` как не было, так и нет; режим `drafter` публикует релиз сам (`publish: true`) и в drafted не попадает.
+> `gh` как не было, так и нет.
+>
+> **Гонка параллельных job'ов матрицы.** `gh release view` перед созданием не гарантирует эксклюзивности:
+> два job'а одной матрицы (например, `go_build_with_artifacts` для разных `goos`/`goarch`) могут оба не найти
+> релиз и оба попытаться его создать — второй `gh release create` упадёт («already exists»). В этом случае
+> экшен перепроверяет `gh release view`: релиз нашёлся — доделывает как `edit` (или ничего не делает, если
+> нечего менять) вместо падения; не нашёлся — падает с ошибкой (значит, дело не в гонке).
 >
 > Заменяет заархивированные `actions/create-release` и `actions/upload-release-asset` (см. [modernization.md](modernization.md)).
+
+## `github-release`
+
+**Единая цепочка публикации GitHub-релиза** — единственный способ создать релиз в этом репозитории.
+Проверяет формат тега, собирает тело из PR/коммитов, опционально дописывает готовый markdown-блок,
+публикует релиз с ассетами. Вызывается по тегу (`if: github.ref_type == 'tag'`) из каждого workflow,
+который что-то публикует: [`deploy_for_build_application`](../.github/workflows/deploy_for_build_application.yml),
+[`release_frontend`](../.github/workflows/release_frontend.yml),
+[`go_build_with_artifacts`](../.github/workflows/go_build_with_artifacts.yml),
+[`publish_package`](../.github/workflows/publish_package.yml),
+[`deploy_for_lerna`](../.github/workflows/deploy_for_lerna.yml), а также из [`docker-release`](#docker-release).
+
+| | |
+| --- | --- |
+| **Входы** | `tag` (обяз.) — тег релиза; `extra_notes` (необяз.) — markdown-блок, дописываемый после автособранного тела, пусто — ничего не дописывать; `assets` (необяз.) — пути к файлам через пробел; `title` (необяз.) — заголовок релиза; `token` (обяз.) — токен с `contents: write` и `pull-requests: read` |
+| **Выходы** | — |
+
+```yaml
+- uses: moogur/all-workflows/.github/actions/github-release@master
+  with:
+    tag: ${{ github.ref_name }}
+    assets: ./application.zip
+    token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+**Шаги:** [`tag-format`](#tag-format) → [`release-notes`](#release-notes) → (если `extra_notes` непустой)
+дописывание блока в файл тела → [`publish-release`](#publish-release).
+
+> Это единственное производственное место, которое вызывает `release-notes` и `publish-release` — обе
+> проверяются напрямую своими тестами, а composite-цепочка между ними самими тестами не покрыта (собрана из
+> уже покрытых экшенов).
 
 ## `tag-format`
 
@@ -246,7 +295,7 @@ uses: moogur/all-workflows/.github/actions/<name>@master
 > Дата проверяется первой: `14.03.2026` подходит и под `X.Y.Z` без префикса.
 > Версия, не подходящая ни под один формат (предрелиз `v1.2.3-rc.1`, неполная версия `v1.2`, `2026-03-14`, тег без `v`, произвольная строка), — ошибка: сборка/релиз падает вместо публикации мусорных тегов.
 
-Используется в [`docker-tags`](#docker-tags), а также напрямую в [release.yml](../.github/workflows/release.yml), [release_frontend.yml](../.github/workflows/release_frontend.yml) и [deploy_for_build_application.yml](../.github/workflows/deploy_for_build_application.yml) — там тег проверяется до создания релиза.
+Используется в [`docker-tags`](#docker-tags) и в [`github-release`](#github-release) — там тег проверяется до создания релиза.
 
 ## `docker-tags`
 
@@ -292,7 +341,7 @@ uses: moogur/all-workflows/.github/actions/<name>@master
 
 | | |
 | --- | --- |
-| **Входы** | `github_user` (обяз.) — владелец образа и логин в реестр; `dockerfile` (необяз.) — имя файла в `dockerfiles/`, пусто — Dockerfile проекта; `dockerignore` (необяз.) — имя файла `.dockerignore` там же; `build_args` (необяз.) — строки `KEY=VALUE`, по одной на строку; `context` (необяз., по умолчанию `.`); `token` (обяз.) — токен с `packages: write` и, для сборки по тегу, `contents: write` (публикация релиза) |
+| **Входы** | `github_user` (обяз.) — владелец образа и логин в реестр; `dockerfile` (необяз.) — имя файла в `dockerfiles/`, пусто — Dockerfile проекта; `dockerignore` (необяз.) — имя файла `.dockerignore` там же; `build_args` (необяз.) — строки `KEY=VALUE`, по одной на строку; `context` (необяз., по умолчанию `.`); `token` (обяз.) — токен с `packages: write` и, для сборки по тегу, `contents: write` + `pull-requests: read` (публикация релиза) |
 | **Выходы** | `version` — версия сборки; `tags` — полные ссылки на образ со всеми тегами |
 
 ```yaml
@@ -328,17 +377,16 @@ uses: moogur/all-workflows/.github/actions/<name>@master
 
 ## `docker-release`
 
-Публикует (создаёт или обновляет) GitHub-релиз для тега docker-сборки: тело — из коммитов
-([`release-notes`](#release-notes)), к нему дописывается блок со ссылкой на опубликованный docker-образ,
-и всё вместе публикуется через [`publish-release`](#publish-release). Вызывается только из
-[`docker-image`](#docker-image), отдельно не используется.
+Публикует GitHub-релиз для тега docker-сборки через [`github-release`](#github-release): собирает блок про
+опубликованный docker-образ (`docker pull`, список тегов) и передаёт его как `extra_notes`. Вызывается
+только из [`docker-image`](#docker-image), отдельно не используется.
 
 | | |
 | --- | --- |
-| **Входы** | `version` (обяз.) — тег, инициировавший сборку; `tags` (обяз.) — полные ссылки на образ со всеми тегами (вывод `docker-tags`); `token` (обяз.) — токен с `contents: write` |
+| **Входы** | `version` (обяз.) — тег, инициировавший сборку; `tags` (обяз.) — полные ссылки на образ со всеми тегами (вывод `docker-tags`); `token` (обяз.) — токен с `contents: write` и `pull-requests: read` |
 | **Выходы** | — |
 
-Блок про образ выглядит так:
+Блок про образ (передаётся в `github-release` как `extra_notes`, дописывается после тела из PR/коммитов):
 
 ```markdown
 ## 🐳 Docker image
@@ -354,7 +402,36 @@ Tags: `v1.2.3`, `v1.2`, `v1`, `latest`
 
 > Ссылка на страницу пакетов добавляется только при известном `GITHUB_REPOSITORY` (обычная сборка в Actions).
 > Список тегов берётся из `tags` (вывод `docker-tags`) построчным разбором `<образ>:<тег>` — свой формат не
-> пересчитывается.
+> пересчитывается. Сам скрипт (`image-notes.sh`) только строит блок и пишет его в `$GITHUB_OUTPUT` — в файл
+> тела релиза ничего не дописывает: это делает `github-release` (`append-notes.sh`).
+
+## `npm-package-notes`
+
+Строит markdown-блок «как поставить» для опубликованных npm-пакетов — команда `npm install` на каждый
+из списка. Один пакет ([`publish_package`](../.github/workflows/publish_package.yml)) или несколько
+([`deploy_for_lerna`](../.github/workflows/deploy_for_lerna.yml)) — формат один и тот же. Результат идёт
+в `github-release` как `extra_notes`.
+
+| | |
+| --- | --- |
+| **Входы** | `packages` (обяз.) — опубликованные пакеты, `имя@версия` по одному на строку |
+| **Выходы** | `notes` — markdown-блок для `github-release` (`extra_notes`) |
+
+```yaml
+- id: notes
+  uses: moogur/all-workflows/.github/actions/npm-package-notes@master
+  with:
+    packages: '@moogur/lib@1.2.3'
+
+- uses: moogur/all-workflows/.github/actions/github-release@master
+  with:
+    tag: ${{ github.ref_name }}
+    extra_notes: ${{ steps.notes.outputs.notes }}
+    token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+> Пустых строк в `packages` быть не должно — если после фильтрации (например, все пакеты монорепозитория
+> приватные) список пуст, экшен падает явно, а не публикует релиз с пустым блоком команд.
 
 ## `remote-update-check`
 

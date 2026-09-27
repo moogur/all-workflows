@@ -35,6 +35,38 @@ run_publish() {
   run env PATH="$TMP/bin:$PATH" GH_TOKEN=token TAG=v1.2.3 "$@" bash "$SCRIPT"
 }
 
+# Заглушка для гонки параллельных job'ов матрицы: "release create" всегда падает
+# (релиз уже создал другой job), "release view" не находит релиз в первый раз
+# (обычная проверка перед create), но находит во второй (перепроверка после
+# неудачного create) — счётчик вызовов хранится в файле.
+make_gh_stub_race() {
+  mkdir -p "$TMP/bin"
+  echo 0 > "$TMP/view_calls"
+  {
+    echo '#!/usr/bin/env bash'
+    echo "echo \"\$*\" >> '$GH_LOG'"
+    echo "if [[ \"\$*\" == release\\ create* ]]; then exit 1; fi"
+    echo "if [[ \"\$*\" == release\\ view* ]]; then"
+    echo "  n=\$(cat '$TMP/view_calls'); n=\$((n + 1)); echo \"\$n\" > '$TMP/view_calls'"
+    echo '  [[ "$n" -eq 1 ]] && exit 1 || exit 0'
+    echo 'fi'
+    echo 'exit 0'
+  } > "$TMP/bin/gh"
+  chmod +x "$TMP/bin/gh"
+}
+
+# Заглушка: релиза нет и не появляется, "release create" падает раз за разом.
+make_gh_stub_create_always_fails() {
+  mkdir -p "$TMP/bin"
+  {
+    echo '#!/usr/bin/env bash'
+    echo "echo \"\$*\" >> '$GH_LOG'"
+    echo "if [[ \"\$*\" == release\\ create* || \"\$*\" == release\\ view* ]]; then exit 1; fi"
+    echo 'exit 0'
+  } > "$TMP/bin/gh"
+  chmod +x "$TMP/bin/gh"
+}
+
 # ---------- создание ----------
 
 @test "релиза нет: создаётся с телом из файла" {
@@ -89,13 +121,33 @@ run_publish() {
   [ "$(wc -l < "$GH_LOG")" -eq 1 ]   # только release view
 }
 
-@test "режим drafter: тело и заголовок существующего релиза не перетираются" {
+@test "без тела и заголовка существующий релиз не перетирается, ассет догружается" {
   make_gh_stub 0
   run_publish ASSETS='./application.zip'
   [ "$status" -eq 0 ]
   run grep -cE -- "--notes|--title" "$GH_LOG"
   [ "$status" -ne 0 ]
   grep -qF "release upload v1.2.3 ./application.zip" "$GH_LOG"
+}
+
+# ---------- гонка матрицы ----------
+
+@test "create падает, но релиз уже существует: правится вместо падения" {
+  make_gh_stub_race
+  run_publish NOTES_FILE="$NOTES"
+  [ "$status" -eq 0 ]
+  grep -qF "release create v1.2.3" "$GH_LOG"
+  grep -qF -- "release edit v1.2.3 --notes-file $NOTES --draft=false" "$GH_LOG"
+  [ "$(grep -cF "release view v1.2.3" "$GH_LOG")" -eq 2 ]
+}
+
+@test "create падает и релиза всё ещё нет: ошибка, а не тихий пропуск" {
+  make_gh_stub_create_always_fails
+  run_publish NOTES_FILE="$NOTES"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"still doesn't exist"* ]]
+  run grep -cF "release edit" "$GH_LOG"
+  [ "$status" -ne 0 ]
 }
 
 # ---------- ассеты ----------

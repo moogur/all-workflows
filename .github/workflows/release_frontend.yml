@@ -1,18 +1,13 @@
-# Публикует релиз, собирает фронтенд и прикладывает к релизу application.zip.
-# Источник тела релиза выбирается параметром notes_source: 'drafter' — Release Drafter
-# по смёрженным PR; 'commits' — коммиты между текущим и предыдущим тегом (разработка
-# в одной ветке). Переиспользуемый workflow (workflow_call). Секрет: GITHUB_TOKEN.
+# Собирает фронтенд, прикладывает к сборке application.zip и, если запуск идёт
+# по тегу, публикует GitHub-релиз (тело собирает github-release: смёрженный PR —
+# по PR, прямой коммит — по коммиту). Переиспользуемый workflow (workflow_call).
+# Секрет: GITHUB_TOKEN.
 name: Release
 
 on:
   workflow_call:
-    inputs:
-      notes_source:
-        description: "Release notes source: 'drafter' (PRs) or 'commits' (commits between tags)"
-        type: string
-        required: false
-        default: 'drafter'
 
+# pull-requests: read — release-notes ищет смёрженный PR коммита через gh api.
 permissions:
   contents: write
   packages: read
@@ -30,12 +25,11 @@ jobs:
       - name: 'Checkout'
         uses: actions/checkout@v7
         with:
-          # Режиму commits нужны вся история и теги, чтобы посчитать диапазон.
-          # Строки, а не числа: 0 в выражении GitHub ложно и схлопнет условие в 1.
-          fetch-depth: ${{ inputs.notes_source == 'commits' && '0' || '1' }}
+          fetch-depth: 0   # нужны вся история и теги — для release-notes
 
-      # Падаем на неверном теге до создания релиза и записи в drafter/release-notes.
+      # Падаем на неверном теге до сборки, а не после неё.
       - name: 'Check tag format'
+        if: github.ref_type == 'tag'
         uses: moogur/all-workflows/.github/actions/tag-format@master
         with:
           version: ${{ github.ref_name }}
@@ -46,23 +40,6 @@ jobs:
         uses: moogur/all-workflows/.github/actions/app-version@master
         with:
           mode: ref
-
-      # tag и name перекрывают шаблоны драфтера: релиз вешается на запушенный тег как есть.
-      - name: 'Publish release (drafter)'
-        id: create_release
-        if: inputs.notes_source == 'drafter'
-        uses: release-drafter/release-drafter@v7
-        with:
-          tag: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          publish: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 'Release notes'
-        id: notes
-        if: inputs.notes_source == 'commits'
-        uses: moogur/all-workflows/.github/actions/release-notes@master
 
       - name: 'Setup node'
         uses: moogur/all-workflows/.github/actions/setup-node@master
@@ -83,12 +60,10 @@ jobs:
           mv dist application/dist
           zip -r application.zip application
 
-      # В режиме drafter релиз уже создан — шаг только приложит ассет; в режиме
-      # commits создаст релиз с телом из коммитов. Тег берём у того, кто релиз завёл.
       - name: 'Publish release'
-        uses: moogur/all-workflows/.github/actions/publish-release@master
+        if: github.ref_type == 'tag'
+        uses: moogur/all-workflows/.github/actions/github-release@master
         with:
-          tag: ${{ inputs.notes_source == 'drafter' && steps.create_release.outputs.tag_name || github.ref_name }}
-          notes_file: ${{ steps.notes.outputs.notes_file }}
+          tag: ${{ github.ref_name }}
           assets: ./application.zip
           token: ${{ secrets.GITHUB_TOKEN }}

@@ -15,7 +15,6 @@ setup() {
     [actions/setup-node]=7
     [actions/upload-artifact]=7
     [actions/download-artifact]=7
-    [release-drafter/release-drafter]=7
   )
 
   local line file reference major action

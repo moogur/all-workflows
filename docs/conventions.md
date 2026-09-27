@@ -35,28 +35,38 @@ Git-хук [`.husky/commit-msg`](../.husky/commit-msg) валидирует ка
 - **Версия Go** берётся из директивы `go` в `go.mod` (через `detect-go-version`).
 - **Версия приложения / релиза** определяется по git-тегам через composite action `app-version` (см. [actions.md](actions.md)) со снятием параметризуемого префикса (по умолчанию `v`):
   - в релизах и в сборке приложения по тегу — режим `mode: ref` (тег из `GITHUB_REF`, инициировавший запуск);
-  - в сборке приложения без тега (авто-деплой) релиз не считается вовсе: `deploy_for_build_application` без тега (`github.ref_type != 'tag'`) выполняет только сборочный скрипт и пропускает версию, драфтер, release-notes и publish-release. Режим `mode: git` (`git describe --tags --abbrev=0`) у `app-version` остаётся в экшене для потребителей вне этого репозитория, но в его собственных workflow'ах сейчас не используется;
+  - в сборке приложения без тега (авто-деплой) релиз не считается вовсе: `deploy_for_build_application` без тега (`github.ref_type != 'tag'`) выполняет только сборочный скрипт и пропускает версию и релиз. Режим `mode: git` (`git describe --tags --abbrev=0`) у `app-version` остаётся в экшене для потребителей вне этого репозитория, но в его собственных workflow'ах сейчас не используется;
   - в Docker-сборках — тег, инициировавший запуск (`github.ref_name`, внутри [`docker-image`](actions.md#docker-image));
   - для любой сборки без тега (расписание, ручной запуск) — `dd.mm.yyyy-HHMM-auto` по UTC (в [`docker-image`](actions.md#docker-image)); время в метке — чтобы две сборки за сутки не перезаписали друг друга. В semver-репозиториях такая метка тоже датная и не переписывает релизные `vX.Y.Z`.
-- **Формат git-тегов** проверяется общим action [`tag-format`](actions.md#tag-format) (используется в `docker-tags` и напрямую во всех релизных workflow'ах) и поддерживается ровно в двух вариантах — версия любого другого вида проваливает сборку/релиз:
+- **Формат git-тегов** проверяется общим action [`tag-format`](actions.md#tag-format) (используется в `docker-tags`, в [`github-release`](actions.md#github-release) — единой точке публикации релиза, и напрямую как ранний фейл-фаст в `release_frontend`/`deploy_for_build_application`, до сборки) и поддерживается ровно в двух вариантах — версия любого другого вида проваливает сборку/релиз:
   - дата, `dd.mm.yyyy` (например, `14.03.2026`), включая метки авто-сборки `dd.mm.yyyy-HHMM-auto` и `dd.mm.yyyy-auto`;
   - semver строго с префиксом `v`, `vX.Y.Z` (например, `v1.0.0`); по нему образ получает теги `vX.Y.Z`, `vX.Y`, `vX`. Тег без префикса (`1.2.3`) больше не принимается.
 
-### Уровень версии в релизах
+### Тело релиза
 
-[Release Drafter](https://github.com/release-drafter/release-drafter) (конфиг [`.github/release-drafter.yml`](../.github/release-drafter.yml)) определяет инкремент версии по меткам PR:
+Отдельного «релизного» workflow нет: каждая сборка, у которой есть что опубликовать, по тегу вызывает
+единую цепочку [`github-release`](actions.md#github-release), которая собирает тело автоматически —
+Release Drafter в репозитории больше не используется.
 
-| Уровень | Метки PR |
+Коммит, смёрженный через Pull Request, даёт одну запись **по PR** — заголовок, автор, категория по меткам
+PR (тот же список категорий, что раньше жил в `.github/release-drafter.yml`, теперь в
+[`release-notes`](actions.md#release-notes)):
+
+| Категория | Метка PR |
 | --- | --- |
-| major | `type:major` |
-| minor | `type:feature`, `type:refactor`, `type:test` |
-| patch | `type:bugfix`, `type:ci`, `type:config`, `type:docs` |
+| 🚀 New Features | `type:feature`, `type:test` |
+| 🐞 Bugs Fixes | `type:bugfix` |
+| 📚 Documentation | `type:docs` |
+| 🧰 Maintenance | `type:refactor` |
+| 🛠 Configuration | `type:config`, `type:ci` |
 
-Категории в changelog: 🚀 New Features, 🐞 Bugs Fixes, 📚 Documentation, 🧰 Maintenance, 🛠 Configuration.
+Коммит, запушенный напрямую (без PR — трунковая разработка в `master`), даёт запись **по коммиту**: заголовок
+разбирается по формату [`commit-msg`](#формат-сообщений-коммитов), категория — по тому же списку, но по `type`
+коммита. Несколько коммитов одного PR (squash, ребейз) дают одну запись, по номеру PR.
 
-Это работает, пока изменения приезжают через Pull Request. При разработке в одной ветке (пилим в `master`, релиз по тегу) меток и PR нет, поэтому релизные workflow'ы принимают `notes_source: 'commits'`: тело релиза собирается из коммитов между запушенным тегом и предыдущим через action [`release-notes`](actions.md#release-notes), а `type` из заголовка коммита раскладывается по тем же категориям. Версия в обоих режимах берётся из тега, а не из меток.
-
-Параметр есть у [release.yml](../.github/workflows/release.yml), [release_frontend.yml](../.github/workflows/release_frontend.yml) и [release_with_artifacts.yml](../.github/workflows/release_with_artifacts.yml) (по умолчанию `'drafter'` — прежнее поведение), а у [deploy_for_build_application.yml](../.github/workflows/deploy_for_build_application.yml) — с тремя: `none` (по умолчанию, пустое тело как раньше), `drafter` и `commits`. Сам релиз во всех четырёх публикует [`publish-release`](actions.md#publish-release).
+PR коммита ищет `release-notes` через `gh api repos/<repo>/commits/<sha>/pulls` — нужен токен с
+`pull-requests: read`. Нет токена, `GITHUB_REPOSITORY` или `gh` — тело собирается только из коммитов
+(с одним предупреждением в лог), это и держит локальные прогоны/тесты рабочими без сети.
 
 ## Секреты
 
@@ -77,15 +87,14 @@ Git-хук [`.husky/commit-msg`](../.husky/commit-msg) валидирует ка
 | Workflow | Права |
 | --- | --- |
 | `actions_for_push` | `contents: read`, `packages: read` |
-| `actions_for_push_go`, `go_build_with_artifacts`, `kanboard` | `contents: read` |
+| `actions_for_push_go`, `kanboard` | `contents: read` |
 | `pr_annotation` | `contents: read`, `packages: read`, `pull-requests: write`, `checks: write` |
-| `publish_package`, `deploy_for_lerna` | `contents: read`, `packages: write` |
-| `deploy_for_backend`, `deploy_for_go_backend`, `deploy_for_full_app`, `deploy_for_docker_container` | `contents: write`, `packages: write` — `contents: write` для GitHub-релиза по тегу (`docker-release` внутри `docker-image`) |
 | `deploy_for_frontend` | `contents: write`, `packages: read` |
-| `deploy_for_build_application` | `contents: write`, `pull-requests: read` |
-| `release`, `release_with_artifacts` (обёртка) | `contents: write`, `pull-requests: read` |
-| `release_frontend` | `contents: write`, `packages: read`, `pull-requests: read` |
-| `auto_deploy_for_docker_container` | `contents: write`, `packages: write` |
+| `deploy_for_backend`, `deploy_for_go_backend`, `deploy_for_full_app`, `deploy_for_docker_container` | `contents: write`, `packages: write`, `pull-requests: read` — по тегу релизит `docker-image` (`docker-release` → `github-release`) |
+| `deploy_for_build_application`, `go_build_with_artifacts` | `contents: write`, `pull-requests: read` — по тегу релизят через `github-release` |
+| `release_frontend` | `contents: write`, `packages: read`, `pull-requests: read` — по тегу релизит через `github-release` |
+| `publish_package`, `deploy_for_lerna` | `contents: write`, `packages: write`, `pull-requests: read` — по тегу релизят через `github-release` |
+| `auto_deploy_for_docker_container` | `contents: write`, `packages: write`, `pull-requests: read` |
 | `auto_deploy_for_build_application` | `contents: write`, `pull-requests: read` |
 
 > Вызванный workflow не может получить больше прав, чем есть у вызвавшего, поэтому у `auto_deploy_*` права не уже, чем у вложенных в них деплоев. Если в репозитории-потребителе дефолтный токен урезан до read-only, запуск упадёт сразу и с внятной причиной, а не на шаге `docker push`.

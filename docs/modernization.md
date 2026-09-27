@@ -88,7 +88,7 @@ Docker-реестр GitHub Packages по адресу `docker.pkg.github.com` у
 - **Формат тегов образа передавался параметром `format_mode`**, хотя однозначно читается из самой версии. → Параметр убран: [`docker-tags`](actions.md#docker-tags) сам отличает дату `dd.mm.yyyy` от `vX.Y.Z`, а версию другого вида отклоняет. Потребителю, который передавал `format_mode`, строку нужно удалить — иначе вызов падает на неизвестном входе.
 - **Release Drafter вешал релиз на свой тег `v$RESOLVED_VERSION`**: на теге-дате получался лишний `v14.03.2026` рядом с запушенным. → Драфтеру передаются входы `tag` / `name` — запушенный тег как есть; `version` не передаётся. Строка **Full Changelog** из шаблона убрана: её ссылка строилась из `v$RESOLVED_VERSION` и вела на несуществующий тег.
 - **`deploy_for_build_application` брал версию через `git describe` и при запуске по тегу** — на коммите с двумя тегами мог выбрать не тот. → По тегу `mode: ref`; без тега (авто-деплой) версия для релиза больше не считается вовсе — релиз (драфтер/release-notes/publish-release) полностью пропускается (`if: github.ref_type == 'tag'`), выполняется только сборочный скрипт.
-- **Тег без префикса `v` (`1.2.3`) принимался наравне с `vX.Y.Z`** — `docker-tags` сам достраивал префикс в теги образа. → Общий action [`tag-format`](actions.md#tag-format) отличает дату `dd.mm.yyyy` от строгого `vX.Y.Z` и используется и в `docker-tags`, и напрямую во всех релизных workflow'ах (`release.yml`, `release_frontend.yml`, `deploy_for_build_application.yml`) — тег проверяется до создания релиза. Версия без `v` теперь ошибка везде, а не превращается молча в `vX.Y.Z`.
+- **Тег без префикса `v` (`1.2.3`) принимался наравне с `vX.Y.Z`** — `docker-tags` сам достраивал префикс в теги образа. → Общий action [`tag-format`](actions.md#tag-format) отличает дату `dd.mm.yyyy` от строгого `vX.Y.Z` и используется и в `docker-tags`, и в общей цепочке релиза [`github-release`](actions.md#github-release) — тег проверяется до создания релиза. Версия без `v` теперь ошибка везде, а не превращается молча в `vX.Y.Z`.
 - **Dockerfile'ы тянулись `wget`'ом с `master`** (версия ресурса не совпадала с версией вызванного workflow). → [`docker-image`](actions.md#docker-image) копирует их из выкачанной копии репозитория рядом с экшеном; `wget` с `master` остался запасным путём с предупреждением в логе.
 - **Токен уходил в `docker login` аргументом** и мог попасть в список процессов. → Логин через `--password-stdin`.
 - **`release_with_artifacts` дублировал `release.yml`.** → Тело в `release.yml` (входы `artifact` / `artifact_suffix`), старый путь остался тонкой обёрткой ради совместимости потребителей.
@@ -96,3 +96,19 @@ Docker-реестр GitHub Packages по адресу `docker.pkg.github.com` у
 - **Сторонние actions работали на node20**, который GitHub выводит из эксплуатации (прогон уже предупреждал: «forced to run on Node.js 24»). → Подняты до мажоров на node24: `actions/checkout@v7`, `actions/setup-go@v7`, `actions/setup-node@v7`, `actions/upload-artifact@v7`, `actions/download-artifact@v7`, `release-drafter/release-drafter@v7`. Минимальные мажоры зафиксированы guard-тестом [action-versions.bats](../tests/action-versions.bats).
 - **Заархивированные `actions/create-release` и `actions/upload-release-asset`** → общий action [`publish-release`](actions.md#publish-release) на `gh`: создаёт релиз или обновляет существующий и грузит ассеты с `--clobber`. Перезапуск job'а по уже выпущенному тегу больше не падает.
 - **`curl` к Kanboard без таймаутов, ретраев и `-f`** → общая обёртка `execute_request` (см. [kanboard.md](kanboard.md#скрипт-kanboard_requestssh)): запрос больше не висит две минуты на недоступном хосте, переживает короткие сбои и не выдаёт 5xx за успех.
+- **`release.yml` / `release_with_artifacts.yml` удалены** (breaking). Отдельного «релизного» workflow больше нет:
+  каждая сборка, у которой есть что опубликовать, по тегу сама вызывает единую цепочку
+  [`github-release`](actions.md#github-release). **Потребителю, вызывавшему `release.yml` или
+  `release_with_artifacts.yml` напрямую, нужно переехать** на workflow своего стека
+  (`deploy_for_build_application.yml`, `release_frontend.yml`, `go_build_with_artifacts.yml`,
+  docker-workflow'ы, `publish_package.yml`/`deploy_for_lerna.yml`) — релиз он теперь публикует сам, по тегу.
+- **Release Drafter удалён** (breaking). Тело релиза собирается автоматически, без стороннего action и без
+  выбора режима: коммит, смёрженный через PR, даёт запись по PR (заголовок, автор, категория по меткам PR —
+  тот же список, что был в `.github/release-drafter.yml`), коммит без PR — по формату commit-msg (как раньше
+  в режиме `commits`). **Потребителю нужно удалить `.github/release-drafter.yml` из своего репозитория**, если
+  он там был скопирован по примеру из этого репозитория — конфигурация здесь удалена вслед за самим Drafter.
+- **Вход `notes_source` убран из всех workflow'ов** (breaking): `release.yml`, `release_frontend.yml`,
+  `release_with_artifacts.yml`, `deploy_for_build_application.yml`, `auto_deploy_for_build_application.yml`.
+  **Потребителю, передававшему `notes_source: 'drafter'` / `'commits'` / `'none'`, нужно убрать эту строку**
+  из вызова — неизвестный вход валится на актуальной схеме `workflow_call`, а поведение теперь одно: тело
+  собирается автоматически (см. выше), релиз публикуется только по тегу.

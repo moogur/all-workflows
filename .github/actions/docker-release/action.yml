@@ -1,5 +1,5 @@
 name: 'Publish GitHub release for a docker tag build'
-description: 'Создаёт/обновляет GitHub-релиз для тега docker-сборки: тело из коммитов (release-notes) плюс блок со ссылкой на опубликованный docker-образ.'
+description: 'Публикует GitHub-релиз для тега docker-сборки через общую цепочку github-release: тело — из PR/коммитов, плюс блок со ссылкой на опубликованный docker-образ.'
 
 inputs:
   version:
@@ -15,20 +15,15 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - id: notes
-      uses: moogur/all-workflows/.github/actions/release-notes@master
-      with:
-        tag: ${{ inputs.version }}
-
-    - shell: bash
+    - id: image_notes
+      shell: bash
       env:
-        NOTES_FILE: ${{ steps.notes.outputs.notes_file }}
         TAGS: ${{ inputs.tags }}
         VERSION: ${{ inputs.version }}
       run: bash "$GITHUB_ACTION_PATH/image-notes.sh"
 
-    - uses: moogur/all-workflows/.github/actions/publish-release@master
+    - uses: moogur/all-workflows/.github/actions/github-release@master
       with:
         tag: ${{ inputs.version }}
-        notes_file: ${{ steps.notes.outputs.notes_file }}
+        extra_notes: ${{ steps.image_notes.outputs.notes }}
         token: ${{ inputs.token }}

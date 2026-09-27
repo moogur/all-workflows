@@ -1,0 +1,21 @@
+name: 'Build npm install notes'
+description: 'Строит markdown-блок с командами npm install для опубликованных пакетов — для тела GitHub-релиза (extra_notes у github-release).'
+
+inputs:
+  packages:
+    description: 'Опубликованные пакеты, "имя@версия" по одному на строку'
+    required: true
+
+outputs:
+  notes:
+    description: 'Markdown-блок для github-release (extra_notes)'
+    value: ${{ steps.notes.outputs.notes }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: notes
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+      run: bash "$GITHUB_ACTION_PATH/notes.sh"

@@ -30,13 +30,8 @@ on:
         description: "The path to the execution file"
         type: string
         required: true
-      notes_source:
-        description: "Release notes source: 'none' (empty body), 'drafter' (PRs) or 'commits' (commits between tags)"
-        type: string
-        required: false
-        default: 'none'
 
-# Не уже прав вложенного deploy_for_build_application (ему нужен и Release Drafter).
+# Не уже прав вложенного deploy_for_build_application (ему нужен поиск PR коммита).
 permissions:
   contents: write
   pull-requests: read
@@ -71,7 +66,6 @@ jobs:
     secrets: inherit
     with:
       file_path: ${{ inputs.repository_branch }}
-      notes_source: ${{ inputs.notes_source }}
 
   # Версию запоминаем только после успешного деплоя.
   save_update_value:

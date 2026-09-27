@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
 # Собирает тело GitHub-релиза из коммитов между текущим и предыдущим тегом.
-# Заголовки разбираются по формату хука commit-msg ([<ПРЕФИКС>-123] type(scope): subject)
-# и группируются по тем же категориям, что и .github/release-drafter.yml.
+# Коммит, смёрженный через PR, даёт одну запись на PR (см. pr-lookup.sh: gh api
+# .../pulls, категория по меткам PR, дедупликация по номеру PR). Коммит без PR
+# (запушен напрямую) разбирается по формату хука commit-msg
+# ([<ПРЕФИКС>-123] type(scope): subject) — как раньше.
 # Вход (env): TAG (по умолчанию тег из GITHUB_REF), PREVIOUS_TAG (пусто — считаем сами),
-#   NOTES_FILE (пусто — $RUNNER_TEMP/release-notes.md), GITHUB_SERVER_URL, GITHUB_REPOSITORY, GITHUB_OUTPUT.
+#   NOTES_FILE (пусто — $RUNNER_TEMP/release-notes.md), GITHUB_SERVER_URL, GITHUB_REPOSITORY,
+#   GH_TOKEN (для поиска PR; пусто — только коммиты), GITHUB_OUTPUT.
 # Выход: файл с телом релиза + строки "notes_file=", "previous_tag=", "commit_count=" в $GITHUB_OUTPUT.
 set -euo pipefail
+
+# shellcheck source=.github/actions/release-notes/pr-lookup.sh
+source "$(dirname "${BASH_SOURCE[0]}")/pr-lookup.sh"
 
 tag="${TAG:-${GITHUB_REF:-}}"
 tag="${tag#refs/tags/}"
@@ -34,8 +40,8 @@ else
   range="$tag"
 fi
 
-# Категории и их порядок — как в .github/release-drafter.yml; "Other" для всего,
-# что не разобралось по формату коммита (старые коммиты, merge из веб-интерфейса).
+# Категории и их порядок общие для PR (по меткам, см. pr-lookup.sh) и прямых
+# коммитов (по type); "Other" — то, что не разобралось по формату коммита или меткам.
 category_order=(features fixes docs maintenance configuration other)
 declare -A category_title=(
   [features]='🚀 New Features'
@@ -61,13 +67,26 @@ declare -A category_of=(
 subject_regexp='^\[([A-Z][A-Z0-9]*-[0-9]+)\][[:space:]]+([a-z]+)\(([^)]+)\):[[:space:]]*(.+)$'
 
 declare -A entries=()
+declare -A pr_seen=()
 count=0
 
-# Один проход по диапазону: короткий sha и заголовок через \x1f (в заголовке его быть не может).
-# tformat — терминатор, а не разделитель: иначе теряется последний коммит без перевода строки.
-while IFS=$'\x1f' read -r short_sha subject; do
+# Один проход по диапазону: полный и короткий sha и заголовок через \x1f (в заголовке
+# его быть не может). tformat — терминатор, а не разделитель: иначе теряется
+# последний коммит без перевода строки.
+while IFS=$'\x1f' read -r full_sha short_sha subject; do
   [[ -n "$short_sha" ]] || continue
   count=$((count + 1))
+
+  merged_pr_for_commit "$full_sha"
+  if [[ -n "$pr_number" ]]; then
+    # Один PR может дать несколько коммитов (squash из веб-интерфейса, ребейз) —
+    # запись в тело релиза идёт одна, по номеру PR.
+    if [[ -z "${pr_seen[$pr_number]:-}" ]]; then
+      pr_seen[$pr_number]=1
+      entries[$pr_category]+="- ${pr_title} (#${pr_number}) @${pr_author}"$'\n'
+    fi
+    continue
+  fi
 
   if [[ "$subject" =~ $subject_regexp ]]; then
     category="${category_of[${BASH_REMATCH[2]}]:-other}"
@@ -78,7 +97,7 @@ while IFS=$'\x1f' read -r short_sha subject; do
   fi
 
   entries[$category]+="${entry}"$'\n'
-done < <(git log --no-merges --pretty=tformat:'%h%x1f%s' "$range")
+done < <(git log --no-merges --pretty=tformat:'%H%x1f%h%x1f%s' "$range")
 
 notes_file="${NOTES_FILE:-${RUNNER_TEMP:-/tmp}/release-notes.md}"
 mkdir -p "$(dirname "$notes_file")"

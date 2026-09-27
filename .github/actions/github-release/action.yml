@@ -1,0 +1,51 @@
+name: 'Publish a GitHub release for a tag'
+description: 'Единая цепочка публикации релиза: проверка формата тега, тело из PR/коммитов, опциональный дополнительный блок, публикация с ассетами.'
+
+inputs:
+  tag:
+    description: 'Тег релиза'
+    required: true
+  extra_notes:
+    description: 'Markdown-блок, который дописывается после автособранного тела. Пустая строка — ничего не дописывать.'
+    required: false
+    default: ''
+  assets:
+    description: 'Пути к файлам-ассетам через пробел. Пустая строка — ассетов нет.'
+    required: false
+    default: ''
+  title:
+    description: 'Заголовок релиза. Пустая строка — не трогать существующий, а при создании взять имя тега.'
+    required: false
+    default: ''
+  token:
+    description: 'Токен с правом contents: write (публикация релиза) и pull-requests: read (поиск PR коммита), обычно GITHUB_TOKEN'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    # Падаем на неверном теге до сбора тела и создания релиза.
+    - uses: moogur/all-workflows/.github/actions/tag-format@master
+      with:
+        version: ${{ inputs.tag }}
+
+    - id: notes
+      uses: moogur/all-workflows/.github/actions/release-notes@master
+      with:
+        tag: ${{ inputs.tag }}
+        token: ${{ inputs.token }}
+
+    - if: inputs.extra_notes != ''
+      shell: bash
+      env:
+        NOTES_FILE: ${{ steps.notes.outputs.notes_file }}
+        EXTRA_NOTES: ${{ inputs.extra_notes }}
+      run: bash "$GITHUB_ACTION_PATH/append-notes.sh"
+
+    - uses: moogur/all-workflows/.github/actions/publish-release@master
+      with:
+        tag: ${{ inputs.tag }}
+        title: ${{ inputs.title }}
+        notes_file: ${{ steps.notes.outputs.notes_file }}
+        assets: ${{ inputs.assets }}
+        token: ${{ inputs.token }}

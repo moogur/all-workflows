@@ -1,14 +1,16 @@
-# Сборка и публикация npm-пакета в GitHub Packages.
-# Требует зависимость @moogur/helpers (скрипт pre-build.js).
-# Переиспользуемый workflow (workflow_call). Секрет: GITHUB_TOKEN.
+# Сборка и публикация npm-пакета в GitHub Packages. По тегу — GitHub-релиз с
+# командой npm install (github-release). Требует зависимость @moogur/helpers
+# (скрипт pre-build.js). Переиспользуемый workflow (workflow_call). Секрет: GITHUB_TOKEN.
 name: Publish package
 
 on:
   workflow_call:
 
+# pull-requests: read — release-notes ищет смёрженный PR коммита через gh api.
 permissions:
-  contents: read
+  contents: write
   packages: write
+  pull-requests: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -46,3 +48,24 @@ jobs:
 
           node ./node_modules/@moogur/helpers/pre-build.js
           npm publish
+
+      # package.json читается после pre-build.js: имя/версия — то, что реально опубликовано.
+      - name: 'Determine published package'
+        id: package
+        if: github.ref_type == 'tag'
+        run: echo "package=$(jq -r '"\(.name)@\(.version)"' package.json)" >> "$GITHUB_OUTPUT"
+
+      - name: 'Release notes'
+        id: notes
+        if: github.ref_type == 'tag'
+        uses: moogur/all-workflows/.github/actions/npm-package-notes@master
+        with:
+          packages: ${{ steps.package.outputs.package }}
+
+      - name: 'Publish release'
+        if: github.ref_type == 'tag'
+        uses: moogur/all-workflows/.github/actions/github-release@master
+        with:
+          tag: ${{ github.ref_name }}
+          extra_notes: ${{ steps.notes.outputs.notes }}
+          token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,8 +1,7 @@
 # Выполняет произвольный скрипт сборки и, если запуск идёт по тегу, создаёт
 # GitHub-релиз с application.zip (скрипт должен сам создать этот файл в корне).
 # Без тега (авто-деплой по расписанию) сборка выполняется, релиз пропускается.
-# Тело релиза: 'none' — пустое (как было), 'drafter' — смёрженные PR через
-# Release Drafter, 'commits' — коммиты между текущим и предыдущим тегом.
+# Тело релиза собирает github-release: смёрженный PR — по PR, прямой коммит — по коммиту.
 # Переиспользуемый workflow (workflow_call). Секрет: GITHUB_TOKEN.
 name: Deploy for build application
 
@@ -13,13 +12,8 @@ on:
         description: "The path to the execution file"  # скрипт сборки, запускается через `. <file_path>`
         type: string
         required: true
-      notes_source:
-        description: "Release notes source: 'none' (empty body), 'drafter' (PRs) or 'commits' (commits between tags)"
-        type: string
-        required: false
-        default: 'none'
 
-# pull-requests: read — для Release Drafter; остальным режимам хватает contents.
+# pull-requests: read — release-notes ищет смёрженный PR коммита через gh api.
 permissions:
   contents: write
   pull-requests: read
@@ -38,6 +32,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Падаем на неверном теге до сборки, а не после неё.
+      - name: 'Check tag format'
+        if: github.ref_type == 'tag'
+        uses: moogur/all-workflows/.github/actions/tag-format@master
+        with:
+          version: ${{ github.ref_name }}
+
       # prefix: '' — тег используется как есть, без снятия префикса.
       - name: "Determining the version"
         id: version
@@ -47,46 +48,16 @@ jobs:
           mode: ref
           prefix: ''
 
-      # Падаем на неверном теге до сборки и записи в drafter/release-notes.
-      - name: 'Check tag format'
-        if: github.ref_type == 'tag'
-        uses: moogur/all-workflows/.github/actions/tag-format@master
-        with:
-          version: ${{ steps.version.outputs.version }}
-
       # Запуск пользовательского скрипта сборки в текущей оболочке (source).
       - name: Build project
         run: |
           . ${{ inputs.file_path }}
 
-      # tag и name перекрывают шаблоны драфтера: релиз вешается на тег как есть.
-      - name: 'Publish release (drafter)'
-        id: create_release
-        if: github.ref_type == 'tag' && inputs.notes_source == 'drafter'
-        uses: release-drafter/release-drafter@v7
-        with:
-          tag: ${{ steps.version.outputs.version }}
-          name: ${{ steps.version.outputs.version }}
-          publish: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 'Release notes'
-        id: notes
-        if: github.ref_type == 'tag' && inputs.notes_source == 'commits'
-        uses: moogur/all-workflows/.github/actions/release-notes@master
-        with:
-          tag: ${{ steps.version.outputs.version }}
-
-      # В режиме drafter релиз уже создан и описан — шаг только приложит ассет,
-      # поэтому заголовок передаётся «наоборот»: пустая строка в выражении GitHub
-      # ложна, и условие пришлось бы писать через отрицание в любом случае.
       - name: 'Publish release'
         if: github.ref_type == 'tag'
-        uses: moogur/all-workflows/.github/actions/publish-release@master
+        uses: moogur/all-workflows/.github/actions/github-release@master
         with:
-          tag: ${{ inputs.notes_source == 'drafter' && steps.create_release.outputs.tag_name || steps.version.outputs.version }}
-          title: ${{ inputs.notes_source != 'drafter' && format('Release {0}', steps.version.outputs.version) || '' }}
-          notes_file: ${{ steps.notes.outputs.notes_file }}
+          tag: ${{ steps.version.outputs.version }}
+          title: Release ${{ steps.version.outputs.version }}
           assets: ./application.zip
           token: ${{ secrets.GITHUB_TOKEN }}

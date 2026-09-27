@@ -1,5 +1,5 @@
 name: 'Build release notes from commits'
-description: 'Собирает тело GitHub-релиза из коммитов между текущим и предыдущим тегом. Категории — как в release-drafter.yml.'
+description: 'Собирает тело GitHub-релиза: коммит, смёрженный через PR, — одной записью по PR (заголовок, автор, категория по меткам); коммит без PR — по формату commit-msg.'
 
 inputs:
   tag:
@@ -12,6 +12,10 @@ inputs:
     default: ''
   notes_file:
     description: 'Куда записать тело релиза. Пустая строка — $RUNNER_TEMP/release-notes.md.'
+    required: false
+    default: ''
+  token:
+    description: 'Токен для поиска смёрженного PR коммита (gh api .../commits/<sha>/pulls). Пустая строка — тело собирается только из коммитов.'
     required: false
     default: ''
 
@@ -35,4 +39,5 @@ runs:
         TAG: ${{ inputs.tag }}
         PREVIOUS_TAG: ${{ inputs.previous_tag }}
         NOTES_FILE: ${{ inputs.notes_file }}
+        GH_TOKEN: ${{ inputs.token }}
       run: bash "$GITHUB_ACTION_PATH/notes.sh"

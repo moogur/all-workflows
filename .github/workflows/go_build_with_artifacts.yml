@@ -1,7 +1,9 @@
 # Кросс-компиляция Go через `make build` и загрузка результата как артефакта
-# GitHub Actions (хранится 1 день). Обычно используется в паре с release_with_artifacts.
+# GitHub Actions (хранится 1 день). По тегу бинарник ещё и прикладывается к
+# GitHub-релизу тега (github-release) — имя ассета включает goos/goarch, чтобы
+# параллельные job'ы матрицы по разным платформам не затирали чужой ассет.
 # Требует Makefile с целью build (GOOS/GOARCH/PROJECTNAME → ./bin/<projectname>).
-# Переиспользуемый workflow (workflow_call).
+# Переиспользуемый workflow (workflow_call). Секрет: GITHUB_TOKEN.
 name: Build with artifacts
 
 on:
@@ -28,11 +30,13 @@ on:
         required: false
         default: 'main'
 
+# pull-requests: read — release-notes ищет смёрженный PR коммита через gh api.
 permissions:
-  contents: read
+  contents: write
+  pull-requests: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.folder }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.folder }}-${{ inputs.goos }}-${{ inputs.goarch }}
   cancel-in-progress: true
 
 jobs:
@@ -69,3 +73,17 @@ jobs:
           name: ${{ inputs.projectname }}
           path: ./${{ inputs.projectname }}.tar.gz
           retention-days: 1
+
+      # Копия под именем с goos/goarch: у релиза общий тег на всю матрицу, и
+      # без платформы в имени параллельные job'ы перезаписали бы ассет друг друга.
+      - name: 'Prepare release asset'
+        if: github.ref_type == 'tag'
+        run: cp ./${{ inputs.projectname }}.tar.gz ./${{ inputs.projectname }}-${{ inputs.goos }}-${{ inputs.goarch }}.tar.gz
+
+      - name: 'Publish release'
+        if: github.ref_type == 'tag'
+        uses: moogur/all-workflows/.github/actions/github-release@master
+        with:
+          tag: ${{ github.ref_name }}
+          assets: ./${{ inputs.projectname }}-${{ inputs.goos }}-${{ inputs.goarch }}.tar.gz
+          token: ${{ secrets.GITHUB_TOKEN }}

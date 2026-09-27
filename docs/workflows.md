@@ -7,7 +7,7 @@
 ## Общие моменты
 
 - **`permissions`** — каждый workflow объявляет права `GITHUB_TOKEN` явно (минимально необходимые). Вызванный workflow не может просить больше, чем есть у вызвавшего: если в репозитории-потребителе токен урезан, запуск упадёт сразу с понятной ошибкой, а не на середине деплоя. Полная таблица — в [conventions.md](conventions.md#права-github_token).
-- **`concurrency`** — почти все workflow'ы группируют запуски по `${{ github.workflow }}-${{ github.ref }}` (а где есть параметр `folder` — ещё и по нему) с `cancel-in-progress: true`. Это значит, что новый запуск отменяет предыдущий незавершённый для той же ветки/папки.
+- **`concurrency`** — почти все workflow'ы группируют запуски по `${{ github.workflow }}-${{ github.ref }}` (а где есть параметр `folder` — ещё и по нему; `go_build_with_artifacts` — ещё и по `goos`/`goarch`, чтобы job'ы одной матрицы не отменяли друг друга) с `cancel-in-progress: true`. Это значит, что новый запуск отменяет предыдущий незавершённый для той же ветки/папки/платформы.
 - **Версия Node.js** извлекается из `package.json` (`jq '.engines.node'`).
 - **Версия Go** извлекается из `go.mod` (строка `go ...`).
 - **Приватный npm-реестр** `@moogur` настраивается на `https://npm.pkg.github.com/` с авторизацией через `secrets.GITHUB_TOKEN`.
@@ -57,75 +57,15 @@ Job не запускается на Pull Request из форка, а токен
 
 ## Релизы и артефакты
 
-### `release.yml` — Публикация релиза
+Отдельного «релизного» workflow больше нет: каждая сборка, у которой есть что опубликовать, по тегу
+(`if: github.ref_type == 'tag'`) сама вызывает единую цепочку [`github-release`](actions.md#github-release) —
+проверка формата тега, тело из PR/коммитов, публикация с ассетами. Без тега (авто-деплой по расписанию,
+ручной запуск) релизный шаг просто пропускается.
 
-Создаёт и публикует GitHub-релиз по тегу. Откуда берётся **тело релиза**, выбирает параметр `notes_source`.
+### `go_build_with_artifacts.yml` — Сборка Go-бинарника (+ релиз по тегу)
 
-**Входные параметры:**
-
-| Параметр | Тип | Обяз. | По умолчанию | Описание |
-| --- | --- | --- | --- | --- |
-| `notes_source` | string | нет | `'drafter'` | Источник тела релиза: `drafter` — смёрженные PR через Release Drafter; `commits` — коммиты между текущим и предыдущим тегом |
-| `artifact` | string | нет | `''` | Имя артефакта прогона, который приложить к релизу как `<artifact><artifact_suffix>.tar.gz`. Пусто — релиз без ассетов |
-| `artifact_suffix` | string | нет | `''` | Суффикс к имени файла ассета |
-
-**Секреты:** `GITHUB_TOKEN`.
-
-> Первым шагом (после checkout, в обоих режимах) тег проверяет [`tag-format`](actions.md#tag-format): невалидный тег (не `dd.mm.yyyy` и не `vX.Y.Z`) роняет workflow до создания релиза.
-
-**`notes_source: 'drafter'` (по умолчанию)** — прежнее поведение: [Release Drafter](https://github.com/release-drafter/release-drafter) собирает changelog из смёрженных PR. Релиз вешается на запушенный тег как есть — дата `14.03.2026` или `v1.2.3`: тег и имя передаются драфтеру входами `tag` / `name`, которые перекрывают его шаблоны, а своей версии он не получает (он привёл бы её к semver и добавил `v`). Конфигурация категорий — в [`.github/release-drafter.yml`](../.github/release-drafter.yml).
-
-**`notes_source: 'commits'`** — для трунковой разработки: пилим в `master` без PR, ставим тег, по нему идёт сборка и релиз. Тело собирает [`release-notes`](actions.md#release-notes) из коммитов между запушенным тегом и предыдущим, релиз публикует [`publish-release`](actions.md#publish-release).
-
-**Шаги (`commits`):** checkout с `fetch-depth: 0` → [`tag-format`](actions.md#tag-format) → [`release-notes`](actions.md#release-notes) (диапазон, группировка, число коммитов) → [`publish-release`](actions.md#publish-release).
-
-С непустым `artifact` перед публикацией добавляются два шага: `download-artifact` и переименование файла в `<artifact><artifact_suffix>.tar.gz` (`gh` публикует ассет под именем файла, отдельного `asset_name` у него нет). Так этот workflow закрывает и сценарий бывшего `release_with_artifacts`.
-
-> **Почему Release Drafter не годится для трунка.** Он строит changelog из PR и считает инкремент версии по их меткам. Без PR тело релиза выходит пустым (версия при этом остаётся корректной — она приходит из тега, а не из `version-resolver`).
->
-> Переключение затрагивает и `actions/checkout`: режиму `commits` нужна полная история (`fetch-depth: 0`), режиму `drafter` хватает верхушки. Глубина подставляется выражением, и `'0'` / `'1'` в нём — **строки**: число `0` в выражении GitHub ложно, и условие всегда схлопывалось бы в `1`.
->
-> Повторный запуск по уже выпущенному тегу не падает: [`publish-release`](actions.md#publish-release) обновляет существующий релиз вместо создания нового.
->
-> Тот же параметр есть у [`release_frontend.yml`](#release_frontendyml--релиз--сборка-фронтенда) и [`release_with_artifacts.yml`](#release_with_artifactsyml--релиз--готовый-артефакт); у [`deploy_for_build_application.yml`](#deploy_for_build_applicationyml--сборка-по-скрипту--релиз) — со значениями `none` / `commits`.
-
-### `release_frontend.yml` — Релиз + сборка фронтенда
-
-Публикует релиз, собирает фронтенд и прикладывает к релизу `application.zip`.
-
-**Входные параметры:**
-
-| Параметр | Тип | Обяз. | По умолчанию | Описание |
-| --- | --- | --- | --- | --- |
-| `notes_source` | string | нет | `'drafter'` | Источник тела релиза — как в [`release.yml`](#releaseyml--публикация-релиза) |
-
-**Секреты:** `GITHUB_TOKEN`.
-
-**Шаги:** checkout (глубина зависит от `notes_source`) → [`tag-format`](actions.md#tag-format) (падает на невалидном теге) → версия из тега → публикация релиза Release Drafter'ом (`drafter`) либо сбор тела через [`release-notes`](actions.md#release-notes) (`commits`) → setup-node (с кэшем npm) → npm-auth → `npm ci` → сборка с `VITE_VERSION=<version>` → упаковка `dist` в `application.zip` → [`publish-release`](actions.md#publish-release) с ассетом.
-
-> Версия нужна обоим режимам (уходит в `VITE_VERSION`), поэтому считается всегда.
-> В режиме `commits` релиз создаётся **после** успешной сборки: упавшая сборка не оставляет пустой релиз.
-> Тег для ассета в режиме `drafter` берётся из вывода Release Drafter (`tag_name`); он совпадает с запушенным тегом.
-
-### `release_with_artifacts.yml` — Релиз + готовый артефакт (обёртка)
-
-**Устарело.** Тело переехало в [`release.yml`](#releaseyml--публикация-релиза); файл остался тонкой обёрткой, потому что потребители ссылаются на его путь. Новые вызовы идут в `release.yml` с параметрами `artifact` / `artifact_suffix`.
-
-**Входные параметры:**
-
-| Параметр | Тип | Обяз. | По умолчанию | Описание |
-| --- | --- | --- | --- | --- |
-| `projectname` | string | нет | `'main'` | Имя артефакта → `artifact` |
-| `suffixname` | string | нет | `''` | Суффикс имени ассета → `artifact_suffix` |
-| `notes_source` | string | нет | `'drafter'` | Источник тела релиза |
-
-**Секреты:** `GITHUB_TOKEN`.
-
-> **Артефакт виден только внутри одного прогона.** `actions/download-artifact` без `run-id` ищет артефакт текущего run'а, поэтому [`go_build_with_artifacts`](#go_build_with_artifactsyml--сборка-go-бинарника) и релиз должны вызываться из **одного** caller-workflow (тогда у них общий run). Если сборка живёт в отдельном workflow, шаг ничего не найдёт — понадобятся `run-id` и `github-token`.
-
-### `go_build_with_artifacts.yml` — Сборка Go-бинарника
-
-Кросс-компилирует Go-проект через `make build` и сохраняет результат как артефакт GitHub Actions (хранится 1 день). Обычно используется в паре с `release_with_artifacts.yml`.
+Кросс-компилирует Go-проект через `make build`, сохраняет результат как артефакт GitHub Actions (хранится
+1 день) и, по тегу, прикладывает бинарник к GitHub-релизу.
 
 **Входные параметры:**
 
@@ -136,7 +76,21 @@ Job не запускается на Pull Request из форка, а токен
 | `goarch` | string | нет | `'amd64'` | Целевая архитектура (`GOARCH`) |
 | `projectname` | string | нет | `'main'` | Имя проекта (`PROJECTNAME`) |
 
+**Секреты:** `GITHUB_TOKEN`.
+
 **Требования к проекту:** наличие `Makefile` с целью `build`, принимающей `GOOS`, `GOARCH`, `PROJECTNAME` и складывающей бинарник в `./bin/<projectname>`.
+
+**Шаги:** checkout с `fetch-depth: 0` → сборка и упаковка в `<projectname>.tar.gz` → `upload-artifact` (всегда) →
+**по тегу**: копия ассета `<projectname>-<goos>-<goarch>.tar.gz` → [`github-release`](actions.md#github-release).
+
+> **Имя ассета релиза включает `goos`/`goarch`.** У всей матрицы (разные ОС/архитектуры одного и того же
+> вызова этого workflow) общий тег — без платформы в имени параллельные job'ы матрицы перезаписали бы
+> ассет друг друга (`gh release upload --clobber` заменяет файл с тем же именем). Артефакт GitHub Actions
+> (`upload-artifact`) при этом сохраняет прежнее имя — он никак не участвует в релизе.
+>
+> **Группа `concurrency` включает `goos`/`goarch`.** Без них job'ы одной матрицы для одного тега попали бы
+> в одну группу конкурентности и отменяли бы друг друга (`cancel-in-progress: true`) — до того, как каждый
+> успеет опубликовать свой ассет.
 
 ### `deploy_for_build_application.yml` — Сборка по скрипту + релиз
 
@@ -147,21 +101,25 @@ Job не запускается на Pull Request из форка, а токен
 | Параметр | Тип | Обяз. | Описание |
 | --- | --- | --- | --- |
 | `file_path` | string | да | Путь к исполняемому файлу сборки (запускается через `. <file_path>`) |
-| `notes_source` | string | нет (`'none'`) | Тело релиза: `none` — пустое (прежнее поведение); `drafter` — смёрженные PR через Release Drafter; `commits` — коммиты между текущим и предыдущим тегом |
 
 **Секреты:** `GITHUB_TOKEN`.
 
-**Шаги:** checkout с `fetch-depth: 0` → выполнение `file_path` (всегда) → **по тегу** (`if: github.ref_type == 'tag'`): версия (`mode: ref`, `prefix: ''`) → [`tag-format`](actions.md#tag-format) → публикация релиза Release Drafter'ом (`drafter`) либо сбор тела через [`release-notes`](actions.md#release-notes) (`commits`) → [`publish-release`](actions.md#publish-release) с `./application.zip`.
+**Шаги:** checkout с `fetch-depth: 0` → **по тегу**: [`tag-format`](actions.md#tag-format) (фейл-фаст до сборки) → выполнение `file_path` (всегда) → **по тегу** (`if: github.ref_type == 'tag'`): версия (`mode: ref`, `prefix: ''`) → [`github-release`](actions.md#github-release) с `./application.zip` и заголовком `Release <version>`.
 
-> **Три режима тела, а не два:** дефолт `none` сохраняет прежнее поведение (релиз с пустым телом), `drafter` и `commits` добавлены поверх. Ко всем трём относится и `if: github.ref_type == 'tag'` — режим тела выбирает *что* писать в релиз, а не публиковать ли его вообще.
->
-> **Без тега релиза не будет.** Раньше версия без тега (авто-деплой) считалась через `git describe` — на коммите с несколькими тегами (дата и `vX.Y.Z`) он мог выбрать другой, чем инициировавший запуск. Теперь версия для релиза — только `mode: ref` (сам тег, инициировавший запуск), и шаги версии/проверки формата/драфтера/release-notes/publish-release закрыты условием `github.ref_type == 'tag'`; без тега выполняется только сборочный скрипт. Драфтеру тег уходит как есть, входами `tag` / `name`.
->
-> Заголовок `Release <version>` передаётся **только** вне режима `drafter`, иначе он перетёр бы имя, проставленное драфтером. Условие написано через отрицание (`!= 'drafter' && ... || ''`): пустая строка в выражении GitHub ложна, и прямая форма всегда возвращала бы вторую ветку.
->
-> Ради `drafter` workflow просит `pull-requests: read`. Вызванный workflow не может просить больше вызвавшего, поэтому то же право добавлено и в [auto_deploy_for_build_application](#auto_deploy_for_build_applicationyml--автодеплой-сборки-приложения).
+> **Без тега релиза не будет.** Раньше версия без тега (авто-деплой) считалась через `git describe` — на коммите с несколькими тегами (дата и `vX.Y.Z`) он мог выбрать другой, чем инициировавший запуск. Теперь версия для релиза — только `mode: ref` (сам тег, инициировавший запуск), и шаги версии/релиза закрыты условием `github.ref_type == 'tag'`; без тега выполняется только сборочный скрипт.
 
 > Скрипт сборки должен в результате создать файл `application.zip` в корне рабочей директории.
+
+### `release_frontend.yml` — Релиз + сборка фронтенда
+
+Собирает фронтенд, прикладывает к сборке `application.zip` и, по тегу, публикует GitHub-релиз.
+
+**Секреты:** `GITHUB_TOKEN`.
+
+**Шаги:** checkout с `fetch-depth: 0` → **по тегу**: [`tag-format`](actions.md#tag-format) (фейл-фаст до сборки) → версия из тега (`mode: ref`, идёт в `VITE_VERSION`) → setup-node (с кэшем npm) → npm-auth → `npm ci` → сборка с `VITE_VERSION=<version>` → упаковка `dist` в `application.zip` → **по тегу**: [`github-release`](actions.md#github-release) с ассетом.
+
+> Версия считается всегда (нужна `VITE_VERSION` независимо от того, тег это или нет), а вот релиз публикуется
+> только по тегу — сборка ветки (не тега) просто не создаёт релиз.
 
 ---
 
@@ -195,9 +153,10 @@ Dockerfile, `docker build`, логин и пуш. Сами workflow'ы отли�
 
 > **Сборка по тегу публикует и GitHub-релиз.** Последним шагом `docker-image` вызывает
 > [`docker-release`](actions.md#docker-release) (`if: github.ref_type == 'tag'`, после успешного пуша образа):
-> тело — коммиты между тегами, плюс блок `docker pull` и список тегов образа. Сборка без тега (расписание,
-> ручной запуск) релиз не трогает. Из-за этого у всех четырёх workflow'ов `permissions: contents: write`
-> вместо прежнего `contents: read`.
+> тело собирает [`github-release`](actions.md#github-release) (PR/коммиты), `docker-release` дописывает блок
+> `docker pull` и список тегов образа. Сборка без тега (расписание, ручной запуск) релиз не трогает. Из-за
+> этого у всех четырёх workflow'ов `permissions: contents: write` (вместо прежнего `contents: read`) и
+> `pull-requests: read` (поиск смёрженного PR коммита).
 
 ### `deploy_for_backend.yml` — Docker-образ Node.js-бэкенда
 
@@ -274,11 +233,10 @@ jobs:
 | Параметр | Тип | Обяз. | Описание |
 | --- | --- | --- | --- |
 | `file_path` | string | да | Путь к скрипту сборки |
-| `notes_source` | string | нет (`'none'`) | Источник тела релиза, пробрасывается во вложенный деплой |
 
 Во вложенный [`deploy_for_build_application.yml`](#deploy_for_build_applicationyml--сборка-по-скрипту--релиз) передаётся `file_path: ${{ inputs.repository_branch }}`: в этом сценарии путь к исполняемому скрипту сборки совпадает со значением `repository_branch`.
 
-> Запуск идёт не по тегу, поэтому во вложенном workflow релиз (независимо от `notes_source`) не публикуется — выполняется только сборочный скрипт.
+> Запуск идёт не по тегу, поэтому во вложенном workflow релиз не публикуется — выполняется только сборочный скрипт.
 
 ---
 
@@ -286,19 +244,29 @@ jobs:
 
 ### `publish_package.yml` — Публикация npm-пакета
 
-Собирает и публикует npm-пакет в GitHub Packages.
+Собирает и публикует npm-пакет в GitHub Packages. По тегу, после успешной публикации, — GitHub-релиз
+с блоком `npm install`.
 
 **Секреты:** `GITHUB_TOKEN`.
 
-**Шаги:** checkout → setup-node (с кэшем npm) → npm-auth → `npm ci` → `npm run build` → запуск `node ./node_modules/@moogur/helpers/pre-build.js` → `npm publish`.
+**Шаги:** checkout с `fetch-depth: 0` → setup-node (с кэшем npm) → npm-auth → `npm ci` → `npm run build` → запуск `node ./node_modules/@moogur/helpers/pre-build.js` → `npm publish` → **по тегу**: имя/версия из `package.json` → [`npm-package-notes`](actions.md#npm-package-notes) → [`github-release`](actions.md#github-release).
 
 > Требует зависимость `@moogur/helpers` (скрипт `pre-build.js`).
+> `package.json` читается **после** `pre-build.js` — он готовит файл к публикации (может менять версию), поэтому имя/версия в релизе — то, что реально опубликовано.
 
 ### `deploy_for_lerna.yml` — Публикация монорепозитория через Lerna
 
-Публикует пакеты Lerna-монорепозитория в реестр GitHub Packages командой `lerna publish from-package`. Перед установкой удаляет скрипт `prepare` (husky) из `package.json`, чтобы избежать его запуска в CI.
+Публикует пакеты Lerna-монорепозитория в реестр GitHub Packages командой `lerna publish from-package`. Перед установкой удаляет скрипт `prepare` (husky) из `package.json`, чтобы избежать его запуска в CI. По тегу, после публикации, — GitHub-релиз с `npm install` на каждый непубличный пакет.
 
 **Секреты:** `GITHUB_TOKEN`.
+
+**Шаги (добавлены по тегу, перед `Publish packages`):** список пакетов из `packages/*/package.json`
+(`select(.private != true)`, имя+версия; раскладка пуста — ошибка до публикации) → `Publish packages` →
+[`npm-package-notes`](actions.md#npm-package-notes) → [`github-release`](actions.md#github-release).
+
+> **Раскладка пакетов — `packages/*/package.json`.** Это раскладка Lerna по умолчанию; кастомный `packages`
+> в `lerna.json` (другой glob) не читается — понадобится своя доработка. Список пакетов собирается до
+> `lerna publish`, чтобы неверная раскладка проваливала сборку раньше, чем что-то уже опубликовано в реестр.
 
 ### `deploy_for_frontend.yml` — Деплой фронтенда в ветку `builds`
 

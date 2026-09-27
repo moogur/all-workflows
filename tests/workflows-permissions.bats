@@ -36,7 +36,22 @@ setup() {
   grep -qE '^  contents: write' "$WF/auto_deploy_for_build_application.yml"
 }
 
-@test "auto_deploy не уже вложенного деплоя по pull-requests" {
-  # deploy_for_build_application умеет режим drafter, а тому нужны PR.
+@test "auto_deploy_for_build_application не уже вложенного деплоя по pull-requests" {
+  # deploy_for_build_application ищет смёрженный PR коммита (release-notes) — нужен pull-requests: read.
   grep -qE '^  pull-requests: read' "$WF/auto_deploy_for_build_application.yml"
+}
+
+@test "auto_deploy_for_docker_container не уже вложенного деплоя по pull-requests" {
+  # deploy_for_docker_container релизит через docker-image → docker-release → release-notes.
+  grep -qE '^  pull-requests: read' "$WF/auto_deploy_for_docker_container.yml"
+}
+
+@test "все релизящие по тегу workflow'ы просят contents: write и pull-requests: read" {
+  local wf
+  for wf in deploy_for_build_application release_frontend go_build_with_artifacts \
+            publish_package deploy_for_lerna deploy_for_backend deploy_for_go_backend \
+            deploy_for_full_app deploy_for_docker_container; do
+    grep -qE '^  contents: write' "$WF/$wf.yml" || { echo "В $wf.yml нет contents: write"; return 1; }
+    grep -qE '^  pull-requests: read' "$WF/$wf.yml" || { echo "В $wf.yml нет pull-requests: read"; return 1; }
+  done
 }

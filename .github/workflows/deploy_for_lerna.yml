@@ -1,14 +1,18 @@
 # Публикация пакетов монорепозитория через Lerna в GitHub Packages
-# (`lerna publish from-package`). Переиспользуемый workflow (workflow_call).
-# Секрет: GITHUB_TOKEN.
+# (`lerna publish from-package`). По тегу — GitHub-релиз с командами npm install
+# на каждый непубличный ("private": true исключается) пакет из packages/*/package.json
+# (стандартная раскладка Lerna; кастомный `packages` в lerna.json не читается).
+# Переиспользуемый workflow (workflow_call). Секрет: GITHUB_TOKEN.
 name: Lerna publish packages
 
 on:
   workflow_call:
 
+# pull-requests: read — release-notes ищет смёрженный PR коммита через gh api.
 permissions:
-  contents: read
+  contents: write
   packages: write
+  pull-requests: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -52,9 +56,42 @@ jobs:
         run: |
           npm run build
 
+      # До Publish packages: раскладка packages/*/package.json неверна — падаем
+      # до публикации, а не после (nullglob — иначе jq получит буквальный glob).
+      - name: 'Determine published packages'
+        id: packages
+        if: github.ref_type == 'tag'
+        run: |
+          shopt -s nullglob
+          files=(packages/*/package.json)
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo "no packages found in packages/*/package.json" >&2
+            exit 1
+          fi
+          {
+            echo "packages<<PACKAGES_EOF"
+            jq -r 'select(.private != true) | "\(.name)@\(.version)"' "${files[@]}"
+            echo "PACKAGES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: "Publish packages"
         run: |
           git add .
           git commit -m "temporary"
 
           npx lerna publish --registry=https://npm.pkg.github.com from-package --yes
+
+      - name: 'Release notes'
+        id: notes
+        if: github.ref_type == 'tag'
+        uses: moogur/all-workflows/.github/actions/npm-package-notes@master
+        with:
+          packages: ${{ steps.packages.outputs.packages }}
+
+      - name: 'Publish release'
+        if: github.ref_type == 'tag'
+        uses: moogur/all-workflows/.github/actions/github-release@master
+        with:
+          tag: ${{ github.ref_name }}
+          extra_notes: ${{ steps.notes.outputs.notes }}
+          token: ${{ secrets.GITHUB_TOKEN }}
