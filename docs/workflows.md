@@ -249,7 +249,7 @@ jobs:
 
 **Секреты:** `GITHUB_TOKEN`.
 
-**Шаги:** checkout с `fetch-depth: 0` → setup-node (с кэшем npm) → npm-auth → `npm ci` → `npm run build` → запуск `node ./node_modules/@moogur/helpers/pre-build.js` → `npm publish` → **по тегу**: имя/версия из `package.json` → [`npm-package-notes`](actions.md#npm-package-notes) → [`github-release`](actions.md#github-release).
+**Шаги:** checkout с `fetch-depth: 0` → setup-node (с кэшем npm) → npm-auth → `npm ci` → `npm run build` → запуск `node ./node_modules/@moogur/helpers/pre-build.js` → `npm publish` → **по тегу**: имя/версия из `package.json` ([`npm-package-version`](actions.md#npm-package-version)) → [`npm-package-notes`](actions.md#npm-package-notes) → [`github-release`](actions.md#github-release).
 
 > Требует зависимость `@moogur/helpers` (скрипт `pre-build.js`).
 > `package.json` читается **после** `pre-build.js` — он готовит файл к публикации (может менять версию), поэтому имя/версия в релизе — то, что реально опубликовано.
@@ -260,9 +260,9 @@ jobs:
 
 **Секреты:** `GITHUB_TOKEN`.
 
-**Шаги (добавлены по тегу, перед `Publish packages`):** список пакетов из `packages/*/package.json`
-(`select(.private != true)`, имя+версия; раскладка пуста — ошибка до публикации) → `Publish packages` →
-[`npm-package-notes`](actions.md#npm-package-notes) → [`github-release`](actions.md#github-release).
+**Шаги (добавлены по тегу, перед `Publish packages`):** файлы `packages/*/package.json` (раскладка пуста —
+ошибка до публикации) → имя+версия каждого непубличного пакета ([`npm-package-version`](actions.md#npm-package-version))
+→ `Publish packages` → [`npm-package-notes`](actions.md#npm-package-notes) → [`github-release`](actions.md#github-release).
 
 > **Раскладка пакетов — `packages/*/package.json`.** Это раскладка Lerna по умолчанию; кастомный `packages`
 > в `lerna.json` (другой glob) не читается — понадобится своя доработка. Список пакетов собирается до

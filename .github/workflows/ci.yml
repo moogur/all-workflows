@@ -42,8 +42,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # -x: скрипты подключают lib/*.sh динамическим путём (dirname "${BASH_SOURCE[0]}"),
+      # без -x shellcheck не следует за source (см. директивы source= в файлах).
       - name: Lint scripts
-        run: shellcheck .github/actions/*/*.sh scripts/*.sh .husky/commit-msg tests/*.bash
+        run: shellcheck -x lib/*.sh .github/actions/*/*.sh scripts/*.sh .husky/commit-msg tests/*.bash
 
   yamllint:
     name: yamllint (структура YAML)

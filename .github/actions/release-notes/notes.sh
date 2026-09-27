@@ -14,9 +14,16 @@
 #   GITHUB_OUTPUT.
 # Выход: файл с телом релиза + строки "notes_file=", "previous_tag=", "change_count=" в $GITHUB_OUTPUT.
 set -euo pipefail
+lib="$(dirname "${BASH_SOURCE[0]}")/../../../lib"
+# shellcheck source=lib/version.sh
+source "$lib/version.sh"
+# shellcheck source=lib/tags.sh
+source "$lib/tags.sh"
+# shellcheck source=lib/commit.sh
+source "$lib/commit.sh"
 
 tag="${TAG:-${GITHUB_REF:-}}"
-tag="${tag#refs/tags/}"
+tag=$(version_strip_ref_prefix "$tag")
 if [[ -z "$tag" || "$tag" == refs/* ]]; then
   echo "TAG is required (or GITHUB_REF must point to a tag)" >&2
   exit 1
@@ -29,10 +36,7 @@ fi
 
 previous="${PREVIOUS_TAG:-}"
 if [[ -z "$previous" ]]; then
-  # Предыдущий тег — соседний по дате создания, а не по имени: сортировка по имени
-  # врёт на датных тегах (среди них «максимум» — 26.05.2023, потому что 26 > 14).
-  previous=$(git for-each-ref --sort=-creatordate --format='%(refname:short)' refs/tags \
-    | awk -v current="$tag" 'found { print; exit } $0 == current { found = 1 }')
+  previous=$(tags_previous "$tag")
 fi
 
 # Нет предыдущего тега (первый релиз) — берём всю историю до текущего.
@@ -42,8 +46,8 @@ else
   range="$tag"
 fi
 
-# Категории и их порядок — по типу коммита ([TASK-1] type(scope): subject);
-# "Other" — то, что не разобралось по этому формату.
+# Категории и их порядок — по типу коммита ([TASK-1] type(scope): subject; COMMIT_CATEGORY_OF
+# из lib/commit.sh); "Other" — то, что не разобралось по этому формату.
 category_order=(features fixes docs maintenance configuration other)
 declare -A category_title=(
   [features]='🚀 New Features'
@@ -53,22 +57,12 @@ declare -A category_title=(
   [configuration]='🛠 Configuration'
   [other]='🧩 Other'
 )
-declare -A category_of=(
-  [feature]=features
-  [test]=features
-  [bugfix]=fixes
-  [docs]=docs
-  [refactor]=maintenance
-  [config]=configuration
-  [ci]=configuration
-)
 
-# Формат заголовка коммита из .husky/commit-msg. Префикс задачи любой: потребители
-# живут со своими (GA-123, IPB-456). Регэксп — в переменной: в [[ ]] скобка внутри
+# Регэксп заголовка коммита — в переменной lib/commit.sh: в [[ ]] скобка внутри
 # [^)] ломает разбор условного выражения.
-subject_regexp='^\[([A-Z][A-Z0-9]*-[0-9]+)\][[:space:]]+([a-z]+)\(([^)]+)\):[[:space:]]*(.+)$'
-merge_pr_regexp='^Merge pull request #([0-9]+) from '
-squash_pr_regexp='^(.*) \(#([0-9]+)\)$'
+subject_regexp="$COMMIT_HEADER_REGEX"
+merge_pr_regexp="$COMMIT_MERGE_PR_REGEX"
+squash_pr_regexp="$COMMIT_SQUASH_PR_REGEX"
 
 # Разбирает заголовок (PR-заголовок либо subject коммита) по формату commit-msg
 # в глобальные task/scope/subj/category; не подошло — category=other, matched=0
@@ -79,7 +73,7 @@ parse_subject() {
     task="${BASH_REMATCH[1]}"
     scope="${BASH_REMATCH[3]}"
     subj="${BASH_REMATCH[4]}"
-    category="${category_of[${BASH_REMATCH[2]}]:-other}"
+    category="${COMMIT_CATEGORY_OF[${BASH_REMATCH[2]}]:-other}"
     matched=1
   else
     matched=0

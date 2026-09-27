@@ -9,9 +9,11 @@
 | Каталог / файл | Назначение |
 | --- | --- |
 | [`.github/workflows/`](.github/workflows/) | Переиспользуемые workflow'ы (основное содержимое репозитория) |
-| [`.github/actions/`](.github/actions/) | Composite actions — общие шаги (версии Node/Go, настройка Node с кэшем npm, npm-аутентификация, версия приложения, проверка формата тега, тело релиза по PR/коммитам, публикация релиза, единая цепочка публикации GitHub-релиза, сборка docker-образа и релиз по тегу сборки, блок npm install, проверка обновлений внешнего репозитория) |
+| [`.github/actions/`](.github/actions/) | Composite actions — общие шаги (версии Node/Go, настройка Node с кэшем npm, npm-аутентификация, версия приложения, проверка формата тега, тело релиза по PR/коммитам, публикация релиза, единая цепочка публикации GitHub-релиза, сборка docker-образа и релиз по тегу сборки, блок npm install, версия npm-пакета, проверка обновлений внешнего репозитория) |
+| [`lib/`](lib/) | Bash-библиотеки формата "базовых значений" (версия/тег, коммит, docker-ссылка, npm-пакет) — единственное место, где эти форматы разбираются; подключаются через `source` |
 | [`dockerfiles/`](dockerfiles/) | Dockerfile'ы и `.dockerignore`, которые workflow'ы скачивают на лету при сборке образов |
 | [`scripts/kanboard_requests.sh`](scripts/kanboard_requests.sh) | Bash-библиотека JSON-RPC запросов к Kanboard |
+| [`scripts/kanboard_task_id.sh`](scripts/kanboard_task_id.sh) | Откуда `kanboard.yml` берёт task_id/версию релиза (сам разбор — в `lib/`) |
 | [`.husky/commit-msg`](.husky/commit-msg) | Git-хук валидации сообщения коммита |
 | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | CI самого репозитория: actionlint, shellcheck, yamllint, bats |
 | [`tests/`](tests/) | Unit-тесты ([bats](https://github.com/bats-core/bats-core)) на bash-логику экшенов, хука и скриптов |

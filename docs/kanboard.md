@@ -1,15 +1,15 @@
 # Интеграция с Kanboard
 
-Workflow [`kanboard.yml`](../.github/workflows/kanboard.yml) синхронизирует положение задачи на канбан-доске [Kanboard](https://kanboard.org/) с этапами разработки в Git: коммит, открытие PR, мерж, деплой. Вся работа с API вынесена в bash-библиотеку [`scripts/kanboard_requests.sh`](../scripts/kanboard_requests.sh), которую workflow получает через `actions/checkout` этого репозитория (запиненного к версии вызванного workflow) и подставляет в неё секреты.
+Workflow [`kanboard.yml`](../.github/workflows/kanboard.yml) синхронизирует положение задачи на канбан-доске [Kanboard](https://kanboard.org/) с этапами разработки в Git: коммит, открытие PR, мерж, деплой. Вся работа с API вынесена в bash-библиотеку [`scripts/kanboard_requests.sh`](../scripts/kanboard_requests.sh), которую workflow получает через `actions/checkout` этого репозитория (запиненного к версии вызванного workflow) и подставляет в неё секреты. Извлечение `task_id`/версии релиза из git — в [`scripts/kanboard_task_id.sh`](../scripts/kanboard_task_id.sh), той же копии репозитория; сам формат (заголовок коммита, теги) — в [`lib/`](../lib/) (см. [conventions.md](conventions.md#форматы)).
 
 ← Назад к [README](../README.md) · [Справочник workflow'ов](workflows.md)
 
 ## Как это работает
 
 1. Workflow выкачивает `kanboard_requests.sh` через `actions/checkout` репозитория `all-workflows` (ref = `github.job_workflow_sha`, т.е. версия вызванного workflow) и через `sed` подставляет в него хост, учётные данные и id задачи.
-2. Номер задачи (`task_id`) извлекается из:
-   - **сообщения коммита** — для `single_branch` (второе «слово» после разбиения по `-` и `]`);
-   - **имени ветки** (`github.head_ref` / `GITHUB_REF_NAME`) — для PR/merge/deploy.
+2. Номер задачи (`task_id`) извлекается через `scripts/kanboard_task_id.sh` (функция `commit_task_id_token` из [`lib/commit.sh`](../lib/commit.sh) — «второе слово» после разбиения по `-`, `]` и `_`) из:
+   - **сообщения коммита** — для `single_branch` (`kanboard_task_id_from_last_commit`);
+   - **имени ветки** (`github.head_ref` / `GITHUB_REF_NAME`) — для PR/merge/deploy (`kanboard_task_id_from_ref`).
    Это согласуется с форматом веток и коммитов `[GA-123] ...` (см. [conventions.md](conventions.md)).
 3. По текущей колонке задачи и типу события скрипт перемещает задачу методом Kanboard `moveTaskPosition`.
 4. Итог каждого шага пишется в файл `message.tmpl` и выводится в лог на финальном шаге.
@@ -41,7 +41,7 @@ Workflow [`kanboard.yml`](../.github/workflows/kanboard.yml) синхрониз�
 | `merge` | `multi_branch` | задача в `[4]` | переместить в `[5]` — *merged* |
 | `deploy` | `multi_branch` | задачи из диапазона между двумя последними тегами в `[5]` | переместить в `[6]` — *deploy* и записать версию в метаданные задачи |
 
-При деплое workflow собирает id задач из коммитов между двумя последними git-тегами (или из всех коммитов, если тег один), убирает дубликаты и для каждой задачи проставляет/дополняет метаданные `App_version` версией текущего релиза.
+При деплое workflow собирает id задач из коммитов между двумя последними git-тегами (или из всех коммитов, если тег один; `kanboard_deploy_tags`/`kanboard_deploy_task_ids` в `scripts/kanboard_task_id.sh`, последние теги — по дате создания, [`lib/tags.sh`](../lib/tags.sh)), убирает дубликаты и для каждой задачи проставляет/дополняет метаданные `App_version` версией текущего релиза (снятие префикса `v` — [`lib/version.sh`](../lib/version.sh)).
 
 ## Скрипт `kanboard_requests.sh`
 

@@ -1,5 +1,7 @@
 # Перемещает задачи Kanboard по колонкам в зависимости от события Git
-# (push/pr/merge/deploy). Логика работы с API — в scripts/kanboard_requests.sh.
+# (push/pr/merge/deploy). Логика работы с API — в scripts/kanboard_requests.sh,
+# извлечение task_id/версии из git — в scripts/kanboard_task_id.sh (сама форма
+# номера задачи и тегов — в lib/commit.sh, lib/tags.sh, lib/version.sh).
 # Переиспользуемый workflow (workflow_call). Секреты: KANBOARD_HOST/USER/TOKEN.
 name: Kanboard for single branch
 
@@ -65,12 +67,14 @@ jobs:
           # интерполяция в тело скрипта позволила бы выполнить произвольные команды.
           HEAD_REF: ${{ github.head_ref }}
         run: |
+          source .all-workflows/scripts/kanboard_task_id.sh
+
           if [[ ${{ inputs.project_type }} == "single_branch" ]]; then
-            task_id=`echo $(git log -1 --pretty=%B) | tr "-" " " | tr "]" " " | awk '{print $2 }'`
+            task_id=$(kanboard_task_id_from_last_commit)
           elif [[ ${{ inputs.event_type }} == "pr" ]] || [[ ${{ inputs.event_type }} == "merge" ]]; then
-            task_id=`echo "$HEAD_REF" | tr "-" " " | tr "_" " " | awk '{print $2 }'`
+            task_id=$(kanboard_task_id_from_ref "$HEAD_REF")
           else
-            task_id=`echo $GITHUB_REF_NAME | tr "-" " " | tr "_" " " | awk '{print $2 }'`
+            task_id=$(kanboard_task_id_from_ref "$GITHUB_REF_NAME")
           fi
 
           sed -i "s|private_task_id=|private_task_id=$task_id|" ./requests.sh
@@ -147,23 +151,19 @@ jobs:
         if: "inputs.event_type == 'deploy' && inputs.project_type == 'multi_branch'"
         run: |
           . ./requests.sh
+          source .all-workflows/scripts/kanboard_task_id.sh
 
-          tags=`echo $(git tag --sort=-creatordate | head -n 2)`
-          IFS=' ' read -r -a array_tags <<< "$tags"
-          app_version=${array_tags[0]#v}
-          if [[ "${#array_tags[@]}" -eq 2 ]]; then
-            array_tasks_ids=(`echo $(git log --pretty=format:"~@~@%s" ${array_tags[1]}..${array_tags[0]}) | tr "~@~@" "\n" | awk 'NF' | tr "-" " " | tr "]" " " | awk '{ print $2 }'`)
-          else
-            array_tasks_ids=(`echo $(git log --pretty=format:"~@~@%s" --all) | tr "~@~@" "\n" | awk 'NF' | tr "-" " " | tr "]" " " | awk '{ print $2 }'`)
-          fi
+          mapfile -t array_tags < <(kanboard_deploy_tags)
+          app_version=$(kanboard_release_version "${array_tags[0]}")
 
-          # remove duplicates tasks ids
+          previous_tag=''
+          [[ "${#array_tags[@]}" -eq 2 ]] && previous_tag="${array_tags[1]}"
+
+          # kanboard_deploy_task_ids уже отдаёт уникальные id (без дублей).
           declare -A uniq_array_tasks_ids
-          for task_id in "${array_tasks_ids[@]}"; do
-            if [[ "$task_id" =~ ^[0-9]+$ ]]; then
-              uniq_array_tasks_ids[$task_id]=0
-            fi
-          done
+          while IFS= read -r task_id; do
+            uniq_array_tasks_ids[$task_id]=0
+          done < <(kanboard_deploy_task_ids "${array_tags[0]}" "$previous_tag")
 
           IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
 

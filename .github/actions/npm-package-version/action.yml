@@ -1,0 +1,21 @@
+name: 'Resolve npm package version'
+description: 'Определяет "имя@версия" по файлам package.json (jq); приватные пакеты (private: true) исключаются. Используется publish_package и deploy_for_lerna.'
+
+inputs:
+  files:
+    description: 'Пути к package.json, по одному на строку'
+    required: true
+
+outputs:
+  packages:
+    description: 'Опубликованные пакеты, "имя@версия" по одному на строку'
+    value: ${{ steps.resolve.outputs.packages }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: resolve
+      shell: bash
+      env:
+        FILES: ${{ inputs.files }}
+      run: bash "$GITHUB_ACTION_PATH/resolve.sh"

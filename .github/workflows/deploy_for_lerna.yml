@@ -55,9 +55,9 @@ jobs:
           npm run build
 
       # До Publish packages: раскладка packages/*/package.json неверна — падаем
-      # до публикации, а не после (nullglob — иначе jq получит буквальный glob).
-      - name: 'Determine published packages'
-        id: packages
+      # до публикации, а не после (nullglob — иначе следующий шаг получит буквальный glob).
+      - name: 'Find package.json files'
+        id: files
         if: github.ref_type == 'tag'
         run: |
           shopt -s nullglob
@@ -67,10 +67,17 @@ jobs:
             exit 1
           fi
           {
-            echo "packages<<PACKAGES_EOF"
-            jq -r 'select(.private != true) | "\(.name)@\(.version)"' "${files[@]}"
-            echo "PACKAGES_EOF"
+            echo "files<<FILES_EOF"
+            printf '%s\n' "${files[@]}"
+            echo "FILES_EOF"
           } >> "$GITHUB_OUTPUT"
+
+      - name: 'Determine published packages'
+        id: packages
+        if: github.ref_type == 'tag'
+        uses: moogur/all-workflows/.github/actions/npm-package-version@master
+        with:
+          files: ${{ steps.files.outputs.files }}
 
       - name: "Publish packages"
         run: |

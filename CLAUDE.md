@@ -27,6 +27,10 @@ deployed from this repo itself — it only lints and unit-tests its own bash.
   result via `$GITHUB_OUTPUT`, and `action.yml` only does `run: bash "$GITHUB_ACTION_PATH/<name>.sh"`.
   Reason: bats then tests the exact file that runs in prod.
 - Steps shared by several workflows go to `.github/actions/`, not copy-pasted inline.
+- Formats of shared values (version/tag, commit header, docker ref, npm package) live only in
+  `lib/<name>.sh`; scripts `source` it via `$(dirname "${BASH_SOURCE[0]}")/…/lib`, with a
+  `# shellcheck source=lib/<name>.sh` line (CI runs `shellcheck -x`). `tests/formats.bats` fails on
+  a re-implemented regex/idiom outside `lib/`.
 - Every workflow declares an explicit minimal `permissions` block — enforced by a test.
 - A workflow that runs tests gates that step on `inputs.skip_tests` (`required: false`,
   `default: 'false'`) so the consumer can switch them off — enforced by a test.
@@ -42,11 +46,12 @@ deployed from this repo itself — it only lints and unit-tests its own bash.
 ## Conventions that bite
 
 - Commit message (husky hook, first line only): `[GA-<digits>] <type>(<scope>): <subject>`;
-  type ∈ feature|bugfix|ci|config|refactor|test|docs; scope and subject lowercase; subject ≤ 125.
+  type ∈ feature|bugfix|ci|config|refactor|test|docs (exact match); scope and subject lowercase;
+  subject ≤ 125. Rules live in `lib/commit.sh`.
 - "Latest tag" is resolved by creation date (`--sort=-creatordate`), never by name: repos use both
   `dd.mm.yyyy` and `vX.Y.Z` tags, and name sorting picks the wrong one on date tags.
-- Application version always comes from the `app-version` action: `mode: ref` for tag-triggered
-  runs, `mode: git` otherwise.
+- Application version comes from the `app-version` action with `mode: ref`; builds release only
+  on tag runs (`github.ref_type == 'tag'`), untagged runs build without a release.
 
 ## Docs
 

@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Считывает маркер свежести внешнего репозитория.
+# Считывает маркер свежести внешнего репозитория. "Самый свежий тег" — lib/tags.sh.
 # Вход (env): REPOSITORY_URL, CHECK_TYPE (commit|tag, по умолчанию commit),
 # REPOSITORY_BRANCH (для commit, по умолчанию master), GITHUB_OUTPUT.
 # Выход: строка "value=<...>" в файл $GITHUB_OUTPUT.
 set -euo pipefail
+# shellcheck source=lib/tags.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../../../lib/tags.sh"
 
 url="${REPOSITORY_URL:?REPOSITORY_URL is required}"
 check_type="${CHECK_TYPE:-commit}"
@@ -24,8 +26,7 @@ case "$check_type" in
     # ls-remote дат не отдаёт, поэтому клонируем — но без блобов, только рефы.
     temp_repository=$(mktemp -d)
     git clone --quiet --bare --filter=blob:none "$url" "$temp_repository"
-    value=$(git -C "$temp_repository" for-each-ref \
-      --sort=-creatordate --count=1 --format='%(refname:short)' refs/tags)
+    value=$(tags_latest_n 1 "$temp_repository")
     rm -rf "$temp_repository"
 
     if [[ -z "$value" ]]; then

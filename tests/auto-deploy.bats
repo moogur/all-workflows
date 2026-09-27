@@ -47,8 +47,9 @@ setup() {
 }
 
 @test "метка авто-сборки содержит время и берётся в UTC" {
-  # Логика живёт в общем action docker-image (поведение — в tests/docker-image.bats).
-  grep -qF "date -u +'%d.%m.%Y-%H%M-auto'" "$ROOT/.github/actions/docker-image/resolve.sh"
+  # Сам формат — в lib/version.sh (поведение — в tests/lib-version.bats);
+  # docker-image/resolve.sh (tests/docker-image.bats) только вызывает version_auto_label.
+  grep -qF "date -u +'%d.%m.%Y-%H%M-auto'" "$ROOT/lib/version.sh"
 }
 
 @test "версия сборки не вычисляется через git describe" {

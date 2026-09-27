@@ -51,14 +51,16 @@ jobs:
       - name: 'Determine published package'
         id: package
         if: github.ref_type == 'tag'
-        run: echo "package=$(jq -r '"\(.name)@\(.version)"' package.json)" >> "$GITHUB_OUTPUT"
+        uses: moogur/all-workflows/.github/actions/npm-package-version@master
+        with:
+          files: package.json
 
       - name: 'Release notes'
         id: notes
         if: github.ref_type == 'tag'
         uses: moogur/all-workflows/.github/actions/npm-package-notes@master
         with:
-          packages: ${{ steps.package.outputs.package }}
+          packages: ${{ steps.package.outputs.packages }}
 
       - name: 'Publish release'
         if: github.ref_type == 'tag'
