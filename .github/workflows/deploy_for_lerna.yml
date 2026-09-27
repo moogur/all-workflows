@@ -8,11 +8,9 @@ name: Lerna publish packages
 on:
   workflow_call:
 
-# pull-requests: read — release-notes ищет смёрженный PR коммита через gh api.
 permissions:
   contents: write
   packages: write
-  pull-requests: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

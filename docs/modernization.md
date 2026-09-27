@@ -103,10 +103,13 @@ Docker-реестр GitHub Packages по адресу `docker.pkg.github.com` у
   (`deploy_for_build_application.yml`, `release_frontend.yml`, `go_build_with_artifacts.yml`,
   docker-workflow'ы, `publish_package.yml`/`deploy_for_lerna.yml`) — релиз он теперь публикует сам, по тегу.
 - **Release Drafter удалён** (breaking). Тело релиза собирается автоматически, без стороннего action и без
-  выбора режима: коммит, смёрженный через PR, даёт запись по PR (заголовок, автор, категория по меткам PR —
-  тот же список, что был в `.github/release-drafter.yml`), коммит без PR — по формату commit-msg (как раньше
-  в режиме `commits`). **Потребителю нужно удалить `.github/release-drafter.yml` из своего репозитория**, если
-  он там был скопирован по примеру из этого репозитория — конфигурация здесь удалена вслед за самим Drafter.
+  выбора режима, целиком из локальной git-истории (`git log --first-parent`) — **без обращений к GitHub
+  API**: PR, смёрженный кнопкой Merge или сквошенный, даёт одну запись по заголовку PR (категория — по
+  формату commit-msg, как у обычного коммита, не по меткам PR из `.github/release-drafter.yml`), коммит без
+  PR — по формату commit-msg (как раньше в режиме `commits`). Права `pull-requests: read` больше нигде не
+  нужны (были только под этот и прежний API-запрос) и убраны из всех релизящих workflow'ов. **Потребителю
+  нужно удалить `.github/release-drafter.yml` из своего репозитория**, если он там был скопирован по примеру
+  из этого репозитория — конфигурация здесь удалена вслед за самим Drafter.
 - **Вход `notes_source` убран из всех workflow'ов** (breaking): `release.yml`, `release_frontend.yml`,
   `release_with_artifacts.yml`, `deploy_for_build_application.yml`, `auto_deploy_for_build_application.yml`.
   **Потребителю, передававшему `notes_source: 'drafter'` / `'commits'` / `'none'`, нужно убрать эту строку**

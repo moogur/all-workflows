@@ -43,7 +43,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Lint scripts
-        run: shellcheck .github/actions/*/*.sh scripts/*.sh .husky/commit-msg tests/helpers.bash
+        run: shellcheck .github/actions/*/*.sh scripts/*.sh .husky/commit-msg tests/*.bash
 
   yamllint:
     name: yamllint (структура YAML)

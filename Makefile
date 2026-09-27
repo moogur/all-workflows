@@ -11,7 +11,7 @@ YAMLLINT   ?= yamllint
 BATS       ?= bats
 
 # Bash-скрипты, которые проверяются строго (без исключений).
-SH_FILES := .github/actions/*/*.sh scripts/*.sh .husky/commit-msg tests/helpers.bash
+SH_FILES := .github/actions/*/*.sh scripts/*.sh .husky/commit-msg tests/*.bash
 
 # Игнор actionlint: 'job_workflow_sha' — валидное поле, отсутствует в схеме
 # actionlint (см. docs/testing.md).

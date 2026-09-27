@@ -153,10 +153,10 @@ Dockerfile, `docker build`, логин и пуш. Сами workflow'ы отли�
 
 > **Сборка по тегу публикует и GitHub-релиз.** Последним шагом `docker-image` вызывает
 > [`docker-release`](actions.md#docker-release) (`if: github.ref_type == 'tag'`, после успешного пуша образа):
-> тело собирает [`github-release`](actions.md#github-release) (PR/коммиты), `docker-release` дописывает блок
-> `docker pull` и список тегов образа. Сборка без тега (расписание, ручной запуск) релиз не трогает. Из-за
-> этого у всех четырёх workflow'ов `permissions: contents: write` (вместо прежнего `contents: read`) и
-> `pull-requests: read` (поиск смёрженного PR коммита).
+> тело собирает [`github-release`](actions.md#github-release) (PR/коммиты из локальной git-истории),
+> `docker-release` дописывает блок `docker pull` и список тегов образа. Сборка без тега (расписание, ручной
+> запуск) релиз не трогает. Из-за этого у всех четырёх workflow'ов `permissions: contents: write` (вместо
+> прежнего `contents: read`).
 
 ### `deploy_for_backend.yml` — Docker-образ Node.js-бэкенда
 

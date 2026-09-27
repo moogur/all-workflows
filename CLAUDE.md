@@ -15,7 +15,7 @@ deployed from this repo itself — it only lints and unit-tests its own bash.
 
 - `make check` = what CI runs (`make lint` + `make test`), `make help` for the list.
   Tools: `actionlint`, `shellcheck`, `yamllint`, `bats`, `jq`.
-- shellcheck is strict for standalone `.sh`, the hook and `tests/helpers.bash`; inline workflow
+- shellcheck is strict for standalone `.sh`, the hook and `tests/*.bash`; inline workflow
   scripts are checked (inside actionlint) only at `--severity=error` — docker commands rely on
   intentional word-splitting.
 - The single actionlint `-ignore` (`job_workflow_sha`) is deliberate; do not "fix" that finding.

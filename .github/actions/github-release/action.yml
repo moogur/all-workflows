@@ -18,7 +18,7 @@ inputs:
     required: false
     default: ''
   token:
-    description: 'Токен с правом contents: write (публикация релиза) и pull-requests: read (поиск PR коммита), обычно GITHUB_TOKEN'
+    description: 'Токен с правом contents: write (публикация релиза), обычно GITHUB_TOKEN'
     required: true
 
 runs:
@@ -33,7 +33,6 @@ runs:
       uses: moogur/all-workflows/.github/actions/release-notes@master
       with:
         tag: ${{ inputs.tag }}
-        token: ${{ inputs.token }}
 
     - if: inputs.extra_notes != ''
       shell: bash

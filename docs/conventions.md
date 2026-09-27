@@ -48,25 +48,19 @@ Git-хук [`.husky/commit-msg`](../.husky/commit-msg) валидирует ка
 единую цепочку [`github-release`](actions.md#github-release), которая собирает тело автоматически —
 Release Drafter в репозитории больше не используется.
 
-Коммит, смёрженный через Pull Request, даёт одну запись **по PR** — заголовок, автор, категория по меткам
-PR (тот же список категорий, что раньше жил в `.github/release-drafter.yml`, теперь в
-[`release-notes`](actions.md#release-notes)):
-
-| Категория | Метка PR |
-| --- | --- |
-| 🚀 New Features | `type:feature`, `type:test` |
-| 🐞 Bugs Fixes | `type:bugfix` |
-| 📚 Documentation | `type:docs` |
-| 🧰 Maintenance | `type:refactor` |
-| 🛠 Configuration | `type:config`, `type:ci` |
+[`release-notes`](actions.md#release-notes) собирает тело целиком из локальной git-истории
+(`git log --first-parent`) — без обращений к GitHub API. PR, смёрженный кнопкой Merge либо сквошенный,
+даёт одну запись **по PR**: заголовок берётся из истории (первая строка тела merge-коммита либо сам
+subject сквош-коммита без суффикса `(#N)`) и разбирается по формату [`commit-msg`](#формат-сообщений-коммитов)
+— категория по `type`, как у обычного коммита. Не подошёл под формат — категория `other`, заголовок как есть.
 
 Коммит, запушенный напрямую (без PR — трунковая разработка в `master`), даёт запись **по коммиту**: заголовок
-разбирается по формату [`commit-msg`](#формат-сообщений-коммитов), категория — по тому же списку, но по `type`
-коммита. Несколько коммитов одного PR (squash, ребейз) дают одну запись, по номеру PR.
+разбирается по тому же формату `commit-msg`. Несколько коммитов одного PR (squash, ребейз через Merge pull
+request) `--first-parent` уже схлопывает в одну запись — по отдельности они в тело не попадают.
 
-PR коммита ищет `release-notes` через `gh api repos/<repo>/commits/<sha>/pulls` — нужен токен с
-`pull-requests: read`. Нет токена, `GITHUB_REPOSITORY` или `gh` — тело собирается только из коммитов
-(с одним предупреждением в лог), это и держит локальные прогоны/тесты рабочими без сети.
+**Ограничение:** PR, смёрженный через rebase-merge (не через squash и не через кнопку Merge pull request),
+в git-истории неотличим от серии прямых коммитов — каждый его коммит даёт свою запись по коммиту, а не одну
+запись по PR.
 
 ## Секреты
 
@@ -90,12 +84,12 @@ PR коммита ищет `release-notes` через `gh api repos/<repo>/commi
 | `actions_for_push_go`, `kanboard` | `contents: read` |
 | `pr_annotation` | `contents: read`, `packages: read`, `pull-requests: write`, `checks: write` |
 | `deploy_for_frontend` | `contents: write`, `packages: read` |
-| `deploy_for_backend`, `deploy_for_go_backend`, `deploy_for_full_app`, `deploy_for_docker_container` | `contents: write`, `packages: write`, `pull-requests: read` — по тегу релизит `docker-image` (`docker-release` → `github-release`) |
-| `deploy_for_build_application`, `go_build_with_artifacts` | `contents: write`, `pull-requests: read` — по тегу релизят через `github-release` |
-| `release_frontend` | `contents: write`, `packages: read`, `pull-requests: read` — по тегу релизит через `github-release` |
-| `publish_package`, `deploy_for_lerna` | `contents: write`, `packages: write`, `pull-requests: read` — по тегу релизят через `github-release` |
-| `auto_deploy_for_docker_container` | `contents: write`, `packages: write`, `pull-requests: read` |
-| `auto_deploy_for_build_application` | `contents: write`, `pull-requests: read` |
+| `deploy_for_backend`, `deploy_for_go_backend`, `deploy_for_full_app`, `deploy_for_docker_container` | `contents: write`, `packages: write` — по тегу релизит `docker-image` (`docker-release` → `github-release`) |
+| `deploy_for_build_application`, `go_build_with_artifacts` | `contents: write` — по тегу релизят через `github-release` |
+| `release_frontend` | `contents: write`, `packages: read` — по тегу релизит через `github-release` |
+| `publish_package`, `deploy_for_lerna` | `contents: write`, `packages: write` — по тегу релизят через `github-release` |
+| `auto_deploy_for_docker_container` | `contents: write`, `packages: write` |
+| `auto_deploy_for_build_application` | `contents: write` |
 
 > Вызванный workflow не может получить больше прав, чем есть у вызвавшего, поэтому у `auto_deploy_*` права не уже, чем у вложенных в них деплоев. Если в репозитории-потребителе дефолтный токен урезан до read-only, запуск упадёт сразу и с внятной причиной, а не на шаге `docker push`.
 

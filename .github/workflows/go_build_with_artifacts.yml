@@ -30,10 +30,8 @@ on:
         required: false
         default: 'main'
 
-# pull-requests: read — release-notes ищет смёрженный PR коммита через gh api.
 permissions:
   contents: write
-  pull-requests: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.folder }}-${{ inputs.goos }}-${{ inputs.goarch }}

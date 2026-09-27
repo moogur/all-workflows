@@ -1,5 +1,5 @@
 name: 'Build release notes from commits'
-description: 'Собирает тело GitHub-релиза: коммит, смёрженный через PR, — одной записью по PR (заголовок, автор, категория по меткам); коммит без PR — по формату commit-msg.'
+description: 'Собирает тело GitHub-релиза целиком из локальной git-истории (--first-parent): PR (смёрженный или сквошенный) — одной записью по заголовку PR; коммит без PR — по формату commit-msg.'
 
 inputs:
   tag:
@@ -14,10 +14,6 @@ inputs:
     description: 'Куда записать тело релиза. Пустая строка — $RUNNER_TEMP/release-notes.md.'
     required: false
     default: ''
-  token:
-    description: 'Токен для поиска смёрженного PR коммита (gh api .../commits/<sha>/pulls). Пустая строка — тело собирается только из коммитов.'
-    required: false
-    default: ''
 
 outputs:
   notes_file:
@@ -26,9 +22,9 @@ outputs:
   previous_tag:
     description: 'Тег, с которым сравнивали (пусто, если релиз первый)'
     value: ${{ steps.notes.outputs.previous_tag }}
-  commit_count:
-    description: 'Число коммитов в диапазоне (без слияний)'
-    value: ${{ steps.notes.outputs.commit_count }}
+  change_count:
+    description: 'Число записей в теле релиза (PR и коммиты на first-parent линии)'
+    value: ${{ steps.notes.outputs.change_count }}
 
 runs:
   using: 'composite'
@@ -39,5 +35,4 @@ runs:
         TAG: ${{ inputs.tag }}
         PREVIOUS_TAG: ${{ inputs.previous_tag }}
         NOTES_FILE: ${{ inputs.notes_file }}
-        GH_TOKEN: ${{ inputs.token }}
       run: bash "$GITHUB_ACTION_PATH/notes.sh"
