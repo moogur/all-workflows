@@ -47,3 +47,22 @@ setup() {
   run grep -qE '^ *dockerfile: ' "$WF/deploy_for_docker_container.yml"
   [ "$status" -ne 0 ]
 }
+
+# ---------- docker-release ----------
+
+@test "docker-image публикует релиз только по тегу и последним шагом" {
+  local action="$ROOT/.github/actions/docker-image/action.yml"
+  local release_line publish_line
+  release_line=$(grep -n "actions/docker-release@master" "$action" | cut -d: -f1)
+  publish_line=$(grep -n 'run: bash "\$GITHUB_ACTION_PATH/publish.sh"' "$action" | cut -d: -f1)
+  [ -n "$release_line" ]
+  [ "$publish_line" -lt "$release_line" ]
+  # Условие стоит на шаге прямо перед uses: docker-release, а не где-то ещё выше.
+  sed -n "$((release_line - 1))p" "$action" | grep -qE "if: github\.ref_type == 'tag'"
+}
+
+@test "ни один из четырёх workflow'ов не вызывает docker-release сам" {
+  # Публикация релиза — забота docker-image, а не отдельных workflow'ов.
+  run grep -rlF "actions/docker-release@master" "$WF"
+  [ "$status" -ne 0 ]
+}

@@ -193,6 +193,12 @@ Dockerfile, `docker build`, логин и пуш. Сами workflow'ы отли�
 > `deploy_for_docker_container`, а остальные три брали последний тег из истории и плановой пересборкой могли
 > переписать релизный `vX.Y.Z` другим содержимым.
 
+> **Сборка по тегу публикует и GitHub-релиз.** Последним шагом `docker-image` вызывает
+> [`docker-release`](actions.md#docker-release) (`if: github.ref_type == 'tag'`, после успешного пуша образа):
+> тело — коммиты между тегами, плюс блок `docker pull` и список тегов образа. Сборка без тега (расписание,
+> ручной запуск) релиз не трогает. Из-за этого у всех четырёх workflow'ов `permissions: contents: write`
+> вместо прежнего `contents: read`.
+
 ### `deploy_for_backend.yml` — Docker-образ Node.js-бэкенда
 
 **Шаги:** checkout → [`detect-node-version`](actions.md#detect-node-version) → [`npm-auth`](actions.md#npm-auth) в корне → [`docker-image`](actions.md#docker-image) с `deploy_backend.dockerfile` и `ARG_NODE_VERSION`.

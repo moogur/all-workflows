@@ -1,5 +1,5 @@
 name: 'Build and publish docker image'
-description: "Общее тело docker-workflow'ов: версия сборки, теги, Dockerfile из этого репозитория, сборка и публикация в GitHub Packages."
+description: "Общее тело docker-workflow'ов: версия сборки, теги, Dockerfile из этого репозитория, сборка, публикация в GitHub Packages и (по тегу) GitHub-релиз."
 
 inputs:
   github_user:
@@ -72,3 +72,11 @@ runs:
         TOKEN: ${{ inputs.token }}
         TAGS: ${{ steps.tags.outputs.tags }}
       run: bash "$GITHUB_ACTION_PATH/publish.sh"
+
+    # Только после успешного пуша: упавшая публикация образа не должна создавать релиз.
+    - if: github.ref_type == 'tag'
+      uses: moogur/all-workflows/.github/actions/docker-release@master
+      with:
+        version: ${{ steps.resolve.outputs.version }}
+        tags: ${{ steps.tags.outputs.tags }}
+        token: ${{ inputs.token }}

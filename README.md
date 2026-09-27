@@ -9,7 +9,7 @@
 | Каталог / файл | Назначение |
 | --- | --- |
 | [`.github/workflows/`](.github/workflows/) | Переиспользуемые workflow'ы (основное содержимое репозитория) |
-| [`.github/actions/`](.github/actions/) | Composite actions — общие шаги (версии Node/Go, настройка Node с кэшем npm, npm-аутентификация, версия приложения, проверка формата тега, тело релиза по коммитам, публикация релиза, сборка docker-образа, проверка обновлений внешнего репозитория) |
+| [`.github/actions/`](.github/actions/) | Composite actions — общие шаги (версии Node/Go, настройка Node с кэшем npm, npm-аутентификация, версия приложения, проверка формата тега, тело релиза по коммитам, публикация релиза, сборка docker-образа и релиз по тегу сборки, проверка обновлений внешнего репозитория) |
 | [`dockerfiles/`](dockerfiles/) | Dockerfile'ы и `.dockerignore`, которые workflow'ы скачивают на лету при сборке образов |
 | [`scripts/kanboard_requests.sh`](scripts/kanboard_requests.sh) | Bash-библиотека JSON-RPC запросов к Kanboard |
 | [`.husky/commit-msg`](.husky/commit-msg) | Git-хук валидации сообщения коммита |
@@ -66,10 +66,10 @@ jobs:
 
 | Workflow | Стек | Что делает |
 | --- | --- | --- |
-| [`deploy_for_backend.yml`](.github/workflows/deploy_for_backend.yml) | Node.js | Сборка и публикация Docker-образа бэкенда |
-| [`deploy_for_go_backend.yml`](.github/workflows/deploy_for_go_backend.yml) | Go | Сборка и публикация Docker-образа Go-бэкенда |
-| [`deploy_for_full_app.yml`](.github/workflows/deploy_for_full_app.yml) | Go + Node.js | Сборка образа полного приложения (бэкенд + фронтенд) |
-| [`deploy_for_docker_container.yml`](.github/workflows/deploy_for_docker_container.yml) | — | Сборка и публикация образа по локальному `Dockerfile` (теги по формату версии: дата или semver) |
+| [`deploy_for_backend.yml`](.github/workflows/deploy_for_backend.yml) | Node.js | Сборка и публикация Docker-образа бэкенда (+ GitHub-релиз по тегу) |
+| [`deploy_for_go_backend.yml`](.github/workflows/deploy_for_go_backend.yml) | Go | Сборка и публикация Docker-образа Go-бэкенда (+ GitHub-релиз по тегу) |
+| [`deploy_for_full_app.yml`](.github/workflows/deploy_for_full_app.yml) | Go + Node.js | Сборка образа полного приложения (бэкенд + фронтенд) (+ GitHub-релиз по тегу) |
+| [`deploy_for_docker_container.yml`](.github/workflows/deploy_for_docker_container.yml) | — | Сборка и публикация образа по локальному `Dockerfile` (теги по формату версии: дата или semver; + GitHub-релиз по тегу) |
 | [`auto_deploy_for_docker_container.yml`](.github/workflows/auto_deploy_for_docker_container.yml) | — | Проверка обновлений во внешнем репозитории и автодеплой |
 | [`auto_deploy_for_build_application.yml`](.github/workflows/auto_deploy_for_build_application.yml) | — | Проверка обновлений + сборка приложения |
 
@@ -104,7 +104,7 @@ jobs:
 - **Версия Go** берётся из директивы `go` в `go.mod`.
 - **Версия приложения** определяется по git-тегу (`git describe --tags`).
 - **Права `GITHUB_TOKEN`** объявлены явно в каждом workflow (минимально необходимые).
-- **Docker-образы** публикуются в GitHub Packages (`docker.pkg.github.com`) с тегами `<версия>` и `latest`; для semver-тега — `vX.Y.Z`, `vX.Y`, `vX`, `latest`.
+- **Docker-образы** публикуются в GitHub Packages (`docker.pkg.github.com`) с тегами `<версия>` и `latest`; для semver-тега — `vX.Y.Z`, `vX.Y`, `vX`, `latest`. Сборка по тегу дополнительно публикует GitHub-релиз со ссылкой на образ.
 - **npm-пакеты** области `@moogur` ставятся из приватного реестра GitHub Packages.
 - **Сообщения коммитов** проверяются хуком и должны иметь вид `[GA-123] type(scope): subject`.
 - **Тело релиза** собирается из PR (Release Drafter) либо, для разработки в одной ветке, из коммитов между текущим и предыдущим тегом — параметр `notes_source` у релизных workflow'ов.

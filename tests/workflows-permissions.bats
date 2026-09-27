@@ -26,7 +26,12 @@ setup() {
   grep -qE '^  packages: write' "$WF/auto_deploy_for_docker_container.yml"
 }
 
-@test "auto_deploy не уже вложенного деплоя по contents" {
+@test "auto_deploy_for_docker_container не уже вложенного деплоя по contents" {
+  # deploy_for_docker_container по тегу создаёт релиз (docker-release) — нужен contents: write.
+  grep -qE '^  contents: write' "$WF/auto_deploy_for_docker_container.yml"
+}
+
+@test "auto_deploy_for_build_application не уже вложенного деплоя по contents" {
   # deploy_for_build_application создаёт релиз, значит нужен contents: write.
   grep -qE '^  contents: write' "$WF/auto_deploy_for_build_application.yml"
 }

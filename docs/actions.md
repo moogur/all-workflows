@@ -127,7 +127,8 @@ uses: moogur/all-workflows/.github/actions/<name>@master
 
 Собирает тело GitHub-релиза из коммитов между текущим и предыдущим тегом — для репозиториев,
 где разработка идёт в одной ветке и PR нет, так что [Release Drafter](https://github.com/release-drafter/release-drafter)
-собирать changelog не из чего. Используется в [release.yml](../.github/workflows/release.yml) при `notes_source: 'commits'`.
+собирать changelog не из чего. Используется в [release.yml](../.github/workflows/release.yml) при `notes_source: 'commits'`
+и в [`docker-release`](#docker-release).
 
 | | |
 | --- | --- |
@@ -183,7 +184,7 @@ uses: moogur/all-workflows/.github/actions/<name>@master
 его, а не падает, поэтому перезапуск упавшего job'а безопасен. Используется всеми workflow'ами, которые создают
 релиз: [release](../.github/workflows/release.yml), [release_frontend](../.github/workflows/release_frontend.yml),
 [release_with_artifacts](../.github/workflows/release_with_artifacts.yml),
-[deploy_for_build_application](../.github/workflows/deploy_for_build_application.yml).
+[deploy_for_build_application](../.github/workflows/deploy_for_build_application.yml), [`docker-release`](#docker-release).
 
 | | |
 | --- | --- |
@@ -291,7 +292,7 @@ uses: moogur/all-workflows/.github/actions/<name>@master
 
 | | |
 | --- | --- |
-| **Входы** | `github_user` (обяз.) — владелец образа и логин в реестр; `dockerfile` (необяз.) — имя файла в `dockerfiles/`, пусто — Dockerfile проекта; `dockerignore` (необяз.) — имя файла `.dockerignore` там же; `build_args` (необяз.) — строки `KEY=VALUE`, по одной на строку; `context` (необяз., по умолчанию `.`); `token` (обяз.) — токен с `packages: write` |
+| **Входы** | `github_user` (обяз.) — владелец образа и логин в реестр; `dockerfile` (необяз.) — имя файла в `dockerfiles/`, пусто — Dockerfile проекта; `dockerignore` (необяз.) — имя файла `.dockerignore` там же; `build_args` (необяз.) — строки `KEY=VALUE`, по одной на строку; `context` (необяз., по умолчанию `.`); `token` (обяз.) — токен с `packages: write` и, для сборки по тегу, `contents: write` (публикация релиза) |
 | **Выходы** | `version` — версия сборки; `tags` — полные ссылки на образ со всеми тегами |
 
 ```yaml
@@ -320,6 +321,40 @@ uses: moogur/all-workflows/.github/actions/<name>@master
 > когда-нибудь изменится и файла там не окажется, шаг печатает `::warning::` и тянет файл с `master`, как раньше.
 >
 > Логин идёт через `--password-stdin`: токен не попадает ни в список процессов, ни в лог.
+>
+> **По тегу (`github.ref_type == 'tag'`) последним шагом публикуется GitHub-релиз** — экшен
+> [`docker-release`](#docker-release). Сборка без тега (расписание, ручной запуск) релиз не трогает.
+> Шаг стоит после публикации образа: неудачный `docker push` не должен оставлять релиз без образа.
+
+## `docker-release`
+
+Публикует (создаёт или обновляет) GitHub-релиз для тега docker-сборки: тело — из коммитов
+([`release-notes`](#release-notes)), к нему дописывается блок со ссылкой на опубликованный docker-образ,
+и всё вместе публикуется через [`publish-release`](#publish-release). Вызывается только из
+[`docker-image`](#docker-image), отдельно не используется.
+
+| | |
+| --- | --- |
+| **Входы** | `version` (обяз.) — тег, инициировавший сборку; `tags` (обяз.) — полные ссылки на образ со всеми тегами (вывод `docker-tags`); `token` (обяз.) — токен с `contents: write` |
+| **Выходы** | — |
+
+Блок про образ выглядит так:
+
+```markdown
+## 🐳 Docker image
+
+\`\`\`bash
+docker pull docker.pkg.github.com/user/repo/repo:v1.2.3
+\`\`\`
+
+Tags: `v1.2.3`, `v1.2`, `v1`, `latest`
+
+**Packages**: https://github.com/user/repo/packages
+```
+
+> Ссылка на страницу пакетов добавляется только при известном `GITHUB_REPOSITORY` (обычная сборка в Actions).
+> Список тегов берётся из `tags` (вывод `docker-tags`) построчным разбором `<образ>:<тег>` — свой формат не
+> пересчитывается.
 
 ## `remote-update-check`
 

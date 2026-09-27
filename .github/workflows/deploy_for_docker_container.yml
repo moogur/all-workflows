@@ -13,8 +13,9 @@ on:
         required: false
         default: $GITHUB_ACTOR
 
+# contents: write — по тегу docker-image создаёт GitHub-релиз (docker-release).
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 concurrency:
