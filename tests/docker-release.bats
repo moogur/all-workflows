@@ -62,7 +62,8 @@ notes_output() {
 }
 
 @test "без GITHUB_REPOSITORY ссылки на пакеты нет" {
-  run_notes TAGS='ghcr.io/user/repo:v1' VERSION=v1
+  # На раннере GITHUB_REPOSITORY задан всегда — снимаем явно.
+  run env -u GITHUB_REPOSITORY GITHUB_OUTPUT="$GITHUB_OUTPUT" TAGS='ghcr.io/user/repo:v1' VERSION=v1 bash "$SCRIPT"
   [ "$status" -eq 0 ]
   ! notes_output | grep -qF '**Packages**'
 }
