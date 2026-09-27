@@ -51,11 +51,6 @@ setup() {
   grep -qF "date -u +'%d.%m.%Y-%H%M-auto'" "$ROOT/.github/actions/docker-image/resolve.sh"
 }
 
-@test "сборка без тега всегда идёт в формате date" {
-  # Иначе плановая пересборка semver-репозитория переписала бы релизные vX.Y.Z.
-  grep -qF "format_mode='date'" "$ROOT/.github/actions/docker-image/resolve.sh"
-}
-
 @test "версия сборки не вычисляется через git describe" {
   # Тег того же коммита мог оказаться из старого формата (дата) — берём ref_name.
   run grep -qE 'version=\$\(git describe' "$WF/deploy_for_docker_container.yml"

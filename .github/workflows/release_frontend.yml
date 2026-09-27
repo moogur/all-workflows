@@ -34,6 +34,12 @@ jobs:
           # Строки, а не числа: 0 в выражении GitHub ложно и схлопнет условие в 1.
           fetch-depth: ${{ inputs.notes_source == 'commits' && '0' || '1' }}
 
+      # Падаем на неверном теге до создания релиза и записи в drafter/release-notes.
+      - name: 'Check tag format'
+        uses: moogur/all-workflows/.github/actions/tag-format@master
+        with:
+          version: ${{ github.ref_name }}
+
       # mode: ref — версия из тега, инициировавшего запуск (идёт и в VITE_VERSION).
       - name: 'Version'
         id: version
@@ -41,12 +47,14 @@ jobs:
         with:
           mode: ref
 
+      # tag и name перекрывают шаблоны драфтера: релиз вешается на запушенный тег как есть.
       - name: 'Publish release (drafter)'
         id: create_release
         if: inputs.notes_source == 'drafter'
         uses: release-drafter/release-drafter@v7
         with:
-          version: ${{ steps.version.outputs.version }}
+          tag: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
           publish: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

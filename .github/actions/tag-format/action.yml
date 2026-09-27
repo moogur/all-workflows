@@ -1,0 +1,21 @@
+name: 'Classify tag format'
+description: 'Определяет формат версии: дата (dd.mm.yyyy) или semver (vX.Y.Z, обязательно с префиксом). Версия другого вида — ошибка.'
+
+inputs:
+  version:
+    description: 'Версия для проверки (git-тег).'
+    required: true
+
+outputs:
+  format:
+    description: 'Формат версии: date или semver'
+    value: ${{ steps.classify.outputs.format }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: classify
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: bash "$GITHUB_ACTION_PATH/format.sh"

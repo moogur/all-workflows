@@ -73,6 +73,14 @@ run_publish() {
   [ "$status" -ne 0 ]
 }
 
+@test "релиз есть и правится: снимается draft" {
+  # Удалённый и заново запушенный тег находит свой релиз уже в статусе draft.
+  make_gh_stub 0
+  run_publish NOTES_FILE="$NOTES"
+  [ "$status" -eq 0 ]
+  grep -qF -- "release edit v1.2.3 --notes-file $NOTES --draft=false" "$GH_LOG"
+}
+
 @test "релиз есть и менять нечего: ни create, ни edit" {
   make_gh_stub 0
   run_publish

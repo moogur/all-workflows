@@ -1,11 +1,10 @@
-name-template: 'v$RESOLVED_VERSION'
-tag-template: 'v$RESOLVED_VERSION'
+# Имя и тег релиза передают workflow'ы (входы tag/name) — запушенный тег как есть.
+name-template: '$RESOLVED_VERSION'
+tag-template: '$RESOLVED_VERSION'
 template: |
   # What's Changed
 
   $CHANGES
-
-  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
 
 change-template: '- $TITLE (#$NUMBER) @$AUTHOR'
 change-title-escapes: '\<*_&'

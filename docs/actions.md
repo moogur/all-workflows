@@ -99,7 +99,7 @@ uses: moogur/all-workflows/.github/actions/<name>@master
 
 | Значение | Источник | Когда использовать |
 | --- | --- | --- |
-| `git` | `git describe --tags --abbrev=0` — последний тег в истории | Docker-сборки, сборка приложения. Требует `fetch-depth: 0` в `actions/checkout` |
+| `git` | `git describe --tags --abbrev=0` — последний тег в истории | Версия нужна не по тегу push'а. Требует `fetch-depth: 0` в `actions/checkout`. В workflow'ах этого репозитория сейчас не используется — `deploy_for_build_application` без тега (авто-деплой) больше не считает версию и не релизит вовсе |
 | `ref` | `GITHUB_REF` — тег, инициировавший запуск | Релизные workflow'ы, запускаемые по `push` тега |
 
 ```yaml
@@ -211,23 +211,57 @@ uses: moogur/all-workflows/.github/actions/<name>@master
 > у `gh` — это имя файла: чтобы опубликовать его под другим именем, файл нужно переименовать (так сделано в
 > [release_with_artifacts](../.github/workflows/release_with_artifacts.yml)).
 >
+> **Правка существующего релиза снимает draft** (`--draft=false`): удаление git-тега переводит его GitHub-релиз
+> в draft, а повторный пуш того же тега находит именно его через `gh release view`. Флаг добавляется, только
+> когда правка вообще происходит (`title` или `notes_file` непустые) — в ветке «менять нечего» лишнего вызова
+> `gh` как не было, так и нет; режим `drafter` публикует релиз сам (`publish: true`) и в drafted не попадает.
+>
 > Заменяет заархивированные `actions/create-release` и `actions/upload-release-asset` (см. [modernization.md](modernization.md)).
 
-## `docker-tags`
+## `tag-format`
 
-Формирует полный список тегов docker-образа по версии сборки. Поддерживает **два формата** (`format_mode`): старый (`date`) и семантический (`semver`).
+Определяет формат git-тега/версии: дата или semver; версия другого вида — ошибка. Единая точка правды для формата тегов, которую используют и сборка docker-образов, и релизы.
 
 | | |
 | --- | --- |
-| **Входы** | `image` (обяз.) — имя образа без тега; `version` (обяз.) — версия сборки (git-тег как есть либо `dd.mm.yyyy-auto`); `format_mode` (необяз., по умолчанию `date`) — формат тегов |
+| **Входы** | `version` (обяз.) — версия для проверки (git-тег) |
+| **Выходы** | `format` — `date` или `semver` |
+
+**Форматы:**
+
+| Версия | `format` | Примечание |
+| --- | --- | --- |
+| `14.03.2026`, `14.03.2026-0930-auto`, `14.03.2026-auto` | `date` | Дата и метки авто-сборки |
+| `v1.2.3` | `semver` | Только с префиксом `v`; без него (`1.2.3`) — ошибка |
+
+```yaml
+- id: format
+  uses: moogur/all-workflows/.github/actions/tag-format@master
+  with:
+    version: ${{ github.ref_name }}
+# format = semver
+```
+
+> Дата проверяется первой: `14.03.2026` подходит и под `X.Y.Z` без префикса.
+> Версия, не подходящая ни под один формат (предрелиз `v1.2.3-rc.1`, неполная версия `v1.2`, `2026-03-14`, тег без `v`, произвольная строка), — ошибка: сборка/релиз падает вместо публикации мусорных тегов.
+
+Используется в [`docker-tags`](#docker-tags), а также напрямую в [release.yml](../.github/workflows/release.yml), [release_frontend.yml](../.github/workflows/release_frontend.yml) и [deploy_for_build_application.yml](../.github/workflows/deploy_for_build_application.yml) — там тег проверяется до создания релиза.
+
+## `docker-tags`
+
+Формирует полный список тегов docker-образа по версии сборки. Формат версии определяет [`tag-format`](#tag-format) (шаг внутри этого экшена); сама сборка списка тегов по формату не переопределяет.
+
+| | |
+| --- | --- |
+| **Входы** | `image` (обяз.) — имя образа без тега; `version` (обяз.) — версия сборки (git-тег как есть либо `dd.mm.yyyy-HHMM-auto`) |
 | **Выходы** | `tags` — полные ссылки `<image>:<tag>`, разделённые пробелом |
 
-**Форматы (`format_mode`):**
+**Форматы:**
 
-| Значение | Теги образа | Когда использовать |
+| Версия | Теги образа | Примечание |
 | --- | --- | --- |
-| `date` | `<version>`, `latest` | Старое поведение (тег-дата `14.03.2026`, метка авто-деплоя `dd.mm.yyyy-auto`). Формат по умолчанию — обратная совместимость |
-| `semver` | `vX.Y.Z`, `vX.Y`, `vX`, `latest` | Репозитории с числовыми тегами `vX.Y.Z`: подвижные `vX` / `vX.Y` дают «последний патч мажора/минора» |
+| дата: `14.03.2026`, `14.03.2026-0930-auto`, `14.03.2026-auto` | `<version>`, `latest` | Теги-даты и метки авто-сборки |
+| semver: `v1.2.3` | `vX.Y.Z`, `vX.Y`, `vX`, `latest` | Подвижные `vX` / `vX.Y` дают «последний патч мажора/минора» |
 
 ```yaml
 - id: tags
@@ -235,7 +269,6 @@ uses: moogur/all-workflows/.github/actions/<name>@master
   with:
     image: docker.pkg.github.com/user/repo/repo
     version: v1.2.3
-    format_mode: semver
 # tags = ...:v1.2.3 ...:v1.2 ...:v1 ...:latest
 
 - run: |
@@ -244,12 +277,9 @@ uses: moogur/all-workflows/.github/actions/<name>@master
     docker build "${build_args[@]}" .
 ```
 
-> Формат выбирает вызывающий workflow: [deploy_for_docker_container](../.github/workflows/deploy_for_docker_container.yml)
-> передаёт `semver` только для сборки по тегу, а сборке без тега всегда ставит `date`.
-> В режиме `semver` префикс `v` в теги образа добавляется всегда, даже если git-тег был без него (`1.2.3` → `v1.2.3`).
-> Тег, не подходящий под `vX.Y.Z` (дата, предрелиз `v1.2.3-rc.1`, неполная версия), в режиме `semver` — ошибка: сборка падает вместо публикации мусорных тегов.
+> Версия, не подходящая ни под один формат (предрелиз `v1.2.3-rc.1`, неполная версия, `2026-03-14`, тег без `v`), — ошибка: сборка падает вместо публикации мусорных тегов. Классификация — целиком в [`tag-format`](#tag-format).
 
-Используется в [deploy_for_docker_container](../.github/workflows/deploy_for_docker_container.yml).
+Используется в [`docker-image`](#docker-image).
 
 ## `docker-image`
 
@@ -261,7 +291,7 @@ uses: moogur/all-workflows/.github/actions/<name>@master
 
 | | |
 | --- | --- |
-| **Входы** | `github_user` (обяз.) — владелец образа и логин в реестр; `format_mode` (необяз., по умолчанию `date`); `dockerfile` (необяз.) — имя файла в `dockerfiles/`, пусто — Dockerfile проекта; `dockerignore` (необяз.) — имя файла `.dockerignore` там же; `build_args` (необяз.) — строки `KEY=VALUE`, по одной на строку; `context` (необяз., по умолчанию `.`); `token` (обяз.) — токен с `packages: write` |
+| **Входы** | `github_user` (обяз.) — владелец образа и логин в реестр; `dockerfile` (необяз.) — имя файла в `dockerfiles/`, пусто — Dockerfile проекта; `dockerignore` (необяз.) — имя файла `.dockerignore` там же; `build_args` (необяз.) — строки `KEY=VALUE`, по одной на строку; `context` (необяз., по умолчанию `.`); `token` (обяз.) — токен с `packages: write` |
 | **Выходы** | `version` — версия сборки; `tags` — полные ссылки на образ со всеми тегами |
 
 ```yaml
@@ -271,7 +301,6 @@ uses: moogur/all-workflows/.github/actions/<name>@master
 - uses: moogur/all-workflows/.github/actions/docker-image@master
   with:
     github_user: ${{ inputs.github_user }}
-    format_mode: ${{ inputs.format_mode }}
     dockerfile: deploy_backend.dockerfile
     dockerignore: .dockerignore
     build_args: ARG_NODE_VERSION=${{ steps.node.outputs.version }}

@@ -32,21 +32,19 @@ make_stub() {
 
 # ---------- resolve.sh ----------
 
-@test "resolve: сборка по тегу берёт имя тега и заданный формат" {
-  run env GITHUB_USER=moogur REPOSITORY_NAME=adminer FORMAT_MODE=semver \
+@test "resolve: сборка по тегу берёт имя тега" {
+  run env GITHUB_USER=moogur REPOSITORY_NAME=adminer \
     REF_TYPE=tag REF_NAME=v1.2.3 GITHUB_OUTPUT="$GITHUB_OUTPUT" bash "$ACTION/resolve.sh"
   [ "$status" -eq 0 ]
   [ "$(output_value version)" = "v1.2.3" ]
-  [ "$(output_value format_mode)" = "semver" ]
   [ "$(output_value image)" = "docker.pkg.github.com/moogur/adminer/adminer" ]
 }
 
-@test "resolve: сборка без тега идёт датной меткой и форматом date" {
+@test "resolve: сборка без тега идёт датной меткой" {
   # Иначе плановая пересборка переписала бы релизные vX.Y.Z другим содержимым.
-  run env GITHUB_USER=moogur REPOSITORY_NAME=adminer FORMAT_MODE=semver \
+  run env GITHUB_USER=moogur REPOSITORY_NAME=adminer \
     REF_TYPE=branch REF_NAME=master GITHUB_OUTPUT="$GITHUB_OUTPUT" bash "$ACTION/resolve.sh"
   [ "$status" -eq 0 ]
-  [ "$(output_value format_mode)" = "date" ]
   [[ "$(output_value version)" =~ ^[0-9]{2}\.[0-9]{2}\.[0-9]{4}-[0-9]{4}-auto$ ]]
 }
 

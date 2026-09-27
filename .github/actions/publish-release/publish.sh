@@ -22,7 +22,8 @@ edit_args=()
 
 if gh release view "$tag" >/dev/null 2>&1; then
   if [[ "${#edit_args[@]}" -gt 0 ]]; then
-    gh release edit "$tag" "${edit_args[@]}"
+    # Удалённый и заново запушенный тег превращает свой релиз в draft — снимаем при любой правке.
+    gh release edit "$tag" "${edit_args[@]}" --draft=false
     echo "Release '${tag}' updated"
   else
     echo "Release '${tag}' already exists, nothing to update"

@@ -5,10 +5,6 @@ inputs:
   github_user:
     description: 'Владелец образа и логин в реестр'
     required: true
-  format_mode:
-    description: 'Формат тегов для сборки по тегу: date или semver. Сборка без тега всегда идёт как date.'
-    required: false
-    default: 'date'
   dockerfile:
     description: 'Имя файла в dockerfiles/ этого репозитория. Пустая строка — у проекта свой Dockerfile.'
     required: false
@@ -45,18 +41,16 @@ runs:
       env:
         GITHUB_USER: ${{ inputs.github_user }}
         REPOSITORY_NAME: ${{ github.event.repository.name }}
-        FORMAT_MODE: ${{ inputs.format_mode }}
         REF_TYPE: ${{ github.ref_type }}
         REF_NAME: ${{ github.ref_name }}
       run: bash "$GITHUB_ACTION_PATH/resolve.sh"
 
-    # Полный список тегов образа по выбранному формату.
+    # Полный список тегов образа; формат определяется по версии.
     - id: tags
       uses: moogur/all-workflows/.github/actions/docker-tags@master
       with:
         image: ${{ steps.resolve.outputs.image }}
         version: ${{ steps.resolve.outputs.version }}
-        format_mode: ${{ steps.resolve.outputs.format_mode }}
 
     - shell: bash
       env:

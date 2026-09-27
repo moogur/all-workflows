@@ -43,7 +43,8 @@ default_of() {
     grep -qF "inputs.notes_source == 'commits' && '0' || '1'" "$WF/$wf.yml" \
       || { echo "В $wf.yml нет условной глубины checkout"; return 1; }
   done
-  # Этому и без релиза нужна история: версия берётся через git describe.
+  # Полная история остаётся не только ради версии: нужна и пользовательскому
+  # скрипту сборки, и release-notes в режиме commits.
   grep -qF 'fetch-depth: 0' "$WF/deploy_for_build_application.yml"
 }
 
@@ -74,6 +75,42 @@ default_of() {
   done
 }
 
+@test "драфтер вешает релиз на тег как есть, без своей версии" {
+  # version драфтер приводит к semver и tag-template добавляет v: 14.03.2026 стал бы v14.3.2026.
+  for wf in "${RELEASE_WORKFLOWS[@]}"; do
+    run awk '/release-drafter\/release-drafter@/ { found = 1 } found && /^ *version:/ { print; exit }' "$WF/$wf.yml"
+    [ -z "$output" ] || { echo "В $wf.yml драфтеру передаётся version"; return 1; }
+    grep -qE '^ +tag: \$\{\{ (github\.ref_name|steps\.version\.outputs\.version) \}\}$' "$WF/$wf.yml" \
+      || { echo "В $wf.yml драфтеру не передан tag"; return 1; }
+  done
+}
+
+@test "deploy_for_build_application берёт версию только из тега" {
+  # git describe на коммите с несколькими тегами мог выбрать не тот — теперь без него.
+  grep -qE '^ +mode: ref$' "$WF/deploy_for_build_application.yml"
+  run grep -F "github.ref_type == 'tag' && 'ref' || 'git'" "$WF/deploy_for_build_application.yml"
+  [ "$status" -ne 0 ]
+}
+
+@test "deploy_for_build_application без тега пропускает релиз целиком" {
+  # Авто-деплой по расписанию собирает, но не релизит: версии из тега больше нет.
+  local file="$WF/deploy_for_build_application.yml"
+  for name in 'Determining the version' 'Check tag format' 'Publish release (drafter)' 'Release notes' 'Publish release'; do
+    run awk -v name="$name" '
+      {
+        line = $0
+        sub(/^[[:space:]]*-?[[:space:]]*name:[[:space:]]*/, "", line)
+        gsub(/^[\x27"]|[\x27"][[:space:]]*$/, "", line)
+        if (line == name) { found = 1; next }
+      }
+      found && /if:/ { print; exit }
+      found && /^ *- name:/ { exit }
+    ' "$file"
+    [[ "$output" == *"if: github.ref_type == 'tag'"* ]] \
+      || { echo "Шаг '$name' не закрыт условием github.ref_type == 'tag'"; return 1; }
+  done
+}
+
 @test "в режиме drafter заголовок существующего релиза не перетирается" {
   # Пустая строка в выражении GitHub ложна, поэтому условие пишется через отрицание.
   grep -qF "inputs.notes_source != 'drafter' && format('Release {0}'" "$WF/deploy_for_build_application.yml"
@@ -96,6 +133,13 @@ default_of() {
   grep -qF "uses: ./.github/workflows/release.yml" "$WF/release_with_artifacts.yml"
   run grep -qE '^ +steps:' "$WF/release_with_artifacts.yml"
   [ "$status" -ne 0 ]
+}
+
+@test "все релизные workflow'ы проверяют формат тега до релиза" {
+  for wf in "${RELEASE_WORKFLOWS[@]}"; do
+    grep -qF "moogur/all-workflows/.github/actions/tag-format@master" "$WF/$wf.yml" \
+      || { echo "В $wf.yml нет проверки формата тега"; return 1; }
+  done
 }
 
 @test "release-drafter остаётся источником для PR-флоу" {

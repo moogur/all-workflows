@@ -1,5 +1,6 @@
-# Выполняет произвольный скрипт сборки, создаёт GitHub-релиз и прикладывает
-# application.zip (скрипт должен сам создать этот файл в корне).
+# Выполняет произвольный скрипт сборки и, если запуск идёт по тегу, создаёт
+# GitHub-релиз с application.zip (скрипт должен сам создать этот файл в корне).
+# Без тега (авто-деплой по расписанию) сборка выполняется, релиз пропускается.
 # Тело релиза: 'none' — пустое (как было), 'drafter' — смёрженные PR через
 # Release Drafter, 'commits' — коммиты между текущим и предыдущим тегом.
 # Переиспользуемый workflow (workflow_call). Секрет: GITHUB_TOKEN.
@@ -40,35 +41,39 @@ jobs:
       # prefix: '' — тег используется как есть, без снятия префикса.
       - name: "Determining the version"
         id: version
+        if: github.ref_type == 'tag'
         uses: moogur/all-workflows/.github/actions/app-version@master
         with:
+          mode: ref
           prefix: ''
+
+      # Падаем на неверном теге до сборки и записи в drafter/release-notes.
+      - name: 'Check tag format'
+        if: github.ref_type == 'tag'
+        uses: moogur/all-workflows/.github/actions/tag-format@master
+        with:
+          version: ${{ steps.version.outputs.version }}
 
       # Запуск пользовательского скрипта сборки в текущей оболочке (source).
       - name: Build project
         run: |
           . ${{ inputs.file_path }}
 
-      # Release Drafter ждёт версию без префикса: его tag-template сам добавит v.
-      - name: 'Version for drafter'
-        id: drafter_version
-        if: inputs.notes_source == 'drafter'
-        uses: moogur/all-workflows/.github/actions/app-version@master
-
+      # tag и name перекрывают шаблоны драфтера: релиз вешается на тег как есть.
       - name: 'Publish release (drafter)'
         id: create_release
-        if: inputs.notes_source == 'drafter'
+        if: github.ref_type == 'tag' && inputs.notes_source == 'drafter'
         uses: release-drafter/release-drafter@v7
         with:
-          version: ${{ steps.drafter_version.outputs.version }}
+          tag: ${{ steps.version.outputs.version }}
+          name: ${{ steps.version.outputs.version }}
           publish: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Тег берётся из истории (запуск бывает и не по тегу), поэтому передаём явно.
       - name: 'Release notes'
         id: notes
-        if: inputs.notes_source == 'commits'
+        if: github.ref_type == 'tag' && inputs.notes_source == 'commits'
         uses: moogur/all-workflows/.github/actions/release-notes@master
         with:
           tag: ${{ steps.version.outputs.version }}
@@ -77,6 +82,7 @@ jobs:
       # поэтому заголовок передаётся «наоборот»: пустая строка в выражении GitHub
       # ложна, и условие пришлось бы писать через отрицание в любом случае.
       - name: 'Publish release'
+        if: github.ref_type == 'tag'
         uses: moogur/all-workflows/.github/actions/publish-release@master
         with:
           tag: ${{ inputs.notes_source == 'drafter' && steps.create_release.outputs.tag_name || steps.version.outputs.version }}

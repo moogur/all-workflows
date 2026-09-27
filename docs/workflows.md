@@ -71,11 +71,13 @@ Job не запускается на Pull Request из форка, а токен
 
 **Секреты:** `GITHUB_TOKEN`.
 
-**`notes_source: 'drafter'` (по умолчанию)** — прежнее поведение: [Release Drafter](https://github.com/release-drafter/release-drafter) собирает changelog из смёрженных PR, версия вычисляется из имени тега (`refs/tags/vX.Y.Z` → `X.Y.Z`) через [`app-version`](actions.md#app-version) и передаётся ему параметром. Конфигурация категорий и резолвинга версии — в [`.github/release-drafter.yml`](../.github/release-drafter.yml).
+> Первым шагом (после checkout, в обоих режимах) тег проверяет [`tag-format`](actions.md#tag-format): невалидный тег (не `dd.mm.yyyy` и не `vX.Y.Z`) роняет workflow до создания релиза.
+
+**`notes_source: 'drafter'` (по умолчанию)** — прежнее поведение: [Release Drafter](https://github.com/release-drafter/release-drafter) собирает changelog из смёрженных PR. Релиз вешается на запушенный тег как есть — дата `14.03.2026` или `v1.2.3`: тег и имя передаются драфтеру входами `tag` / `name`, которые перекрывают его шаблоны, а своей версии он не получает (он привёл бы её к semver и добавил `v`). Конфигурация категорий — в [`.github/release-drafter.yml`](../.github/release-drafter.yml).
 
 **`notes_source: 'commits'`** — для трунковой разработки: пилим в `master` без PR, ставим тег, по нему идёт сборка и релиз. Тело собирает [`release-notes`](actions.md#release-notes) из коммитов между запушенным тегом и предыдущим, релиз публикует [`publish-release`](actions.md#publish-release).
 
-**Шаги (`commits`):** checkout с `fetch-depth: 0` → [`release-notes`](actions.md#release-notes) (диапазон, группировка, число коммитов) → [`publish-release`](actions.md#publish-release).
+**Шаги (`commits`):** checkout с `fetch-depth: 0` → [`tag-format`](actions.md#tag-format) → [`release-notes`](actions.md#release-notes) (диапазон, группировка, число коммитов) → [`publish-release`](actions.md#publish-release).
 
 С непустым `artifact` перед публикацией добавляются два шага: `download-artifact` и переименование файла в `<artifact><artifact_suffix>.tar.gz` (`gh` публикует ассет под именем файла, отдельного `asset_name` у него нет). Так этот workflow закрывает и сценарий бывшего `release_with_artifacts`.
 
@@ -99,12 +101,11 @@ Job не запускается на Pull Request из форка, а токен
 
 **Секреты:** `GITHUB_TOKEN`.
 
-**Шаги:** checkout (глубина зависит от `notes_source`) → версия из тега → публикация релиза Release Drafter'ом (`drafter`) либо сбор тела через [`release-notes`](actions.md#release-notes) (`commits`) → setup-node (с кэшем npm) → npm-auth → `npm ci` → сборка с `VITE_VERSION=<version>` → упаковка `dist` в `application.zip` → [`publish-release`](actions.md#publish-release) с ассетом.
+**Шаги:** checkout (глубина зависит от `notes_source`) → [`tag-format`](actions.md#tag-format) (падает на невалидном теге) → версия из тега → публикация релиза Release Drafter'ом (`drafter`) либо сбор тела через [`release-notes`](actions.md#release-notes) (`commits`) → setup-node (с кэшем npm) → npm-auth → `npm ci` → сборка с `VITE_VERSION=<version>` → упаковка `dist` в `application.zip` → [`publish-release`](actions.md#publish-release) с ассетом.
 
 > Версия нужна обоим режимам (уходит в `VITE_VERSION`), поэтому считается всегда.
 > В режиме `commits` релиз создаётся **после** успешной сборки: упавшая сборка не оставляет пустой релиз.
-> Тег для ассета в режиме `drafter` берётся из вывода Release Drafter (`tag_name`), а не из `github.ref_name`:
-> его `tag-template` может отличаться от имени запушенного тега (`1.2.3` → `v1.2.3`).
+> Тег для ассета в режиме `drafter` берётся из вывода Release Drafter (`tag_name`); он совпадает с запушенным тегом.
 
 ### `release_with_artifacts.yml` — Релиз + готовый артефакт (обёртка)
 
@@ -139,7 +140,7 @@ Job не запускается на Pull Request из форка, а токен
 
 ### `deploy_for_build_application.yml` — Сборка по скрипту + релиз
 
-Выполняет произвольный скрипт сборки, создаёт GitHub-релиз и прикладывает `application.zip`.
+Выполняет произвольный скрипт сборки и, если запуск идёт по тегу, создаёт GitHub-релиз с `application.zip`. Без тега (авто-деплой по расписанию) сборка выполняется, но релиз полностью пропускается.
 
 **Входные параметры:**
 
@@ -150,11 +151,11 @@ Job не запускается на Pull Request из форка, а токен
 
 **Секреты:** `GITHUB_TOKEN`.
 
-**Шаги:** checkout с `fetch-depth: 0` → версия из последнего тега (`prefix: ''`) → выполнение `file_path` → публикация релиза Release Drafter'ом (`drafter`) либо сбор тела через [`release-notes`](actions.md#release-notes) (`commits`) → [`publish-release`](actions.md#publish-release) с `./application.zip`.
+**Шаги:** checkout с `fetch-depth: 0` → выполнение `file_path` (всегда) → **по тегу** (`if: github.ref_type == 'tag'`): версия (`mode: ref`, `prefix: ''`) → [`tag-format`](actions.md#tag-format) → публикация релиза Release Drafter'ом (`drafter`) либо сбор тела через [`release-notes`](actions.md#release-notes) (`commits`) → [`publish-release`](actions.md#publish-release) с `./application.zip`.
 
-> **Три режима, а не два:** дефолт `none` сохраняет прежнее поведение (релиз с пустым телом), `drafter` и `commits` добавлены поверх.
+> **Три режима тела, а не два:** дефолт `none` сохраняет прежнее поведение (релиз с пустым телом), `drafter` и `commits` добавлены поверх. Ко всем трём относится и `if: github.ref_type == 'tag'` — режим тела выбирает *что* писать в релиз, а не публиковать ли его вообще.
 >
-> Тег передаётся в экшены явно (из версии), потому что запуск бывает и не по тегу. Режим `drafter` берёт версию отдельным шагом со снятием префикса `v` — его `tag-template` добавляет префикс сам, иначе вышло бы `vv1.2.3`.
+> **Без тега релиза не будет.** Раньше версия без тега (авто-деплой) считалась через `git describe` — на коммите с несколькими тегами (дата и `vX.Y.Z`) он мог выбрать другой, чем инициировавший запуск. Теперь версия для релиза — только `mode: ref` (сам тег, инициировавший запуск), и шаги версии/проверки формата/драфтера/release-notes/publish-release закрыты условием `github.ref_type == 'tag'`; без тега выполняется только сборочный скрипт. Драфтеру тег уходит как есть, входами `tag` / `name`.
 >
 > Заголовок `Release <version>` передаётся **только** вне режима `drafter`, иначе он перетёр бы имя, проставленное драфтером. Условие написано через отрицание (`!= 'drafter' && ... || ''`): пустая строка в выражении GitHub ложна, и прямая форма всегда возвращала бы вторую ветку.
 >
@@ -167,7 +168,7 @@ Job не запускается на Pull Request из форка, а токен
 ## Docker-образы
 
 Все Docker-workflow'ы публикуют образы в GitHub Packages по адресу
-`docker.pkg.github.com/<github_user>/<repo>/<repo>`. Набор тегов выбирается параметром `format_mode`
+`docker.pkg.github.com/<github_user>/<repo>/<repo>`. Набор тегов определяется по формату версии
 (см. [`docker-tags`](actions.md#docker-tags)). Подробнее про используемые Dockerfile'ы — в [docs/dockerfiles.md](dockerfiles.md).
 
 **Тело сборки у всех четырёх общее** — action [`docker-image`](actions.md#docker-image): версия, теги, подмена
@@ -177,7 +178,6 @@ Dockerfile, `docker build`, логин и пуш. Сами workflow'ы отли�
 | Параметр | Тип | Обяз. | По умолчанию | Описание |
 | --- | --- | --- | --- | --- |
 | `github_user` | string | нет | `$GITHUB_ACTOR` | Пользователь GitHub (владелец образа / логин в реестр) |
-| `format_mode` | string | нет | `'date'` | Формат тегов образа: `date` — `<версия>` + `latest`; `semver` — `vX.Y.Z`, `vX.Y`, `vX`, `latest` |
 
 **Секреты:** `GITHUB_TOKEN`.
 
@@ -189,7 +189,7 @@ Dockerfile, `docker build`, логин и пуш. Сами workflow'ы отли�
 | `deploy_for_docker_container` | — | — | свой, из проекта |
 
 > **Версия сборки везде одинакова:** тег, инициировавший запуск, а запуск без тега (расписание, ручной) —
-> `dd.mm.yyyy-HHMM-auto` в формате `date`, даже в semver-репозитории. Раньше так вёл себя только
+> `dd.mm.yyyy-HHMM-auto` (датная метка), даже в semver-репозитории. Раньше так вёл себя только
 > `deploy_for_docker_container`, а остальные три брали последний тег из истории и плановой пересборкой могли
 > переписать релизный `vX.Y.Z` другим содержимым.
 
@@ -227,19 +227,16 @@ jobs:
   deploy:
     uses: moogur/all-workflows/.github/workflows/deploy_for_docker_container.yml@master
     secrets: inherit
-    with:
-      format_mode: 'semver'
 ```
 
-> Параметр не задан → `date`, то есть старое поведение (репозитории с тегами-датами менять не нужно).
-> В режиме `semver` тег обязан подходить под `vX.Y.Z`, иначе сборка падает.
-> `format_mode` действует только на сборку по тегу: плановая пересборка (`schedule`) публикует
-> `dd.mm.yyyy-HHMM-auto` и `latest`, а релизные `vX.Y.Z` / `vX.Y` / `vX` остаются нетронутыми — иначе
-> она переписала бы уже выпущенную версию другим содержимым.
+> Формат тегов образа выводится из тега: `dd.mm.yyyy` → `<версия>` + `latest`, `vX.Y.Z` → лестница
+> `vX.Y.Z`, `vX.Y`, `vX`, `latest`. Тег другого вида (предрелиз, неполная версия) — сборка падает.
+> Плановая пересборка (`schedule`) публикует `dd.mm.yyyy-HHMM-auto` и `latest`, а релизные
+> `vX.Y.Z` / `vX.Y` / `vX` остаются нетронутыми — иначе она переписала бы уже выпущенную версию другим содержимым.
 
 ### `auto_deploy_for_docker_container.yml` — Автодеплой при обновлении
 
-Проверяет, появилась ли новая версия во внешнем репозитории, и только в этом случае запускает [`deploy_for_docker_container.yml`](#deploy_for_docker_containeryml--образ-по-локальному-dockerfile) (без `format_mode`, то есть в формате `date`: тега при запуске по расписанию нет). Состояние «последней увиденной версии» хранится в переменной окружения `LAST_UPDATE_VALUE` указанного GitHub Environment.
+Проверяет, появилась ли новая версия во внешнем репозитории, и только в этом случае запускает [`deploy_for_docker_container.yml`](#deploy_for_docker_containeryml--образ-по-локальному-dockerfile) (тега при запуске по расписанию нет, поэтому образ получает датную метку). Состояние «последней увиденной версии» хранится в переменной окружения `LAST_UPDATE_VALUE` указанного GitHub Environment.
 
 **Входные параметры:**
 
@@ -274,6 +271,8 @@ jobs:
 | `notes_source` | string | нет (`'none'`) | Источник тела релиза, пробрасывается во вложенный деплой |
 
 Во вложенный [`deploy_for_build_application.yml`](#deploy_for_build_applicationyml--сборка-по-скрипту--релиз) передаётся `file_path: ${{ inputs.repository_branch }}`: в этом сценарии путь к исполняемому скрипту сборки совпадает со значением `repository_branch`.
+
+> Запуск идёт не по тегу, поэтому во вложенном workflow релиз (независимо от `notes_source`) не публикуется — выполняется только сборочный скрипт.
 
 ---
 

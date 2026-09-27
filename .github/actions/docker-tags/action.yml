@@ -1,17 +1,13 @@
 name: 'Resolve docker image tags'
-description: 'Формирует полный список тегов docker-образа по версии. Режимы: date (версия + latest) и semver (vX.Y.Z, vX.Y, vX, latest).'
+description: 'Формирует полный список тегов docker-образа по версии. Формат определяется по версии: дата — версия + latest, semver — vX.Y.Z, vX.Y, vX, latest.'
 
 inputs:
   image:
     description: 'Полное имя образа без тега (например, docker.pkg.github.com/user/repo/repo).'
     required: true
   version:
-    description: 'Версия сборки: git-тег как есть (vX.Y.Z для semver) либо метка вида dd.mm.yyyy-auto.'
+    description: 'Версия сборки: git-тег (dd.mm.yyyy или vX.Y.Z) либо метка авто-сборки dd.mm.yyyy-HHMM-auto.'
     required: true
-  format_mode:
-    description: 'Формат тегов: "date" — версия как есть + latest; "semver" — лестница vX.Y.Z, vX.Y, vX, latest.'
-    required: false
-    default: 'date'
 
 outputs:
   tags:
@@ -21,10 +17,15 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - id: format
+      uses: moogur/all-workflows/.github/actions/tag-format@master
+      with:
+        version: ${{ inputs.version }}
+
     - id: resolve
       shell: bash
       env:
         IMAGE: ${{ inputs.image }}
         VERSION: ${{ inputs.version }}
-        FORMAT_MODE: ${{ inputs.format_mode }}
+        FORMAT: ${{ steps.format.outputs.format }}
       run: bash "$GITHUB_ACTION_PATH/tags.sh"

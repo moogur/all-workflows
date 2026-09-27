@@ -34,12 +34,13 @@ Git-хук [`.husky/commit-msg`](../.husky/commit-msg) валидирует ка
 - **Версия Node.js** для CI и Docker-сборок берётся из `engines.node` в `package.json` проекта (через composite action `detect-node-version`, см. [actions.md](actions.md)).
 - **Версия Go** берётся из директивы `go` в `go.mod` (через `detect-go-version`).
 - **Версия приложения / релиза** определяется по git-тегам через composite action `app-version` (см. [actions.md](actions.md)) со снятием параметризуемого префикса (по умолчанию `v`):
-  - в релизах — режим `mode: ref` (тег из `GITHUB_REF`, инициировавший запуск);
-  - в Docker-сборках и сборке приложения — режим `mode: git` (`git describe --tags --abbrev=0`);
-  - для любой сборки без тега (расписание, ручной запуск) — `dd.mm.yyyy-HHMM-auto` по UTC (отдельная inline-логика в [deploy_for_docker_container.yml](../.github/workflows/deploy_for_docker_container.yml)); время в метке — чтобы две сборки за сутки не перезаписали друг друга. В semver-репозиториях такая сборка тоже уходит в формате `date`, чтобы не переписать релизные `vX.Y.Z`.
-- **Формат git-тегов** зависит от репозитория и поддерживается в двух вариантах:
-  - старый — дата, `dd.mm.yyyy` (например, `14.03.2026`);
-  - новый — числовой, `vX.Y.Z` (например, `v1.0.0`); именно он ожидается при `format_mode: 'semver'`.
+  - в релизах и в сборке приложения по тегу — режим `mode: ref` (тег из `GITHUB_REF`, инициировавший запуск);
+  - в сборке приложения без тега (авто-деплой) релиз не считается вовсе: `deploy_for_build_application` без тега (`github.ref_type != 'tag'`) выполняет только сборочный скрипт и пропускает версию, драфтер, release-notes и publish-release. Режим `mode: git` (`git describe --tags --abbrev=0`) у `app-version` остаётся в экшене для потребителей вне этого репозитория, но в его собственных workflow'ах сейчас не используется;
+  - в Docker-сборках — тег, инициировавший запуск (`github.ref_name`, внутри [`docker-image`](actions.md#docker-image));
+  - для любой сборки без тега (расписание, ручной запуск) — `dd.mm.yyyy-HHMM-auto` по UTC (в [`docker-image`](actions.md#docker-image)); время в метке — чтобы две сборки за сутки не перезаписали друг друга. В semver-репозиториях такая метка тоже датная и не переписывает релизные `vX.Y.Z`.
+- **Формат git-тегов** проверяется общим action [`tag-format`](actions.md#tag-format) (используется в `docker-tags` и напрямую во всех релизных workflow'ах) и поддерживается ровно в двух вариантах — версия любого другого вида проваливает сборку/релиз:
+  - дата, `dd.mm.yyyy` (например, `14.03.2026`), включая метки авто-сборки `dd.mm.yyyy-HHMM-auto` и `dd.mm.yyyy-auto`;
+  - semver строго с префиксом `v`, `vX.Y.Z` (например, `v1.0.0`); по нему образ получает теги `vX.Y.Z`, `vX.Y`, `vX`. Тег без префикса (`1.2.3`) больше не принимается.
 
 ### Уровень версии в релизах
 
@@ -123,14 +124,15 @@ docker.pkg.github.com/<github_user>/<repo>/<repo>:latest
 
 `<github_user>` задаётся параметром `github_user` (по умолчанию `$GITHUB_ACTOR`), `<repo>` — `github.event.repository.name`.
 
-Набор тегов формирует composite action [`docker-tags`](actions.md#docker-tags). В [deploy_for_docker_container.yml](../.github/workflows/deploy_for_docker_container.yml) он выбирается параметром `format_mode`:
+Набор тегов формирует composite action [`docker-tags`](actions.md#docker-tags). Формат определяется по самой версии:
 
-| `format_mode` | Теги образа |
+| Версия | Теги образа |
 | --- | --- |
-| `date` (по умолчанию) | `<version>`, `latest` |
-| `semver` | `vX.Y.Z`, `vX.Y`, `vX`, `latest` |
+| дата `dd.mm.yyyy`, метка `dd.mm.yyyy-HHMM-auto` | `<version>`, `latest` |
+| `vX.Y.Z` (или `X.Y.Z`) | `vX.Y.Z`, `vX.Y`, `vX`, `latest` |
+| что-то другое | ошибка, сборка падает |
 
-Подвижные `vX` и `vX.Y` перезаписываются каждым новым патчем: потребитель может закрепиться на мажоре (`:v1`) или миноре (`:v1.2`) и получать обновления автоматически. Остальные Docker-workflow'ы (`deploy_for_backend`, `deploy_for_go_backend`, `deploy_for_full_app`) публикуют только `<version>` и `latest`.
+Подвижные `vX` и `vX.Y` перезаписываются каждым новым патчем: потребитель может закрепиться на мажоре (`:v1`) или миноре (`:v1.2`) и получать обновления автоматически. Правило одно для всех Docker-workflow'ов.
 
 ## Стиль кода
 

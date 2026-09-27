@@ -12,11 +12,6 @@ on:
         type: string
         required: false
         default: $GITHUB_ACTOR
-      format_mode:
-        description: "Tag format: 'date' (legacy — version as is + latest) or 'semver' (vX.Y.Z, vX.Y, vX, latest)"
-        type: string
-        required: false
-        default: 'date'
 
 permissions:
   contents: read
@@ -51,7 +46,6 @@ jobs:
         uses: moogur/all-workflows/.github/actions/docker-image@master
         with:
           github_user: ${{ inputs.github_user }}
-          format_mode: ${{ inputs.format_mode }}
           dockerfile: deploy_backend.dockerfile
           dockerignore: .dockerignore
           build_args: ARG_NODE_VERSION=${{ steps.node.outputs.version }}
