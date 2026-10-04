@@ -53,3 +53,22 @@ commit_task_id_token() {
   local text="$1"
   tr -- '-]_' '   ' <<< "$text" | awk '{print $2; exit}'
 }
+
+# commit_task_id_valid <значение> — значение целиком состоит из цифр (непустое). Это
+# единый формат числового id Kanboard (задача, проект, колонка, дорожка): только такие
+# значения допускаются в JSON-запросы и в вывод шагов workflow.
+commit_task_id_valid() {
+  [[ "$1" =~ ^[0-9]+$ ]]
+}
+
+# commit_task_id <текст> — как commit_task_id_token, но печатает номер только если он
+# числовой; иначе ничего (всегда код 0). Заголовок коммита и имя ветки задаёт автор,
+# поэтому недоверенный «номер» вроде '$(cmd)' или '1;id' дальше не пропускается.
+commit_task_id() {
+  local token
+  token=$(commit_task_id_token "$1")
+  if commit_task_id_valid "$token"; then
+    echo "$token"
+  fi
+  return 0
+}

@@ -1,18 +1,34 @@
 # shellcheck shell=bash
 #
 # Библиотека функций для работы с Kanboard JSON-RPC API.
-# Скачивается workflow'ом kanboard.yml через wget и подключается через `source`
+# Подключается workflow'ом kanboard.yml через `source` прямо из чекаута all-workflows
 # (поэтому здесь нет shebang, а указана директива shellcheck shell=bash).
-# Значения private_* подставляются в этот файл через sed перед использованием.
+# Значения private_* читаются из переменных окружения, которые задаёт шаг workflow
+# (`env:`). Подставлять их в файл через sed нельзя: файл потом исполняется, и значение
+# вида $(cmd) выполнилось бы на раннере вместе с секретами (docs/security.md, п. 8).
 
-private_url=             # базовый URL инстанса Kanboard (запросы идут на <url>/jsonrpc.php)
-private_auth_data=       # "<user>:<token>" для curl -u
-private_task_id=         # id текущей задачи (значение по умолчанию для функций)
-private_project_id=      # id проекта (по умолчанию)
-private_swimlane_id=     # id дорожки (по умолчанию)
+# shellcheck source=lib/commit.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/commit.sh"
+
+private_url=${KANBOARD_URL:-}                                 # базовый URL Kanboard (запросы идут на <url>/jsonrpc.php)
+private_auth_data=${KANBOARD_USER:-}:${KANBOARD_TOKEN:-}      # "<user>:<token>" для curl -u
+private_task_id=${KANBOARD_TASK_ID:-}                         # id текущей задачи (значение по умолчанию для функций)
+private_project_id=${KANBOARD_PROJECT_ID:-}                   # id проекта (по умолчанию)
+private_swimlane_id=${KANBOARD_SWIMLANE_ID:-}                 # id дорожки (по умолчанию)
 private_file_path=./message.tmpl  # файл-отчёт, выводится в лог в конце workflow
 
+# require_numeric_id <имя поля> <значение> — отказ (код 1, сообщение в stderr), если id не
+# число. Само значение не печатаем: оно может быть недоверенным.
+function require_numeric_id() {
+  if ! commit_task_id_valid "$2"; then
+    echo "Kanboard: $1 is not a numeric id, request not built" >&2
+    return 1
+  fi
+}
+
 # --- Генераторы тела JSON-RPC запроса (печатают JSON в stdout) ---
+# Числовые поля проверяются до сборки; JSON строит jq, строки не склеиваются.
+# При невалидном id — код 1 и пустой stdout.
 
 function generate_post_data_for_move_task() {
   local column_id=$1
@@ -21,86 +37,54 @@ function generate_post_data_for_move_task() {
   local project_id=$4
   local swimlane_id=$5
 
-  if [[ -z $task_id ]]; then
-    task_id=$private_task_id
-  fi
+  [[ -n $task_id ]] || task_id=$private_task_id
+  [[ -n $position ]] || position=100
+  [[ -n $project_id ]] || project_id=$private_project_id
+  [[ -n $swimlane_id ]] || swimlane_id=$private_swimlane_id
 
-  if [[ -z $position ]]; then
-    position=100
-  fi
+  require_numeric_id column_id "$column_id" &&
+    require_numeric_id task_id "$task_id" &&
+    require_numeric_id position "$position" &&
+    require_numeric_id project_id "$project_id" &&
+    require_numeric_id swimlane_id "$swimlane_id" || return 1
 
-  if [[ -z $project_id ]]; then
-    project_id=$private_project_id
-  fi
-
-  if [[ -z $swimlane_id ]]; then
-    swimlane_id=$private_swimlane_id
-  fi
-
-  cat <<EOF
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "moveTaskPosition",
-  "params": {
-    "project_id": $project_id,
-    "task_id": $task_id,
-    "column_id": $column_id,
-    "position": $position,
-    "swimlane_id": $swimlane_id
-  }
-}
-EOF
+  jq -n \
+    --arg column_id "$column_id" --arg task_id "$task_id" --arg position "$position" \
+    --arg project_id "$project_id" --arg swimlane_id "$swimlane_id" \
+    '{jsonrpc: "2.0", id: 1, method: "moveTaskPosition", params: {
+      project_id: ($project_id | tonumber),
+      task_id: ($task_id | tonumber),
+      column_id: ($column_id | tonumber),
+      position: ($position | tonumber),
+      swimlane_id: ($swimlane_id | tonumber)}}'
 }
 
 function generate_post_data_for_get_info_task() {
   local task_id=$1
 
-  cat <<EOF
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "getTask",
-  "params": {
-    "task_id": $task_id
-  }
-}
-EOF
+  require_numeric_id task_id "$task_id" || return 1
+
+  jq -n --arg task_id "$task_id" \
+    '{jsonrpc: "2.0", id: 1, method: "getTask", params: {task_id: ($task_id | tonumber)}}'
 }
 
 function generate_post_data_for_get_metadata_task() {
   local task_id=$1
 
-  cat <<EOF
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "getTaskMetadataByName",
-  "params": {
-    "name": "App_version",
-    "task_id": $task_id
-  }
-}
-EOF
+  require_numeric_id task_id "$task_id" || return 1
+
+  jq -n --arg task_id "$task_id" \
+    '{jsonrpc: "2.0", id: 1, method: "getTaskMetadataByName", params: {name: "App_version", task_id: ($task_id | tonumber)}}'
 }
 
 function generate_post_data_for_update_task_app_version() {
   local task_id=$1
   local app_version=$2
 
-  cat <<EOF
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "saveTaskMetadata",
-  "params": {
-    "task_id": $task_id,
-    "values": {
-      "App_version": "$app_version"
-    }
-  }
-}
-EOF
+  require_numeric_id task_id "$task_id" || return 1
+
+  jq -n --arg task_id "$task_id" --arg app_version "$app_version" \
+    '{jsonrpc: "2.0", id: 1, method: "saveTaskMetadata", params: {task_id: ($task_id | tonumber), values: {App_version: $app_version}}}'
 }
 
 # --- Выполнение запросов (curl на <url>/jsonrpc.php), печатают ответ в stdout ---
@@ -131,7 +115,9 @@ function request_for_move_task() {
   local project_id=$4
   local swimlane_id=$5
 
-  execute_request "$(generate_post_data_for_move_task "$column_id" "$task_id" "$position" "$project_id" "$swimlane_id")"
+  local data
+  data=$(generate_post_data_for_move_task "$column_id" "$task_id" "$position" "$project_id" "$swimlane_id") || return 1
+  execute_request "$data"
 }
 
 function request_for_get_info_task() {
@@ -141,20 +127,26 @@ function request_for_get_info_task() {
     task_id=$private_task_id
   fi
 
-  execute_request "$(generate_post_data_for_get_info_task "$task_id")"
+  local data
+  data=$(generate_post_data_for_get_info_task "$task_id") || return 1
+  execute_request "$data"
 }
 
 function request_for_get_metadata_task() {
   local task_id=$1
 
-  execute_request "$(generate_post_data_for_get_metadata_task "$task_id")"
+  local data
+  data=$(generate_post_data_for_get_metadata_task "$task_id") || return 1
+  execute_request "$data"
 }
 
 function request_for_update_task_app_version() {
   local task_id=$1
   local app_version=$2
 
-  execute_request "$(generate_post_data_for_update_task_app_version "$task_id" "$app_version")"
+  local data
+  data=$(generate_post_data_for_update_task_app_version "$task_id" "$app_version") || return 1
+  execute_request "$data"
 }
 
 # --- Формирование человекочитаемого отчёта в $private_file_path (message.tmpl) ---

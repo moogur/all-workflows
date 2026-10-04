@@ -14,16 +14,17 @@ source "$(dirname "${BASH_SOURCE[0]}")/../lib/tags.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/version.sh"
 
 # kanboard_task_id_from_last_commit [репозиторий] — task_id из заголовка последнего
-# коммита (single_branch: сообщение коммита содержит номер задачи).
+# коммита (single_branch: сообщение коммита содержит номер задачи). Только числовой
+# номер; иначе пусто (недоверенный ввод, см. commit_task_id в lib/commit.sh).
 kanboard_task_id_from_last_commit() {
   local repo="${1:-.}"
-  commit_task_id_token "$(git -C "$repo" log -1 --pretty=%B)"
+  commit_task_id "$(git -C "$repo" log -1 --pretty=%B)"
 }
 
 # kanboard_task_id_from_ref <имя ветки или тега> — task_id из имени ветки/тега
-# (GA-123-... / GA-123_...): pr/merge (github.head_ref) и push в multi_branch (GITHUB_REF_NAME).
+# (GA-123-... / GA-123_...), только числовой, иначе пусто: pr/merge (github.head_ref) и push в multi_branch (GITHUB_REF_NAME).
 kanboard_task_id_from_ref() {
-  commit_task_id_token "$1"
+  commit_task_id "$1"
 }
 
 # kanboard_release_version <тег> — версия релиза из имени тега (снятие префикса v).
@@ -59,8 +60,8 @@ kanboard_deploy_task_ids() {
   declare -A seen=()
   for subject in "${subjects[@]}"; do
     [[ -n "$subject" ]] || continue
-    task_id=$(commit_task_id_token "$subject")
-    [[ "$task_id" =~ ^[0-9]+$ ]] || continue
+    task_id=$(commit_task_id "$subject")
+    [[ -n "$task_id" ]] || continue
     seen[$task_id]=1
   done
 

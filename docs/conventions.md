@@ -13,7 +13,7 @@ docker-ссылка, npm-пакет) живёт ровно в одном фай�
 
 - [`lib/version.sh`](../lib/version.sh) — версия/тег: дата `dd.mm.yyyy`, semver `vX.Y.Z`, метка авто-сборки;
 - [`lib/tags.sh`](../lib/tags.sh) — «последний тег» и N последних тегов по дате создания;
-- [`lib/commit.sh`](../lib/commit.sh) — заголовок коммита, типы, PR в git-истории, `task_id`;
+- [`lib/commit.sh`](../lib/commit.sh) — заголовок коммита, типы, PR в git-истории, `task_id` (только числовой: `commit_task_id_valid`);
 - [`lib/docker.sh`](../lib/docker.sh) — имя docker-образа и ссылка `<образ>:<тег>`;
 - [`lib/npm.sh`](../lib/npm.sh) — `имя@версия` опубликованного npm-пакета.
 

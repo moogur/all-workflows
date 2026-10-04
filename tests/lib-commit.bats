@@ -149,3 +149,55 @@ sh() {
   sh "commit_task_id_token onewordonly"
   [ -z "$output" ]
 }
+
+# ---------- commit_task_id_valid / commit_task_id ----------
+
+@test "task_id_valid: цифры проходят, включая ведущие нули" {
+  sh "commit_task_id_valid 557"
+  [ "$status" -eq 0 ]
+  sh "commit_task_id_valid 007"
+  [ "$status" -eq 0 ]
+}
+
+@test "task_id_valid: пустое, с буквой, пробелом, ';', '\$(...)' и переводом строки отвергаются" {
+  local bad
+  for bad in '' 12a ' 12' '1;id' '1 2' '$(id)' '-1'; do
+    run bash -c "source '$LIB'; commit_task_id_valid \"\$1\"" _ "$bad"
+    [ "$status" -ne 0 ]
+  done
+  run bash -c "source '$LIB'; commit_task_id_valid \$'12\\nid'"
+  [ "$status" -ne 0 ]
+}
+
+@test "task_id: валидный заголовок и ветки дают номер" {
+  sh "commit_task_id '[GA-557] feature(frontend): add endpoint'"
+  [ "$output" = "557" ]
+  sh "commit_task_id GA-123-fix-thing"
+  [ "$output" = "123" ]
+  sh "commit_task_id GA-123_fix_thing"
+  [ "$output" = "123" ]
+}
+
+@test "task_id: подстановка команды в заголовке не выполняется и номера нет" {
+  local marker="$BATS_TEST_TMPDIR/pwned"
+  run bash -c "source '$LIB'; commit_task_id '[GA-\$(touch\${IFS}$marker)] x'"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ ! -e "$marker" ]
+}
+
+@test "task_id: 'GA-\$(id)-x' и 'GA-1;id' не дают номера" {
+  sh "commit_task_id 'GA-\$(id)-x'"
+  [ -z "$output" ]
+  sh "commit_task_id 'GA-1;id'"
+  [ -z "$output" ]
+}
+
+@test "task_id: без номера (одно слово, пустой ввод) — пусто и код 0" {
+  sh "commit_task_id onewordonly"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  sh "commit_task_id ''"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}

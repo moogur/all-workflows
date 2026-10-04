@@ -57,3 +57,8 @@ assert_no_code_matches() {
   run assert_no_code_matches 'tr "-" " "' "$ROOT/.github" "$ROOT/scripts" "$ROOT/.husky"
   [ "$status" -eq 0 ]
 }
+
+@test "проверка числового id (^[0-9]+$) не переизобретается вне lib/commit.sh" {
+  run assert_no_code_matches '^[0-9]+$' "$ROOT/.github" "$ROOT/scripts" "$ROOT/.husky"
+  [ "$status" -eq 0 ]
+}

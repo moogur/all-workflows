@@ -1,15 +1,16 @@
 # Интеграция с Kanboard
 
-Workflow [`kanboard.yml`](../.github/workflows/kanboard.yml) синхронизирует положение задачи на канбан-доске [Kanboard](https://kanboard.org/) с этапами разработки в Git: коммит, открытие PR, мерж, деплой. Вся работа с API вынесена в bash-библиотеку [`scripts/kanboard_requests.sh`](../scripts/kanboard_requests.sh), которую workflow получает через `actions/checkout` этого репозитория (запиненного к версии вызванного workflow) и подставляет в неё секреты. Извлечение `task_id`/версии релиза из git — в [`scripts/kanboard_task_id.sh`](../scripts/kanboard_task_id.sh), той же копии репозитория; сам формат (заголовок коммита, теги) — в [`lib/`](../lib/) (см. [conventions.md](conventions.md#форматы)).
+Workflow [`kanboard.yml`](../.github/workflows/kanboard.yml) синхронизирует положение задачи на канбан-доске [Kanboard](https://kanboard.org/) с этапами разработки в Git: коммит, открытие PR, мерж, деплой. Вся работа с API вынесена в bash-библиотеку [`scripts/kanboard_requests.sh`](../scripts/kanboard_requests.sh), которую workflow получает через `actions/checkout` этого репозитория (запиненного к версии вызванного workflow) и подключает через `source`; секреты и id она читает из переменных окружения. Извлечение `task_id`/версии релиза из git — в [`scripts/kanboard_task_id.sh`](../scripts/kanboard_task_id.sh), той же копии репозитория; сам формат (заголовок коммита, теги) — в [`lib/`](../lib/) (см. [conventions.md](conventions.md#форматы)).
 
 ← Назад к [README](../README.md) · [Справочник workflow'ов](workflows.md)
 
 ## Как это работает
 
-1. Workflow выкачивает `kanboard_requests.sh` через `actions/checkout` репозитория `all-workflows` (ref = `github.job_workflow_sha`, т.е. версия вызванного workflow) и через `sed` подставляет в него хост, учётные данные и id задачи.
-2. Номер задачи (`task_id`) извлекается через `scripts/kanboard_task_id.sh` (функция `commit_task_id_token` из [`lib/commit.sh`](../lib/commit.sh) — «второе слово» после разбиения по `-`, `]` и `_`) из:
+1. Workflow выкачивает `all-workflows` через `actions/checkout` (ref = `github.job_workflow_sha`, т.е. версия вызванного workflow) и подключает `kanboard_requests.sh` прямо оттуда. Значения в файл **не подставляются** (никаких `sed`): шаг передаёт их через `env:` — `KANBOARD_URL`, `KANBOARD_USER`, `KANBOARD_TOKEN` (секреты), `KANBOARD_TASK_ID`, `KANBOARD_PROJECT_ID`, `KANBOARD_SWIMLANE_ID` (выходы шага «Set variables»). Причина — [security.md, п. 8](security.md#8-инъекция-через-номер-задачи-и-sed-в-исполняемый-файл-в-kanboardyml--исправлено).
+2. Номер задачи (`task_id`) извлекается через `scripts/kanboard_task_id.sh` (функция `commit_task_id` из [`lib/commit.sh`](../lib/commit.sh) — «второе слово» после разбиения по `-`, `]` и `_`, принимается только если оно целиком из цифр, `commit_task_id_valid`) из:
    - **сообщения коммита** — для `single_branch` (`kanboard_task_id_from_last_commit`);
    - **имени ветки** (`github.head_ref` / `GITHUB_REF_NAME`) — для PR/merge/deploy (`kanboard_task_id_from_ref`).
+   Нет числового номера — шаги push/pr/merge пишут строку в лог и пропускаются, job не падает. То же для данных задачи, если Kanboard не ответил числовыми колонкой/проектом/дорожкой.
    Это согласуется с форматом веток и коммитов `[GA-123] ...` (см. [conventions.md](conventions.md)).
 3. По текущей колонке задачи и типу события скрипт перемещает задачу методом Kanboard `moveTaskPosition`.
 4. Итог каждого шага пишется в файл `message.tmpl` и выводится в лог на финальном шаге.
@@ -45,7 +46,7 @@ Workflow [`kanboard.yml`](../.github/workflows/kanboard.yml) синхрониз�
 
 ## Скрипт `kanboard_requests.sh`
 
-Bash-библиотека функций поверх [Kanboard JSON-RPC API](https://docs.kanboard.org/v1/api/). Переменные `private_*` заполняются workflow'ом через `sed` перед использованием.
+Bash-библиотека функций поверх [Kanboard JSON-RPC API](https://docs.kanboard.org/v1/api/). Переменные `private_*` читаются из окружения (`KANBOARD_*`, см. выше) при `source`. Генераторы собирают JSON через `jq --arg`, а числовые поля (задача, проект, колонка, дорожка, позиция) проверяет `commit_task_id_valid`: при нечисловом значении запрос не строится и не уходит (код 1, сообщение в stderr без самого значения).
 
 **Генераторы тела запроса** (формируют JSON-RPC payload):
 

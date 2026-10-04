@@ -82,3 +82,50 @@ sh_with_stub() {
   grep -qF '"task_id": 42' "$CURL_LOG"
   grep -qF -- "--retry 3" "$CURL_LOG"
 }
+
+# ---------- значения из окружения (без sed в исполняемый файл) ----------
+
+# Как sh_with_stub, но private_* приходят только из env, как в kanboard.yml.
+sh_with_env() {
+  run env PATH="$TMP/bin:$PATH" \
+    KANBOARD_URL='https://kb.example' KANBOARD_USER='user' KANBOARD_TOKEN='token' \
+    KANBOARD_TASK_ID=42 KANBOARD_PROJECT_ID=7 KANBOARD_SWIMLANE_ID=3 \
+    bash -c "source '$LIB'; $*"
+}
+
+@test "env: URL, user:token, task/project/swimlane читаются из окружения" {
+  make_curl_stub 0
+  sh_with_env "request_for_move_task 5"
+  [ "$status" -eq 0 ]
+  grep -qF "https://kb.example/jsonrpc.php" "$CURL_LOG"
+  grep -qF "user:token" "$CURL_LOG"
+  grep -qF '"task_id": 42' "$CURL_LOG"
+  grep -qF '"project_id": 7' "$CURL_LOG"
+  grep -qF '"swimlane_id": 3' "$CURL_LOG"
+}
+
+@test "env: подстановка команды в KANBOARD_TASK_ID не выполняется и запрос не уходит" {
+  make_curl_stub 0
+  local marker="$TMP/pwned"
+  run env PATH="$TMP/bin:$PATH" KANBOARD_URL='https://kb.example' \
+    KANBOARD_TASK_ID="\$(touch $marker)" \
+    bash -c "source '$LIB'; request_for_get_info_task"
+  [ "$status" -ne 0 ]
+  [ ! -e "$marker" ]
+  [ ! -s "$CURL_LOG" ]
+}
+
+@test "env: подстановка команды в KANBOARD_URL и токен не выполняется при source" {
+  local marker="$TMP/pwned"
+  run env KANBOARD_URL="\$(touch $marker)" KANBOARD_TOKEN="\$(touch $marker)" \
+    bash -c "source '$LIB'"
+  [ "$status" -eq 0 ]
+  [ ! -e "$marker" ]
+}
+
+@test "без окружения: запрос без task_id не уходит (нет id по умолчанию)" {
+  make_curl_stub 0
+  run env -u KANBOARD_TASK_ID PATH="$TMP/bin:$PATH" bash -c "source '$LIB'; request_for_get_info_task"
+  [ "$status" -ne 0 ]
+  [ ! -s "$CURL_LOG" ]
+}

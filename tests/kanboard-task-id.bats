@@ -49,6 +49,49 @@ sh() {
   [ "$output" = "123" ]
 }
 
+# ---------- недоверенный ввод ----------
+# Заголовок коммита и имя ветки задаёт автор: нечисловой «номер» не пропускается,
+# и ничего не исполняется (docs/security.md, п. 8).
+
+@test "from_last_commit: подстановка команды в заголовке — номера нет, команда не выполнена" {
+  local marker="$TMP/pwned"
+  commit "[GA-\$(touch\${IFS}$marker)] feature(api): x"
+  sh "kanboard_task_id_from_last_commit '$REPO'"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  [ ! -e "$marker" ]
+}
+
+@test "from_last_commit: заголовок '[GA-1;id] ...' не даёт номера" {
+  commit '[GA-1;id] feature(api): x'
+  sh "kanboard_task_id_from_last_commit '$REPO'"
+  [ -z "$output" ]
+}
+
+@test "from_ref: имена веток 'GA-\$(id)-x' и 'GA-1;id' не дают номера" {
+  sh "kanboard_task_id_from_ref 'GA-\$(id)-x'"
+  [ -z "$output" ]
+  sh "kanboard_task_id_from_ref 'GA-1;id'"
+  [ -z "$output" ]
+}
+
+@test "from_ref: подстановка команды в имени ветки не выполняется" {
+  local marker="$TMP/pwned"
+  sh "kanboard_task_id_from_ref 'GA-\$(touch\${IFS}$marker)-x'"
+  [ -z "$output" ]
+  [ ! -e "$marker" ]
+}
+
+@test "deploy_task_ids: вредоносный заголовок пропускается, валидные остаются" {
+  commit init 2024-01-01T10:00:00
+  tag v1.0.0 2024-01-01T10:00:00
+  commit '[GA-$(id)] bugfix(api): bad' 2024-01-02T10:00:00
+  commit '[GA-5] bugfix(api): good' 2024-01-02T11:00:00
+  tag v1.1.0 2024-01-02T12:00:00
+  sh "kanboard_deploy_task_ids v1.1.0 v1.0.0 '$REPO'"
+  [ "$output" = "5" ]
+}
+
 # ---------- kanboard_release_version ----------
 
 @test "release_version: снимает префикс v" {

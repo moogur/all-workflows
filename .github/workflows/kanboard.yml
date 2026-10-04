@@ -3,6 +3,8 @@
 # извлечение task_id/версии из git — в scripts/kanboard_task_id.sh (сама форма
 # номера задачи и тегов — в lib/commit.sh, lib/tags.sh, lib/version.sh).
 # Переиспользуемый workflow (workflow_call). Секреты: KANBOARD_HOST/USER/TOKEN.
+# Секреты и вычисленные значения доходят до kanboard_requests.sh только через env:
+# ни в тело скрипта, ни в исполняемый файл ничего не подставляется (docs/security.md, п. 8).
 name: Kanboard for single branch
 
 on:
@@ -48,69 +50,89 @@ jobs:
           ref: ${{ github.job_workflow_sha }}
           path: .all-workflows
 
-      # Копируем библиотеку в рабочую директорию и подставляем хост/учётные данные.
-      - name: 'Save script'
-        run: |
-          cp .all-workflows/scripts/kanboard_requests.sh ./requests.sh
-          chmod +x ./requests.sh
-
-          sed -i "s|private_url=|private_url=${{ secrets.KANBOARD_HOST }}|" ./requests.sh
-
-          auth_data=${{ secrets.KANBOARD_USER }}:${{ secrets.KANBOARD_TOKEN }}
-          sed -i "s|private_auth_data=|private_auth_data=$auth_data|" ./requests.sh
-
+      # Скрипт берём прямо из чекаута all-workflows (копировать и подставлять в него
+      # значения нельзя — см. docs/security.md, п. 8); значения читает он сам из env.
       - name: 'Set variables'
         if: "inputs.event_type != 'deploy'"
         id: variables
         env:
-          # Имя ветки задаёт автор PR, поэтому оно приходит переменной окружения:
-          # интерполяция в тело скрипта позволила бы выполнить произвольные команды.
+          # Имя ветки задаёт автор PR, а заголовок коммита — любой его автор, поэтому
+          # всё недоверенное приходит переменной окружения, а не интерполяцией в скрипт.
           HEAD_REF: ${{ github.head_ref }}
+          PROJECT_TYPE: ${{ inputs.project_type }}
+          EVENT_TYPE: ${{ inputs.event_type }}
+          KANBOARD_URL: ${{ secrets.KANBOARD_HOST }}
+          KANBOARD_USER: ${{ secrets.KANBOARD_USER }}
+          KANBOARD_TOKEN: ${{ secrets.KANBOARD_TOKEN }}
         run: |
           source .all-workflows/scripts/kanboard_task_id.sh
 
-          if [[ ${{ inputs.project_type }} == "single_branch" ]]; then
+          if [[ "$PROJECT_TYPE" == "single_branch" ]]; then
             task_id=$(kanboard_task_id_from_last_commit)
-          elif [[ ${{ inputs.event_type }} == "pr" ]] || [[ ${{ inputs.event_type }} == "merge" ]]; then
+          elif [[ "$EVENT_TYPE" == "pr" ]] || [[ "$EVENT_TYPE" == "merge" ]]; then
             task_id=$(kanboard_task_id_from_ref "$HEAD_REF")
           else
             task_id=$(kanboard_task_id_from_ref "$GITHUB_REF_NAME")
           fi
 
-          sed -i "s|private_task_id=|private_task_id=$task_id|" ./requests.sh
-          echo "task_id=${task_id}" >> $GITHUB_OUTPUT
+          # Kanboard не должен блокировать пайплайн: без валидного номера просто пропускаем.
+          # Само значение не печатаем — оно недоверенное (workflow-команды в логе).
+          if [[ -z "$task_id" ]]; then
+            echo "Kanboard: в имени ветки/заголовке коммита нет числового номера задачи, шаги пропущены"
+            exit 0
+          fi
 
-          echo task_id $task_id
+          export KANBOARD_TASK_ID=$task_id
+          source .all-workflows/scripts/kanboard_requests.sh
 
-          . ./requests.sh
+          task_info=$(request_for_get_info_task) || task_info=''
 
-          task_info=`echo $(request_for_get_info_task)`
+          # Ответ API тоже недоверенный: в вывод и дальше идут только числа.
+          current_column_id=$(jq -r '.result.column_id // empty' <<< "$task_info" 2>/dev/null)
+          project_id=$(jq -r '.result.project_id // empty' <<< "$task_info" 2>/dev/null)
+          swimlane_id=$(jq -r '.result.swimlane_id // empty' <<< "$task_info" 2>/dev/null)
 
-          current_column_id=`echo $(jq '.result.column_id' <<< $task_info)`
-          echo "current_column_id=${current_column_id}" >> $GITHUB_OUTPUT
+          for value in "$current_column_id" "$project_id" "$swimlane_id"; do
+            if ! commit_task_id_valid "$value"; then
+              echo "Kanboard: не удалось получить данные задачи $task_id, шаги пропущены"
+              exit 0
+            fi
+          done
 
-          echo current_column_id $current_column_id
+          {
+            echo "task_id=${task_id}"
+            echo "current_column_id=${current_column_id}"
+            echo "project_id=${project_id}"
+            echo "swimlane_id=${swimlane_id}"
+          } >> "$GITHUB_OUTPUT"
 
-          project_id=`echo $(jq '.result.project_id' <<< $task_info)`
-          sed -i "s|private_project_id=|private_project_id=$project_id|" ./requests.sh
-
-          swimlane_id=`echo $(jq '.result.swimlane_id' <<< $task_info)`
-          sed -i "s|private_swimlane_id=|private_swimlane_id=$swimlane_id|" ./requests.sh
+          echo "task_id $task_id"
+          echo "current_column_id $current_column_id"
 
       - name: "Transferring the task to the in progress status"
-        if: "inputs.event_type == 'push'"
+        if: "inputs.event_type == 'push' && steps.variables.outputs.task_id != ''"
+        env:
+          KANBOARD_COLUMNS: ${{ inputs.kanboard_columns }}
+          PROJECT_TYPE: ${{ inputs.project_type }}
+          CURRENT_COLUMN_ID: ${{ steps.variables.outputs.current_column_id }}
+          KANBOARD_URL: ${{ secrets.KANBOARD_HOST }}
+          KANBOARD_USER: ${{ secrets.KANBOARD_USER }}
+          KANBOARD_TOKEN: ${{ secrets.KANBOARD_TOKEN }}
+          KANBOARD_TASK_ID: ${{ steps.variables.outputs.task_id }}
+          KANBOARD_PROJECT_ID: ${{ steps.variables.outputs.project_id }}
+          KANBOARD_SWIMLANE_ID: ${{ steps.variables.outputs.swimlane_id }}
         run: |
-          . ./requests.sh
+          . .all-workflows/scripts/kanboard_requests.sh
 
-          IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
+          IFS=',' read -r -a all_columns <<< "$KANBOARD_COLUMNS"
           in_progress_column_id=${all_columns[3]}
           unset 'all_columns[3]'
-          if [[ "${{ inputs.project_type }}" == "multi_branch" ]]; then
+          if [[ "$PROJECT_TYPE" == "multi_branch" ]]; then
             unset 'all_columns[4]'
           fi
 
           export IFS=""
-          if [[ ${all_columns[*]} =~ ${{ steps.variables.outputs.current_column_id }} ]]; then
+          if [[ ${all_columns[*]} =~ $CURRENT_COLUMN_ID ]]; then
             response=`echo $(request_for_move_task $in_progress_column_id)`
             save_message_in_file IN_PROGRESS -1 "$response" $(jq '.result' <<< "$response")
           else
@@ -118,14 +140,23 @@ jobs:
           fi
 
       - name: "Transferring the task to the in review status"
-        if: "inputs.event_type == 'pr' && inputs.project_type == 'multi_branch'"
+        if: "inputs.event_type == 'pr' && inputs.project_type == 'multi_branch' && steps.variables.outputs.task_id != ''"
+        env:
+          KANBOARD_COLUMNS: ${{ inputs.kanboard_columns }}
+          CURRENT_COLUMN_ID: ${{ steps.variables.outputs.current_column_id }}
+          KANBOARD_URL: ${{ secrets.KANBOARD_HOST }}
+          KANBOARD_USER: ${{ secrets.KANBOARD_USER }}
+          KANBOARD_TOKEN: ${{ secrets.KANBOARD_TOKEN }}
+          KANBOARD_TASK_ID: ${{ steps.variables.outputs.task_id }}
+          KANBOARD_PROJECT_ID: ${{ steps.variables.outputs.project_id }}
+          KANBOARD_SWIMLANE_ID: ${{ steps.variables.outputs.swimlane_id }}
         run: |
-          . ./requests.sh
+          . .all-workflows/scripts/kanboard_requests.sh
 
-          IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
+          IFS=',' read -r -a all_columns <<< "$KANBOARD_COLUMNS"
 
           export IFS=""
-          if [[ ${all_columns[3]} == ${{ steps.variables.outputs.current_column_id }} ]]; then
+          if [[ ${all_columns[3]} == "$CURRENT_COLUMN_ID" ]]; then
             response=`echo $(request_for_move_task ${all_columns[4]})`
             save_message_in_file REVIEW -1 "$response" $(jq '.result' <<< "$response")
           else
@@ -133,14 +164,23 @@ jobs:
           fi
 
       - name: "Transferring the task to the in merged status"
-        if: "inputs.event_type == 'merge' && inputs.project_type == 'multi_branch'"
+        if: "inputs.event_type == 'merge' && inputs.project_type == 'multi_branch' && steps.variables.outputs.task_id != ''"
+        env:
+          KANBOARD_COLUMNS: ${{ inputs.kanboard_columns }}
+          CURRENT_COLUMN_ID: ${{ steps.variables.outputs.current_column_id }}
+          KANBOARD_URL: ${{ secrets.KANBOARD_HOST }}
+          KANBOARD_USER: ${{ secrets.KANBOARD_USER }}
+          KANBOARD_TOKEN: ${{ secrets.KANBOARD_TOKEN }}
+          KANBOARD_TASK_ID: ${{ steps.variables.outputs.task_id }}
+          KANBOARD_PROJECT_ID: ${{ steps.variables.outputs.project_id }}
+          KANBOARD_SWIMLANE_ID: ${{ steps.variables.outputs.swimlane_id }}
         run: |
-          . ./requests.sh
+          . .all-workflows/scripts/kanboard_requests.sh
 
-          IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
+          IFS=',' read -r -a all_columns <<< "$KANBOARD_COLUMNS"
 
           export IFS=""
-          if [[ ${all_columns[4]} == ${{ steps.variables.outputs.current_column_id }} ]]; then
+          if [[ ${all_columns[4]} == "$CURRENT_COLUMN_ID" ]]; then
             response=`echo $(request_for_move_task ${all_columns[5]})`
             save_message_in_file MERGED -1 "$response" $(jq '.result' <<< "$response")
           else
@@ -149,8 +189,13 @@ jobs:
 
       - name: "Transferring the tasks to the in deploy status"
         if: "inputs.event_type == 'deploy' && inputs.project_type == 'multi_branch'"
+        env:
+          KANBOARD_COLUMNS: ${{ inputs.kanboard_columns }}
+          KANBOARD_URL: ${{ secrets.KANBOARD_HOST }}
+          KANBOARD_USER: ${{ secrets.KANBOARD_USER }}
+          KANBOARD_TOKEN: ${{ secrets.KANBOARD_TOKEN }}
         run: |
-          . ./requests.sh
+          . .all-workflows/scripts/kanboard_requests.sh
           source .all-workflows/scripts/kanboard_task_id.sh
 
           mapfile -t array_tags < <(kanboard_deploy_tags)
@@ -165,7 +210,7 @@ jobs:
             uniq_array_tasks_ids[$task_id]=0
           done < <(kanboard_deploy_task_ids "${array_tags[0]}" "$previous_tag")
 
-          IFS=',' read -r -a all_columns <<< "${{ inputs.kanboard_columns }}"
+          IFS=',' read -r -a all_columns <<< "$KANBOARD_COLUMNS"
 
           for task_id in "${!uniq_array_tasks_ids[@]}"; do
             task_info=`echo $(request_for_get_info_task $task_id)`

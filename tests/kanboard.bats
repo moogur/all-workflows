@@ -87,13 +87,52 @@ sh() {
   echo "$output" | jq -e '.params.values.App_version == "1.0.0, 1.1.0"' >/dev/null
 }
 
-# ---------- характеристические особенности ----------
-# Генераторы не экранируют ввод: спецсимволы в значениях ломают JSON.
-# Тест фиксирует это поведение (см. docs/modernization.md).
+# ---------- безопасность: числовые поля и строки ----------
+# JSON строит jq: числа проверяются до сборки, строки экранируются (docs/security.md, п. 8).
 
-@test "(особенность) кавычка в App_version ломает JSON" {
+@test "saveTaskMetadata: кавычка в App_version экранируется, JSON остаётся валидным" {
   sh 'generate_post_data_for_update_task_app_version 7 "a\"b"'
-  # payload получается невалидным — jq не может его разобрать
-  run bash -c "echo '$output' | jq -e . >/dev/null 2>&1"
+  [ "$status" -eq 0 ]
+  echo "$output" | jq -e '.params.values.App_version == "a\"b"' >/dev/null
+}
+
+@test "getTask: нечисловой task_id отвергается, stdout пуст" {
+  run bash -c "source '$LIB'; generate_post_data_for_get_info_task '1;id' 2>/dev/null"
+  [ "$status" -ne 0 ]
+  [ -z "$output" ]
+}
+
+@test "getTask: пустой task_id отвергается" {
+  sh "generate_post_data_for_get_info_task ''"
+  [ "$status" -ne 0 ]
+}
+
+@test "getTask: подстановка команды в task_id не выполняется" {
+  local marker="$BATS_TEST_TMPDIR/pwned"
+  sh "generate_post_data_for_get_info_task '\$(touch $marker)'"
+  [ "$status" -ne 0 ]
+  [ ! -e "$marker" ]
+}
+
+@test "moveTaskPosition: нечисловые column/project/swimlane отвергаются по одному" {
+  sh "generate_post_data_for_move_task x 42 100 1 2"
+  [ "$status" -ne 0 ]
+  sh "generate_post_data_for_move_task 5 42 100 '1,\"x\":2' 2"
+  [ "$status" -ne 0 ]
+  sh "generate_post_data_for_move_task 5 42 100 1 null"
+  [ "$status" -ne 0 ]
+  sh "generate_post_data_for_move_task 5 42 abc 1 2"
+  [ "$status" -ne 0 ]
+}
+
+@test "moveTaskPosition: id с ведущими нулями остаётся числом" {
+  sh "generate_post_data_for_move_task 5 007 100 1 2"
+  echo "$output" | jq -e '.params.task_id == 7' >/dev/null
+}
+
+@test "getTaskMetadataByName и saveTaskMetadata: нечисловой task_id отвергается" {
+  sh "generate_post_data_for_get_metadata_task 'a b'"
+  [ "$status" -ne 0 ]
+  sh "generate_post_data_for_update_task_app_version '1;id' 1.0.0"
   [ "$status" -ne 0 ]
 }
