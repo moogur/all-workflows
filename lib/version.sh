@@ -8,8 +8,12 @@
 # dd.mm.yyyy-HHMM-auto по UTC — время в метке, чтобы две сборки за сутки не затёрли
 # друг друга.
 
-readonly VERSION_DATE_REGEX='^[0-9]{2}\.[0-9]{2}\.[0-9]{4}(-[0-9]{4})?(-auto)?$'
-readonly VERSION_SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+$'
+# Повторное подключение в том же shell не должно падать на readonly (см. lib/commit.sh)
+if [[ -z "${LIB_VERSION_LOADED:-}" ]]; then
+  readonly LIB_VERSION_LOADED=1
+  readonly VERSION_DATE_REGEX='^[0-9]{2}\.[0-9]{2}\.[0-9]{4}(-[0-9]{4})?(-auto)?$'
+  readonly VERSION_SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+$'
+fi
 
 # version_format <версия> — печатает "date" или "semver" в stdout; версия другого
 # вида — сообщение в stderr и ненулевой код. Дата проверяется первой: 14.03.2026

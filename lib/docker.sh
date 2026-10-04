@@ -5,7 +5,11 @@
 # "<образ>:<тег>"; сам путь образа двоеточий не содержит, поэтому тег — это всё
 # после последнего ':'.
 
-readonly DOCKER_LEGACY_REGISTRY='docker.pkg.github.com'
+# Повторное подключение в том же shell не должно падать на readonly (см. lib/commit.sh)
+if [[ -z "${LIB_DOCKER_LOADED:-}" ]]; then
+  readonly LIB_DOCKER_LOADED=1
+  readonly DOCKER_LEGACY_REGISTRY='docker.pkg.github.com'
+fi
 
 # docker_image_name <user> <repo> — полное имя образа без тега.
 docker_image_name() {

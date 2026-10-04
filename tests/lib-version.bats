@@ -131,3 +131,9 @@ sh() {
   sh "version_strip_prefix 1.2.3 v"
   [ "$output" = "1.2.3" ]
 }
+
+@test "source: повторное подключение в том же shell не падает под bash -e" {
+  run bash -e -c "source '$LIB'; source '$LIB'; echo ok"
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok" ]
+}

@@ -35,3 +35,9 @@ sh() {
   sh "ref=\$(docker_ref image v1); [ \"\$(docker_ref_image \"\$ref\")\" = image ] && [ \"\$(docker_ref_tag \"\$ref\")\" = v1 ]"
   [ "$status" -eq 0 ]
 }
+
+@test "source: повторное подключение в том же shell не падает под bash -e" {
+  run bash -e -c "source '$LIB'; source '$LIB'; echo ok"
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok" ]
+}

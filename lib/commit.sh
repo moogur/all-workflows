@@ -12,11 +12,17 @@
 # PR в git-истории (--first-parent): смёрженный кнопкой Merge — заголовок коммита
 # "Merge pull request #N from ..."; сквошенный — subject коммита с суффиксом " (#N)".
 
-readonly COMMIT_HEADER_REGEX='^\[([A-Z][A-Z0-9]*-[0-9]+)\][[:space:]]+([a-z]+)\(([^)]+)\):[[:space:]]+(.+)$'
-readonly COMMIT_MERGE_PR_REGEX='^Merge pull request #([0-9]+) from '
-readonly COMMIT_SQUASH_PR_REGEX='^(.*) \(#([0-9]+)\)$'
-readonly COMMIT_SUBJECT_MAX_LENGTH=125
-readonly COMMIT_TYPES=(feature bugfix ci config refactor test docs)
+# Файл подключают оба скрипта kanboard, а kanboard.yml — оба в одном shell: повторное
+# присвоение readonly упало бы под bash -e. Без return: на нём shellcheck -x теряет
+# значения переменных в подключающем скрипте
+if [[ -z "${LIB_COMMIT_LOADED:-}" ]]; then
+  readonly LIB_COMMIT_LOADED=1
+  readonly COMMIT_HEADER_REGEX='^\[([A-Z][A-Z0-9]*-[0-9]+)\][[:space:]]+([a-z]+)\(([^)]+)\):[[:space:]]+(.+)$'
+  readonly COMMIT_MERGE_PR_REGEX='^Merge pull request #([0-9]+) from '
+  readonly COMMIT_SQUASH_PR_REGEX='^(.*) \(#([0-9]+)\)$'
+  readonly COMMIT_SUBJECT_MAX_LENGTH=125
+  readonly COMMIT_TYPES=(feature bugfix ci config refactor test docs)
+fi
 
 # type -> категория тела релиза (release-notes/notes.sh); нет записи — категория "other".
 declare -A COMMIT_CATEGORY_OF=(

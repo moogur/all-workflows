@@ -201,3 +201,24 @@ sh() {
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
+
+# ---------- повторное подключение ----------
+
+@test "source: повторное подключение в том же shell не падает под bash -e" {
+  run bash -e -c "source '$LIB'; source '$LIB'; echo ok"
+  [ "$status" -eq 0 ]
+  [ "$output" = "ok" ]
+}
+
+@test "source: оба скрипта kanboard в одном shell, в обоих порядках — как в kanboard.yml" {
+  local task_id="$ROOT/scripts/kanboard_task_id.sh" requests="$ROOT/scripts/kanboard_requests.sh"
+  # После двойного подключения константы и функции обоих скриптов на месте
+  local probe="commit_task_id '[GA-557] feature(api): x'; echo \$COMMIT_SUBJECT_MAX_LENGTH;
+    require_numeric_id task 42 && echo valid; kanboard_release_version v2.0.1"
+  run bash -e -c "source '$task_id'; source '$requests'; $probe"
+  [ "$status" -eq 0 ]
+  [ "$output" = $'557\n125\nvalid\n2.0.1' ]
+  run bash -e -c "source '$requests'; source '$task_id'; $probe"
+  [ "$status" -eq 0 ]
+  [ "$output" = $'557\n125\nvalid\n2.0.1' ]
+}
