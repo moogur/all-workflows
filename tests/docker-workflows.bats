@@ -66,3 +66,47 @@ setup() {
   run grep -rlF "actions/docker-release@master" "$WF"
   [ "$status" -ne 0 ]
 }
+
+@test "ни один вход workflow или action не имеет дефолта, начинающегося с \$" {
+  # Дефолт вида $GITHUB_ACTOR — просто строка: в with/env он не раскрывается
+  # и попадает в команду как есть (так ломалась ссылка на образ).
+  local found
+  found=$(grep -rnE "^[[:space:]]+default:[[:space:]]*[\"']?\\$" "$ROOT/.github/workflows" "$ROOT/.github/actions" || true)
+  [ -z "$found" ] || { echo "Дефолт с неразвёрнутой переменной: $found"; return 1; }
+}
+
+@test "github_user в docker-workflow'ах по умолчанию пустой — подставляет владельца resolve.sh" {
+  local wf
+  for wf in "${DOCKER_WORKFLOWS[@]}"; do
+    awk '/^      github_user:/{f=1;next} f&&/^      [a-z_]+:/{exit} f&&/default:/{print}' "$WF/$wf.yml" \
+      | grep -qE "default: ''$" || { echo "В $wf.yml default github_user не пустой"; return 1; }
+  done
+}
+
+# Шаг экшена docker-image, в котором вызывается скрипт $1: строки от его "- " до следующего шага
+action_step() {
+  awk -v script="$1" '
+    /^    - / { if (found) exit; step = "" }
+    { step = step $0 "\n" }
+    index($0, script) { found = 1 }
+    END { if (found) printf "%s", step }
+  ' "$ROOT/.github/actions/docker-image/action.yml"
+}
+
+@test "publish.sh логинится под пользователем, которого вычислил resolve.sh" {
+  # Правило «пусто — владелец репозитория» живёт только в resolve.sh. Если шаг
+  # публикации возьмёт inputs.github_user напрямую, пустой вход уйдёт в docker login.
+  local step
+  step=$(action_step 'publish.sh')
+  [ -n "$step" ]
+  grep -qF 'GITHUB_USER: ${{ steps.resolve.outputs.user }}' <<< "$step" \
+    || { echo "Шаг публикации берёт пользователя не из resolve: $step"; return 1; }
+}
+
+@test "сырой вход github_user читает только resolve.sh" {
+  local step uses
+  step=$(action_step 'resolve.sh')
+  grep -qF 'GITHUB_USER: ${{ inputs.github_user }}' <<< "$step"
+  uses=$(grep -cF '${{ inputs.github_user }}' "$ROOT/.github/actions/docker-image/action.yml")
+  [ "$uses" -eq 1 ] || { echo "inputs.github_user читается в $uses местах вместо одного"; return 1; }
+}

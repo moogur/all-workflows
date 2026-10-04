@@ -7,10 +7,10 @@ on:
   workflow_call:
     inputs:
       github_user:
-        description: "The Github user who started workflow"  # владелец образа / логин в реестр
+        description: "Владелец образа и логин в реестр; пусто — владелец репозитория"
         type: string
         required: false
-        default: $GITHUB_ACTOR
+        default: ''
 
 # contents: write — по тегу docker-image создаёт GitHub-релиз (docker-release).
 permissions:

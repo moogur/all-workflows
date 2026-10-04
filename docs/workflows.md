@@ -135,7 +135,7 @@ Dockerfile, `docker build`, логин и пуш. Сами workflow'ы отли�
 
 | Параметр | Тип | Обяз. | По умолчанию | Описание |
 | --- | --- | --- | --- | --- |
-| `github_user` | string | нет | `$GITHUB_ACTOR` | Пользователь GitHub (владелец образа / логин в реестр) |
+| `github_user` | string | нет | `''` | Владелец образа и логин в реестр; пусто — владелец репозитория (`github.repository_owner`) |
 
 **Секреты:** `GITHUB_TOKEN`.
 

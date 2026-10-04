@@ -3,8 +3,10 @@
 # Версия — тег, инициировавший запуск. Сборка без тега (расписание, ручной запуск)
 # всегда идёт датной меткой авто-сборки, поэтому и в semver-репозитории она не
 # перепишет релизные vX.Y.Z другим содержимым.
-# Вход (env): GITHUB_USER, REPOSITORY_NAME, REF_TYPE, REF_NAME, GITHUB_OUTPUT.
-# Выход: строки "version=", "image=" в файл $GITHUB_OUTPUT.
+# Пользователь образа: GITHUB_USER, а если он пуст — владелец репозитория (REPOSITORY_OWNER),
+# а не актор: образ лежит в пространстве владельца, кто бы ни запушил тег.
+# Вход (env): GITHUB_USER (необяз.), REPOSITORY_OWNER, REPOSITORY_NAME, REF_TYPE, REF_NAME, GITHUB_OUTPUT.
+# Выход: строки "version=", "image=", "user=" в файл $GITHUB_OUTPUT.
 set -euo pipefail
 lib="$(dirname "${BASH_SOURCE[0]}")/../../../lib"
 # shellcheck source=lib/version.sh
@@ -12,7 +14,7 @@ source "$lib/version.sh"
 # shellcheck source=lib/docker.sh
 source "$lib/docker.sh"
 
-github_user="${GITHUB_USER:?GITHUB_USER is required}"
+github_user="${GITHUB_USER:-${REPOSITORY_OWNER:?GITHUB_USER or REPOSITORY_OWNER is required}}"
 repository_name="${REPOSITORY_NAME:?REPOSITORY_NAME is required}"
 
 if [[ "${REF_TYPE:-}" == 'tag' ]]; then
@@ -27,4 +29,5 @@ image=$(docker_image_name "$github_user" "$repository_name")
 {
   echo "version=${version}"
   echo "image=${image}"
+  echo "user=${github_user}"
 } >> "$GITHUB_OUTPUT"

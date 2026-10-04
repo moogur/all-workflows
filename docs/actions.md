@@ -347,8 +347,8 @@ uses: moogur/all-workflows/.github/actions/<name>@master
 
 | | |
 | --- | --- |
-| **Входы** | `github_user` (обяз.) — владелец образа и логин в реестр; `dockerfile` (необяз.) — имя файла в `dockerfiles/`, пусто — Dockerfile проекта; `dockerignore` (необяз.) — имя файла `.dockerignore` там же; `build_args` (необяз.) — строки `KEY=VALUE`, по одной на строку; `context` (необяз., по умолчанию `.`); `token` (обяз.) — токен с `packages: write` и, для сборки по тегу, `contents: write` (публикация релиза) |
-| **Выходы** | `version` — версия сборки; `tags` — полные ссылки на образ со всеми тегами |
+| **Входы** | `github_user` (необяз.) — владелец образа и логин в реестр, пусто — владелец репозитория; `dockerfile` (необяз.) — имя файла в `dockerfiles/`, пусто — Dockerfile проекта; `dockerignore` (необяз.) — имя файла `.dockerignore` там же; `build_args` (необяз.) — строки `KEY=VALUE`, по одной на строку; `context` (необяз., по умолчанию `.`); `token` (обяз.) — токен с `packages: write` и, для сборки по тегу, `contents: write` (публикация релиза) |
+| **Выходы** | `version` — версия сборки; `user` — владелец образа после подстановки (явный `github_user` или владелец репозитория); `tags` — полные ссылки на образ со всеми тегами |
 
 ```yaml
 - id: node

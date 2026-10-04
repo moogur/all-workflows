@@ -3,8 +3,9 @@ description: "Общее тело docker-workflow'ов: версия сборк�
 
 inputs:
   github_user:
-    description: 'Владелец образа и логин в реестр'
-    required: true
+    description: 'Владелец образа и логин в реестр. Пустая строка — владелец репозитория.'
+    required: false
+    default: ''
   dockerfile:
     description: 'Имя файла в dockerfiles/ этого репозитория. Пустая строка — у проекта свой Dockerfile.'
     required: false
@@ -29,6 +30,9 @@ outputs:
   version:
     description: 'Версия сборки'
     value: ${{ steps.resolve.outputs.version }}
+  user:
+    description: 'Владелец образа и логин в реестр после подстановки владельца репозитория'
+    value: ${{ steps.resolve.outputs.user }}
   tags:
     description: 'Полные ссылки на образ со всеми тегами'
     value: ${{ steps.tags.outputs.tags }}
@@ -40,6 +44,7 @@ runs:
       shell: bash
       env:
         GITHUB_USER: ${{ inputs.github_user }}
+        REPOSITORY_OWNER: ${{ github.repository_owner }}
         REPOSITORY_NAME: ${{ github.event.repository.name }}
         REF_TYPE: ${{ github.ref_type }}
         REF_NAME: ${{ github.ref_name }}
@@ -68,7 +73,8 @@ runs:
 
     - shell: bash
       env:
-        GITHUB_USER: ${{ inputs.github_user }}
+        # Уже разрешённый пользователь: правило подстановки живёт только в resolve.sh.
+        GITHUB_USER: ${{ steps.resolve.outputs.user }}
         TOKEN: ${{ inputs.token }}
         TAGS: ${{ steps.tags.outputs.tags }}
       run: bash "$GITHUB_ACTION_PATH/publish.sh"

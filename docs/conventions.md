@@ -145,7 +145,7 @@ docker.pkg.github.com/<github_user>/<repo>/<repo>:<version>
 docker.pkg.github.com/<github_user>/<repo>/<repo>:latest
 ```
 
-`<github_user>` задаётся параметром `github_user` (по умолчанию `$GITHUB_ACTOR`), `<repo>` — `github.event.repository.name`.
+`<github_user>` задаётся параметром `github_user` (по умолчанию пусто — владелец репозитория, `github.repository_owner`), `<repo>` — `github.event.repository.name`.
 
 Набор тегов формирует composite action [`docker-tags`](actions.md#docker-tags). Формат определяется по самой версии:
 

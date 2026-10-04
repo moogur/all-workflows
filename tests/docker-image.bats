@@ -48,10 +48,40 @@ make_stub() {
   [[ "$(output_value version)" =~ ^[0-9]{2}\.[0-9]{2}\.[0-9]{4}-[0-9]{4}-auto$ ]]
 }
 
-@test "resolve: без github_user завершается с ошибкой" {
+@test "resolve: без GITHUB_USER берётся владелец репозитория" {
+  run env REPOSITORY_OWNER=rtdlab REPOSITORY_NAME=adminer \
+    REF_TYPE=tag REF_NAME=v1 GITHUB_OUTPUT="$GITHUB_OUTPUT" bash "$ACTION/resolve.sh"
+  [ "$status" -eq 0 ]
+  [ "$(output_value image)" = "docker.pkg.github.com/rtdlab/adminer/adminer" ]
+  [ "$(output_value user)" = "rtdlab" ]
+}
+
+@test "resolve: пустой GITHUB_USER тоже заменяется владельцем" {
+  # Так приходит необязательный вход экшена, который потребитель не передал.
+  run env GITHUB_USER='' REPOSITORY_OWNER=rtdlab REPOSITORY_NAME=adminer \
+    REF_TYPE=tag REF_NAME=v1 GITHUB_OUTPUT="$GITHUB_OUTPUT" bash "$ACTION/resolve.sh"
+  [ "$status" -eq 0 ]
+  [ "$(output_value user)" = "rtdlab" ]
+}
+
+@test "resolve: явный GITHUB_USER важнее владельца репозитория" {
+  run env GITHUB_USER=moogur REPOSITORY_OWNER=rtdlab REPOSITORY_NAME=adminer \
+    REF_TYPE=tag REF_NAME=v1 GITHUB_OUTPUT="$GITHUB_OUTPUT" bash "$ACTION/resolve.sh"
+  [ "$status" -eq 0 ]
+  [ "$(output_value user)" = "moogur" ]
+  [ "$(output_value image)" = "docker.pkg.github.com/moogur/adminer/adminer" ]
+}
+
+@test "resolve: без GITHUB_USER и владельца завершается с ошибкой" {
   run env REPOSITORY_NAME=adminer REF_TYPE=tag REF_NAME=v1 GITHUB_OUTPUT="$GITHUB_OUTPUT" bash "$ACTION/resolve.sh"
   [ "$status" -ne 0 ]
-  [[ "$output" == *"GITHUB_USER"* ]]
+  [[ "$output" == *"REPOSITORY_OWNER"* ]]
+}
+
+@test "resolve: в ссылке на образ нет неразвёрнутого \$" {
+  run env REPOSITORY_OWNER=rtdlab REPOSITORY_NAME=adminer \
+    REF_TYPE=tag REF_NAME=v1 GITHUB_OUTPUT="$GITHUB_OUTPUT" bash "$ACTION/resolve.sh"
+  [[ "$(output_value image)" != *'$'* ]]
 }
 
 # ---------- dockerfile.sh ----------
