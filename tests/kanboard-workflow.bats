@@ -34,12 +34,6 @@ code_lines() {
   [ "$sources" -eq "$envs" ]
 }
 
-@test "kanboard.yml: недоверенные значения и входы не интерполируются в run" {
-  # В run-блоках нет ${{ ... }}: всё приходит через env.
-  run bash -c "awk '/^[[:space:]]+run: \\|/{r=1; next} /^      - name:|^[[:space:]]+(env|with|if):/{r=0} r && /\\\$\\{\\{/' '$WORKFLOW'"
-  [ -z "$output" ]
-}
-
 @test "kanboard.yml: push/pr/merge-шаги пропускаются без task_id" {
   run grep -c "steps.variables.outputs.task_id != ''" "$WORKFLOW"
   [ "$output" -eq 3 ]

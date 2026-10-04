@@ -1,0 +1,15 @@
+name: 'Run build script'
+description: 'Проверяет путь к скрипту сборки (относительный, без "..", обычный файл внутри workspace) и выполняет его через source.'
+
+inputs:
+  file_path:
+    description: 'Путь к скрипту сборки относительно корня репозитория.'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - shell: bash
+      env:
+        FILE_PATH: ${{ inputs.file_path }}
+      run: bash "$GITHUB_ACTION_PATH/run.sh"

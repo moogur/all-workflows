@@ -46,10 +46,11 @@ jobs:
           mode: ref
           prefix: ''
 
-      # Запуск пользовательского скрипта сборки в текущей оболочке (source).
+      # Путь проверяется до source: относительный, без `..`, обычный файл внутри workspace.
       - name: Build project
-        run: |
-          . ${{ inputs.file_path }}
+        uses: moogur/all-workflows/.github/actions/run-build-script@master
+        with:
+          file_path: ${{ inputs.file_path }}
 
       - name: 'Publish release'
         if: github.ref_type == 'tag'

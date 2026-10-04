@@ -303,6 +303,23 @@ uses: moogur/all-workflows/.github/actions/<name>@master
 
 Используется в [`docker-tags`](#docker-tags) и в [`github-release`](#github-release) — там тег проверяется до создания релиза.
 
+## `run-build-script`
+
+Выполняет пользовательский скрипт сборки через `source` в одном шаге, но сначала проверяет путь: `file_path` приходит от вызывающего репозитория, и подставлять его в тело `run:` нельзя ([security.md](security.md), п. 8). Используется в [`deploy_for_build_application`](workflows.md).
+
+| | |
+| --- | --- |
+| **Входы** | `file_path` (обяз.) — путь к скрипту относительно корня репозитория |
+| **Выходы** | — |
+
+Проверки (`run.sh`, при любом нарушении — код 1 и сообщение `run-build-script: …`, скрипт не выполняется): путь не пустой; не абсолютный; нет сегментов `..` (имя вроде `a..b.sh` допустимо); существует обычный файл; `realpath` файла (с учётом симлинков) лежит внутри `GITHUB_WORKSPACE`. Скрипт запускается как `. "./<путь>"`: без `./` оболочка искала бы имя без слэша в `PATH`.
+
+```yaml
+- uses: moogur/all-workflows/.github/actions/run-build-script@master
+  with:
+    file_path: ${{ inputs.file_path }}
+```
+
 ## `docker-tags`
 
 Формирует полный список тегов docker-образа по версии сборки. Формат версии определяет [`tag-format`](#tag-format) (шаг внутри этого экшена); сама сборка списка тегов по формату не переопределяет. Разбор semver и склейка ссылок `<образ>:<тег>` — [`lib/version.sh`](../lib/version.sh) и [`lib/docker.sh`](../lib/docker.sh).

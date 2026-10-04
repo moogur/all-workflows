@@ -37,7 +37,9 @@ jobs:
       # Для монорепозитория: переносим содержимое подпапки в корень рабочей директории.
       - name: 'Prepare working folder'
         if: "inputs.folder != '.'"
-        run: cp -r ${{ inputs.folder }}/. .
+        env:
+          FOLDER: ${{ inputs.folder }}
+        run: cp -r "$FOLDER"/. .
 
       # Версия Go берётся из директивы `go` в go.mod.
       - name: 'Detect Go version'

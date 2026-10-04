@@ -52,8 +52,10 @@ jobs:
 
       # Сборка фронтенда с пробросом версии и упаковка dist в application.zip.
       - name: 'Create assets'
+        env:
+          VITE_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          export VITE_VERSION=${{ steps.version.outputs.version }} && npm run build
+          npm run build
           mkdir application
           mv dist application/dist
           zip -r application.zip application

@@ -100,11 +100,11 @@ Job не запускается на Pull Request из форка, а токен
 
 | Параметр | Тип | Обяз. | Описание |
 | --- | --- | --- | --- |
-| `file_path` | string | да | Путь к исполняемому файлу сборки (запускается через `. <file_path>`) |
+| `file_path` | string | да | Путь к исполняемому файлу сборки (запускается через `source`). Относительный, без сегментов `..`, существующий обычный файл внутри workspace — иначе шаг падает (см. [`run-build-script`](actions.md#run-build-script)) |
 
 **Секреты:** `GITHUB_TOKEN`.
 
-**Шаги:** checkout с `fetch-depth: 0` → **по тегу**: [`tag-format`](actions.md#tag-format) (фейл-фаст до сборки) → выполнение `file_path` (всегда) → **по тегу** (`if: github.ref_type == 'tag'`): версия (`mode: ref`, `prefix: ''`) → [`github-release`](actions.md#github-release) с `./application.zip` и заголовком `Release <version>`.
+**Шаги:** checkout с `fetch-depth: 0` → **по тегу**: [`tag-format`](actions.md#tag-format) (фейл-фаст до сборки) → проверка и выполнение `file_path` через [`run-build-script`](actions.md#run-build-script) (всегда) → **по тегу** (`if: github.ref_type == 'tag'`): версия (`mode: ref`, `prefix: ''`) → [`github-release`](actions.md#github-release) с `./application.zip` и заголовком `Release <version>`.
 
 > **Без тега релиза не будет.** Раньше версия без тега (авто-деплой) считалась через `git describe` — на коммите с несколькими тегами (дата и `vX.Y.Z`) он мог выбрать другой, чем инициировавший запуск. Теперь версия для релиза — только `mode: ref` (сам тег, инициировавший запуск), и шаги версии/релиза закрыты условием `github.ref_type == 'tag'`; без тега выполняется только сборочный скрипт.
 

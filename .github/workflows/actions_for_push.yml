@@ -38,7 +38,9 @@ jobs:
       # Для монорепозитория: переносим содержимое подпапки в корень рабочей директории.
       - name: 'Prepare working folder'
         if: "inputs.folder != '.'"
-        run: cp -r ${{ inputs.folder }}/. .
+        env:
+          FOLDER: ${{ inputs.folder }}
+        run: cp -r "$FOLDER"/. .
 
       # Определение версии Node из package.json + setup-node с кэшем npm (~/.npm).
       - name: 'Setup node'
