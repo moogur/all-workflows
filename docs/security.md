@@ -30,6 +30,8 @@
 
 **Осталось на будущее:** [`docker/login-action`](https://github.com/docker/login-action) при переезде на `ghcr.io` (см. [modernization.md](modernization.md)).
 
+**Тот же принцип для `curl`.** `execute_request` в [`kanboard_requests.sh`](../scripts/kanboard_requests.sh) раньше передавал `curl -u user:token` аргументом — пара была видна в списке процессов. Теперь `user = "…"` уходит в `curl --config -` через stdin (builtin `printf` в pipe: here-doc в старом bash создаёт временный файл), так что секрета нет ни в argv, ни на диске. `\`, `"`, перевод строки, `\r` и табуляция экранируются по правилам конфига curl (`curl_config_escape`), поэтому токен с кавычкой не ломает строку и не может добавить свою директиву. Остальные секреты идут через `env:` (`GH_TOKEN` для `gh`, `NODE_AUTH_TOKEN` для `.npmrc`); других мест, где секрет передавался бы аргументом процесса, нет. Тесты — [kanboard-requests.bats](../tests/kanboard-requests.bats).
+
 ## 3. Загрузка ресурсов в рантайме с `master`
 
 Dockerfile'ы и composite actions подтягиваются по ссылке на ветку `master`. Любое изменение в `master` мгновенно влияет на всех потребителей, а версия вызванного workflow не привязана к версии скачиваемого ресурса.

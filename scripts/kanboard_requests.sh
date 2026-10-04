@@ -11,7 +11,7 @@
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/commit.sh"
 
 private_url=${KANBOARD_URL:-}                                 # базовый URL Kanboard (запросы идут на <url>/jsonrpc.php)
-private_auth_data=${KANBOARD_USER:-}:${KANBOARD_TOKEN:-}      # "<user>:<token>" для curl -u
+private_auth_data=${KANBOARD_USER:-}:${KANBOARD_TOKEN:-}      # "<user>:<token>", уходит в curl через stdin-конфиг
 private_task_id=${KANBOARD_TASK_ID:-}                         # id текущей задачи (значение по умолчанию для функций)
 private_project_id=${KANBOARD_PROJECT_ID:-}                   # id проекта (по умолчанию)
 private_swimlane_id=${KANBOARD_SWIMLANE_ID:-}                 # id дорожки (по умолчанию)
@@ -89,18 +89,34 @@ function generate_post_data_for_update_task_app_version() {
 
 # --- Выполнение запросов (curl на <url>/jsonrpc.php), печатают ответ в stdout ---
 
+# curl_config_escape <строка> — экранирует строку для значения в кавычках в конфиге curl:
+# \ и " ломали бы строку `user = "..."`, а перевод строки начал бы в конфиге новую директиву.
+function curl_config_escape() {
+  local value=$1
+  value=${value//\\/\\\\}
+  value=${value//\"/\\\"}
+  value=${value//$'\n'/\\n}
+  value=${value//$'\r'/\\r}
+  value=${value//$'\t'/\\t}
+  printf '%s' "$value"
+}
+
 # Единая обёртка над curl. Kanboard живёт на самохостинге и бывает недоступен:
 # без таймаутов запрос висел на TCP-коннекте больше двух минут, без ретраев
 # падал от короткой сетевой икоты, а без -f любой 5xx выглядел как успех.
 # Ошибка идёт в stderr (в stdout только ответ — его читает вызывающий код).
+# Логин и токен идут в curl конфигом через stdin (`--config -`): ни в argv (виден в
+# списке процессов), ни в файле на диске их нет. Конфиг печатает builtin printf в pipe —
+# heredoc/here-string в старом bash создаёт временный файл.
 function execute_request() {
   local data=$1
   local response
 
-  if ! response=$(curl -fsS \
+  if ! response=$(printf 'user = "%s"\n' "$(curl_config_escape "$private_auth_data")" | curl -fsS \
+    --config - \
     --connect-timeout 10 --max-time 30 \
     --retry 3 --retry-delay 5 --retry-connrefused --retry-all-errors \
-    -u "$private_auth_data" -d "$data" "$private_url/jsonrpc.php"); then
+    -d "$data" "$private_url/jsonrpc.php"); then
     echo "Kanboard request failed: $private_url/jsonrpc.php" >&2
     return 1
   fi

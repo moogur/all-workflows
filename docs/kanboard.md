@@ -65,10 +65,13 @@ Bash-библиотека функций поверх [Kanboard JSON-RPC API](ht
 Все четыре ходят через общую обёртку `execute_request`:
 
 ```bash
-curl -fsS --connect-timeout 10 --max-time 30 \
+printf 'user = "%s"\n' "$(curl_config_escape "$private_auth_data")" | curl -fsS --config - \
+  --connect-timeout 10 --max-time 30 \
   --retry 3 --retry-delay 5 --retry-connrefused --retry-all-errors \
-  -u "$private_auth_data" -d "$data" "$private_url/jsonrpc.php"
+  -d "$data" "$private_url/jsonrpc.php"
 ```
+
+Логин и токен передаются конфигом через stdin (`--config -`), а не `-u`: так их нет в списке процессов раннера и в файле на диске. `curl_config_escape` экранирует `\`, `"` и управляющие символы по правилам конфига curl ([security.md](security.md#2-передача-токена-в-docker-login--исправлено)).
 
 Kanboard живёт на самохостинге и периодически недоступен с раннеров GitHub. Что это меняет:
 
