@@ -63,16 +63,16 @@ Docker-реестр GitHub Packages по адресу `docker.pkg.github.com` у
 ## Прочие наблюдения (не критично)
 
 - **`exit 1` при отсутствии обновлений** в auto-deploy workflow'ах помечает прогон красным. Оставлено намеренно: так гарантированно пропускаются все последующие шаги, а не только деплой (см. [workflows.md](workflows.md)).
-- **Недоступность Kaneo не роняет прогон.** Скрипты `kaneo_*.sh` не прерывают шаг по ошибке `request_*`: задача просто не переезжает по статусам, а деплой идёт дальше. С обёрткой `execute_request` это видно в логе (`Kaneo request failed: <метод> <путь>`) и в отчёте (`ERROR`). Если понадобится обратное поведение — `continue-on-error` на job и явная проверка статуса.
+- **Недоступность Kaneo не роняет прогон.** Скрипты `scripts/kaneo/` не прерывают шаг по ошибке `request_*`: задача просто не переезжает по статусам, а деплой идёт дальше. С обёрткой `execute_request` это видно в логе (`Kaneo request failed: <метод> <путь>`) и в отчёте (`ERROR`). Если понадобится обратное поведение — `continue-on-error` на job и явная проверка статуса.
 - **Required reviewers у Environment** остановят job проверки в авто-деплое на ручном подтверждении — автоматическим такой деплой уже не будет. Ограничение самого GitHub, обходить нечем (кроме отказа от `environment:` и хранения состояния где-то ещё).
 
 ## Исправлено
 
 - **Кэш `node_modules` + пропуск `npm ci`** → перешли на `actions/setup-node` с `cache: 'npm'` (кэш `~/.npm`) и безусловный `npm ci` через общий action [`setup-node`](actions.md). Каталог `node_modules` больше не кэшируется.
 - **`npm i` → `npm ci`** в [deploy_for_lerna.yml](../.github/workflows/deploy_for_lerna.yml).
-- **`wget @master` для kanboard-скрипта** → интеграция (позже заменена Kanboard → Kaneo, [kaneo.yml](../.github/workflows/kaneo.yml)) берёт скрипты `scripts/kaneo_*.sh` через `actions/checkout` репозитория `all-workflows`, запиненный к `github.job_workflow_sha` (версия вызванного workflow), без обращения к `raw.githubusercontent`.
+- **`wget @master` для kanboard-скрипта** → интеграция (позже заменена Kanboard → Kaneo, [kaneo.yml](../.github/workflows/kaneo.yml)) берёт скрипты `scripts/kaneo/**/*.sh` через `actions/checkout` репозитория `all-workflows`, запиненный к `github.job_workflow_sha` (версия вызванного workflow), без обращения к `raw.githubusercontent`.
 - **Shebang хука `.husky/commit-msg`** → `#!/usr/bin/env bash` (портативно).
-- **Word-splitting в скрипте Kanboard (сейчас `scripts/kaneo_*.sh`)** → все аргументы закавычены, `shellcheck` проходит строго без исключений.
+- **Word-splitting в скрипте Kanboard (сейчас `scripts/kaneo/**/*.sh`)** → все аргументы закавычены, `shellcheck` проходит строго без исключений.
 - **`LAST_UPDATE_VALUE` обновлялся до деплоя** → запись вынесена в отдельный job `save_update_value`, зависящий от результата сборки: упавший деплой больше не «съедает» обновление.
 - **Первый запуск авто-деплоя падал на 404** → [`save-update-value`](actions.md#save-update-value) создаёт переменную через `POST`, если `PATCH` не прошёл; заводить её руками больше не нужно.
 - **«Последний тег» внешнего репозитория считался сортировкой по имени** (`--sort='v:refname'`), а она врёт на неверсионных тегах: среди датных «максимум» — `26.05.2023`, потому что `26 > 14`, так что маркер мог намертво встать на старом теге. → [`remote-update-check`](actions.md#remote-update-check) берёт самый свежий тег по дате создания, независимо от формата имени.
@@ -95,7 +95,7 @@ Docker-реестр GitHub Packages по адресу `docker.pkg.github.com` у
 - **`pr_annotation_go` ничего не делал** (шаг с тестами закомментирован, оставалась только установка Go). → Удалён.
 - **Сторонние actions работали на node20**, который GitHub выводит из эксплуатации (прогон уже предупреждал: «forced to run on Node.js 24»). → Подняты до мажоров на node24: `actions/checkout@v7`, `actions/setup-go@v7`, `actions/setup-node@v7`, `actions/upload-artifact@v7`, `actions/download-artifact@v7`, `release-drafter/release-drafter@v7`. Минимальные мажоры зафиксированы guard-тестом [action-versions.bats](../tests/action-versions.bats).
 - **Заархивированные `actions/create-release` и `actions/upload-release-asset`** → общий action [`publish-release`](actions.md#publish-release) на `gh`: создаёт релиз или обновляет существующий и грузит ассеты с `--clobber`. Перезапуск job'а по уже выпущенному тегу больше не падает.
-- **`curl` к трекеру (Kanboard) без таймаутов, ретраев и `-f`** → общая обёртка `execute_request` (Kanboard позже заменён Kaneo, см. [kaneo.md](kaneo.md#запросы-kaneo_requestssh)): запрос больше не висит две минуты на недоступном хосте, переживает короткие сбои и не выдаёт 5xx за успех.
+- **`curl` к трекеру (Kanboard) без таймаутов, ретраев и `-f`** → общая обёртка `execute_request` (Kanboard позже заменён Kaneo, см. [kaneo.md](kaneo.md#запросы-requestssh)): запрос больше не висит две минуты на недоступном хосте, переживает короткие сбои и не выдаёт 5xx за успех.
 - **`release.yml` / `release_with_artifacts.yml` удалены** (breaking). Отдельного «релизного» workflow больше нет:
   каждая сборка, у которой есть что опубликовать, по тегу сама вызывает единую цепочку
   [`github-release`](actions.md#github-release). **Потребителю, вызывавшему `release.yml` или

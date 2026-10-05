@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
-# Тесты обёртки execute_request и функций request_* в scripts/kaneo_requests.sh.
+# Тесты обёртки execute_request и функций request_* в scripts/kaneo/requests.sh.
 # curl подменяется заглушкой: проверяем флаги, метод, адрес, тело и поведение при сбое.
 
 setup() {
   load helpers
   ROOT="$(repo_root)"
-  LIB="$ROOT/scripts/kaneo_requests.sh"
+  LIB="$ROOT/scripts/kaneo/requests.sh"
   TMP="$(mktemp -d)"
   CURL_LOG="$TMP/curl.log"
   export CURL_STDIN="$TMP/curl.stdin" CURL_AUTH="$TMP/curl.auth"
@@ -231,8 +231,8 @@ sh_with_env() {
   [ ! -e "$marker" ]
 }
 
-@test "env: id задачи, проекта и пространства читаются из окружения" {
+@test "env: данные текущей задачи из окружения не читаются, на старте пусты" {
   run env KANEO_TASK_KEY=GA-25 KANEO_TASK_ID=tid1 KANEO_PROJECT_ID=pid1 KANEO_WORKSPACE_ID=wid1 \
-    bash -c "source '$LIB'; echo \"\$private_task_key \$private_task_id \$private_project_id \$private_workspace_id\""
-  [ "$output" = "GA-25 tid1 pid1 wid1" ]
+    bash -c "source '$LIB'; echo \"[\$private_task_key\$private_task_id\$private_project_id\$private_workspace_id]\""
+  [ "$output" = "[]" ]
 }

@@ -1,39 +1,39 @@
 # Интеграция с Kaneo
 
-Workflow [`kaneo.yml`](../.github/workflows/kaneo.yml) синхронизирует положение задачи на доске [Kaneo](https://github.com/usekaneo/kaneo) (self-hosted) с этапами разработки в Git: коммит, открытие PR, мерж, деплой. Работает из CI по REST API, без GitHub App Kaneo. Код разложен по скриптам, которые workflow получает через `actions/checkout` этого репозитория (запиненного к версии вызванного workflow) и подключает через `source`; секреты и id они читают из переменных окружения:
+Workflow [`kaneo.yml`](../.github/workflows/kaneo.yml) синхронизирует положение задачи на доске [Kaneo](https://github.com/usekaneo/kaneo) (self-hosted) с этапами разработки в Git: коммит, открытие PR, мерж, деплой. Работает из CI по REST API, без GitHub App Kaneo. Поведение задаёт **схема** — декларативный конечный автомат в [`scripts/kaneo/schemes.json`](../scripts/kaneo/schemes.json): потребитель выбирает схему по имени и передаёт событие. Код лежит в [`scripts/kaneo/`](../scripts/kaneo/); workflow получает его через `actions/checkout` этого репозитория (запиненного к версии вызванного workflow) и подключает через `source`; секреты и входы скрипты читают из переменных окружения:
 
-- [`scripts/kaneo_flow.sh`](../scripts/kaneo_flow.sh) — подготовка данных задачи и переходы push/pr/merge;
-- [`scripts/kaneo_deploy.sh`](../scripts/kaneo_deploy.sh) — переход deploy и запись версии в поле `App_version`;
-- [`scripts/kaneo_requests.sh`](../scripts/kaneo_requests.sh) — запросы к API; [`scripts/kaneo_messages.sh`](../scripts/kaneo_messages.sh) — отчёт `message.tmpl`;
-- [`scripts/kaneo_task_id.sh`](../scripts/kaneo_task_id.sh) — откуда берутся номер задачи и версия релиза; сам формат (заголовок коммита, теги, id Kaneo) — в [`lib/`](../lib/) (см. [conventions.md](conventions.md#форматы)).
+- [`engine.sh`](../scripts/kaneo/engine.sh) — точка входа `kaneo_run`: читает схему, собирает номера задач, запускает обработку;
+- [`task.sh`](../scripts/kaneo/task.sh) — одна задача: данные из Kaneo, выбор правила по статусу, перенос;
+- [`fields.sh`](../scripts/kaneo/fields.sh) — запись пользовательских полей после переноса; функции значений — в [`fields/`](../scripts/kaneo/fields/);
+- [`requests.sh`](../scripts/kaneo/requests.sh) — запросы к API; [`messages.sh`](../scripts/kaneo/messages.sh) — отчёт `message.tmpl`;
+- [`task_key.sh`](../scripts/kaneo/task_key.sh) — откуда берётся номер задачи; сам формат (заголовок коммита, теги, id Kaneo) — в [`lib/`](../lib/) (см. [conventions.md](conventions.md#форматы)).
 
 ← Назад к [README](../README.md) · [Справочник workflow'ов](workflows.md)
 
-> Kaneo заменил Kanboard: вызов меняется целиком (`kanboard.yml` → `kaneo.yml`, секреты `KANEO_*`, вместо списка `kanboard_columns` — именованные статусы).
+> Kaneo заменил Kanboard. Вместо `project_type` и `kaneo_status_*` вход теперь один: имя схемы `kaneo_scheme` (колонки доски описаны в самой схеме).
 
 ## Как это работает
 
-1. Workflow выкачивает `all-workflows` через `actions/checkout` (ref = `github.job_workflow_sha`, т.е. версия вызванного workflow) и подключает скрипты прямо оттуда. Значения в файлы **не подставляются** (никаких `sed`): шаг передаёт их через `env:` — `KANEO_URL`, `KANEO_TOKEN` (секреты), входы `kaneo_status_*`, `KANEO_TASK_KEY`, `KANEO_TASK_ID`, `KANEO_PROJECT_ID`, `KANEO_WORKSPACE_ID`, `CURRENT_STATUS` (выходы шага «Set variables»). Причина — [security.md, п. 8](security.md#8-инъекция-через-номер-задачи-и-sed-в-исполняемый-файл-в-kanboardyml--исправлено).
-2. Номер задачи (`GA-25`) извлекается через `scripts/kaneo_task_id.sh` (функция `commit_task_key` из [`lib/commit.sh`](../lib/commit.sh): первая строка текста, разбитая по `-`, `[`, `]` и `_`; принимается только значение вида `PREFIX-N`) из:
-   - **сообщения коммита** — для `single_branch` (`kaneo_task_key_from_last_commit`);
-   - **имени ветки** (`github.head_ref` / `GITHUB_REF_NAME`) — для остальных случаев (`kaneo_task_key_from_ref`).
-   Нет номера — шаги push/pr/merge пишут строку в лог и пропускаются, job не падает. То же, если Kaneo не ответил валидными данными задачи (id, проект, пространство, статус проверяются `kaneo_id_valid`).
-   Это согласуется с форматом веток и коммитов `[GA-123] ...` (см. [conventions.md](conventions.md)).
-3. Задача ищется по номеру (`GET /api/task/by-ticket-id/GA-25`), её текущий статус (slug колонки) сравнивается с входами и по таблице ниже задача переносится (`PUT /api/task/status/<id>`).
-4. Итог каждого шага пишется в файл `message.tmpl` и выводится в лог на финальном шаге.
+Один шаг workflow подключает `engine.sh` и вызывает `kaneo_run`. Значения в файлы **не подставляются** (никаких `sed`) и между шагами через `$GITHUB_OUTPUT` не передаются: шаг получает через `env:` только `KANEO_URL`, `KANEO_TOKEN` (секреты), `KANEO_SCHEME`, `EVENT_TYPE`, `HEAD_REF`. Причина — [security.md, п. 8](security.md#8-инъекция-через-номер-задачи-и-sed-в-исполняемый-файл-в-kanboardyml--исправлено).
+
+1. Схема и событие ищутся в `schemes.json`. Нет схемы или событие в ней не определено — строка в лог, шаг завершается успешно: Kaneo никогда не блокирует пайплайн.
+2. Номера задач (`GA-25`; `commit_task_key` из [`lib/commit.sh`](../lib/commit.sh): первая строка текста, разбитая по `-`, `[`, `]` и `_`; принимается только значение вида `PREFIX-N`) берутся по `task_key` события из схемы:
+   - `commit` — заголовок последнего коммита;
+   - `branch` — имя ветки PR (`github.head_ref`) для `pr`/`merge` и имя ветки/тега запуска (`GITHUB_REF_NAME`) для остальных событий;
+   - `tags` — заголовки коммитов между двумя последними git-тегами (вся история, если тег один; `kaneo_deploy_tags`/`kaneo_deploy_task_keys`, теги — по дате создания, [`lib/tags.sh`](../lib/tags.sh)), без дублей.
+   Любое событие может использовать любой источник. Нет номера (или тегов) — строка в лог, шаг пропускается.
+3. Для каждой задачи: `GET /api/task/by-ticket-id/GA-25`; если текущий статус (slug колонки) входит в `from` первого подходящего правила события — `PUT /api/task/status/<id>` в `to`. Иначе в отчёт пишется `SKIPPED`, задача и её поля не трогаются. Данные задачи, не прошедшие проверку id (задача, проект, пространство), задачу пропускают с `ERROR` в отчёте.
+4. Поля правила заполняются **только после успешного переноса** (см. ниже). Сбой одного поля не останавливает остальные поля и задачи.
+5. Итог каждой задачи пишется в `message.tmpl` и выводится в лог на финальном шаге.
+
+Статусы сравниваются с доверенным файлом схем, а не с ASCII-шаблоном: slug колонки может содержать кириллицу (его строит `toSlug` Kaneo). Статус из ответа API в лог не печатается; id, идущие в URL, проверяет `kaneo_id_valid`.
 
 ## Входные параметры
 
 | Параметр | Обяз. | Значения | Описание |
 | --- | --- | --- | --- |
-| `project_type` | да | `single_branch` \| `multi_branch` | Модель ветвления проекта |
+| `kaneo_scheme` | да | имя схемы из `schemes.json` (`single` \| `single_ready` \| `multi`) | Схема переходов |
 | `event_type` | да | `push` \| `pr` \| `merge` \| `deploy` | Текущее событие пайплайна |
-| `kaneo_status_in_progress` | да | slug колонки | Колонка «в работе» |
-| `kaneo_status_review` | нет (`''`) | slug колонки | Колонка «на ревью» (нужна `multi_branch`) |
-| `kaneo_status_merged` | нет (`''`) | slug колонки | Колонка «смёржено» (нужна `multi_branch`) |
-| `kaneo_status_deploy` | нет (`''`) | slug колонки | Колонка «задеплоено» (нужна `multi_branch`) |
-
-Если нужный событию статус не задан, шаг пишет строку в лог и пропускается — job не падает.
 
 ## Секреты
 
@@ -44,27 +44,92 @@ Workflow [`kaneo.yml`](../.github/workflows/kaneo.yml) синхронизиру�
 
 Ключ принадлежит пользователю Kaneo: ему нужен доступ к рабочему пространству проекта (чтение задач и полей, обновление задач).
 
-## Логика переходов
+## Файл схем
 
-Колонки адресуются slug'ами из входов:
+Схема — объект, ключи которого — события (`push`, `pr`, `merge`, `deploy`). Событие всегда объект с `task_key` и массивом `rules`; другой формы нет.
 
-| Событие | Тип проекта | Условие | Действие |
-| --- | --- | --- | --- |
-| `push` | любой | задача не в `in_progress` и (для `multi_branch`) не в `review` | переместить в `in_progress` |
-| `pr` | `multi_branch` | задача в `in_progress` | переместить в `review` |
-| `merge` | `multi_branch` | задача в `review` | переместить в `merged` |
-| `deploy` | `multi_branch` | задача из диапазона между двумя последними тегами в `merged` | переместить в `deploy` и записать версию в поле `App_version` |
+```json
+{
+  "<имя схемы>": {
+    "<push | pr | merge | deploy>": {
+      "task_key": "commit | branch | tags",
+      "rules": [
+        { "from": ["slug", "..."], "to": "slug", "fields": { "<поле Kaneo>": "<функция>" } }
+      ]
+    }
+  }
+}
+```
 
-Если условие не выполнено, в отчёт пишется `SKIPPED`. На `push` переносится задача из **любой** другой колонки (список «рабочих» колонок больше не нужен).
+- `task_key` — источник номеров задач события (см. «Как это работает», п. 2);
+- `rules` — непустой список правил. Правила проверяются по порядку: срабатывает первое, чей `from` содержит текущий статус задачи (перенос в его `to`, затем его собственные `fields`); ни одно не подошло — `SKIPPED`;
+- `from` — непустой список slug'ов колонок; `to` — целевая колонка;
+- `fields` (необязательно) — «имя пользовательского поля в проекте Kaneo -> имя функции значения»;
+- slug'и должны совпадать с колонками реальной доски; несовпадение проявится ошибкой при прогоне, а не при проверке схемы.
 
-При деплое workflow собирает номера задач из коммитов между двумя последними git-тегами (или из всех коммитов, если тег один; `kaneo_deploy_tags`/`kaneo_deploy_task_keys` в `scripts/kaneo_task_id.sh`, последние теги — по дате создания, [`lib/tags.sh`](../lib/tags.sh)), убирает дубликаты и для каждой задачи дописывает версию текущего релиза (снятие префикса `v` — [`lib/version.sh`](../lib/version.sh)) в пользовательское поле `App_version`:
+Пример события с двумя правилами:
 
-- поле пустое — записывается версия; версия уже есть в списке (сравнение по целому элементу через запятую) — запись пропускается; иначе дописывается `, <версия>`;
-- в Kaneo поле нужно завести в проекте вручную (тип `text`); без него шаг пишет строку в лог и идёт дальше;
-- Kaneo отдаёт значения только заполненных полей (`GET /api/custom-field/task/<id>`), поэтому id поля берётся из определений проекта (`GET /api/custom-field/project/<id>`, один запрос на проект за прогон); запись — `PUT /api/custom-field/value`;
-- не удалось прочитать текущее значение — запись не отправляется (чтобы не затереть уже стоящие версии), в отчёте `ERROR`.
+```json
+"push": {
+  "task_key": "branch",
+  "rules": [
+    { "from": ["backlog", "todo"], "to": "in-progress" },
+    { "from": ["hold"], "to": "review", "fields": { "Sprint": "current_sprint" } }
+  ]
+}
+```
 
-## Запросы (`kaneo_requests.sh`)
+### Схемы
+
+| Схема | Событие | `task_key` | `from` | `to` | Поля |
+| --- | --- | --- | --- | --- | --- |
+| `single` | `push` | `commit` | `backlog`, `todo`, `hold` | `in-progress` | — |
+| `single` | `deploy` | `tags` | `in-progress` | `done` | `Version` |
+| `single_ready` | `push` | `commit` | `backlog`, `todo`, `hold` | `in-progress` | — |
+| `single_ready` | `deploy` | `tags` | `in-progress`, `ready` | `done` | `Version` |
+| `multi` | `push` | `branch` | `backlog`, `todo`, `hold` | `in-progress` | — |
+| `multi` | `pr` | `branch` | `in-progress` | `review` | — |
+| `multi` | `merge` | `branch` | `review` | `merged` | — |
+| `multi` | `deploy` | `tags` | `merged` | `done` | `Version` |
+
+### Как добавить схему
+
+1. Добавить в `schemes.json` объект схемы: события с `task_key` и `rules` (формат выше), slug'и — как на доске. Новое событие — новый ключ внутри схемы (из `push`, `pr`, `merge`, `deploy`).
+2. Если нужны поля — добавить функцию (ниже).
+3. Тест-страж [`tests/kaneo-schemes.bats`](../tests/kaneo-schemes.bats) проверит структуру, допустимые события и `task_key`, непустые `rules`, `from`/`to` и то, что каждая функция из `fields` существует.
+
+## Поля и функции значений
+
+Поле заполняется после успешного переноса, для каждой пары `"поле": "функция"` переданного правила:
+
+1. имя функции должно подходить под `^[a-z_][a-z0-9_]*$` ([`lib/kaneo.sh`](../lib/kaneo.sh), `kaneo_func_name_valid`), иначе ошибка в лог и поле пропущено;
+2. функция в shell называется `kaneo_field_<функция>` (префикс не даёт затенить команды вроде `date`). Если она не определена, подключается `scripts/kaneo/fields/<функция>.sh`; нет файла или функции в нём — ошибка, поле пропущено. Одна функция может обслуживать несколько полей и подключается один раз;
+3. поле ищется по имени среди определений проекта задачи (`GET /api/custom-field/project/<id>`, один запрос на проект за прогон); нет такого поля — строка в лог, поле пропущено;
+4. читается текущее значение (`GET /api/custom-field/task/<id>`; нет значения — пустая строка). Не удалось прочитать — ошибка, запись не отправляется (чтобы не затереть стоящее);
+5. вызывается `kaneo_field_<функция>` **без аргументов**; контекст — в переменных окружения (таблица ниже), новое значение — в stdout;
+6. значение равно текущему — запись не отправляется; иначе `PUT /api/custom-field/value`.
+
+| Переменная | Значение |
+| --- | --- |
+| `KANEO_FIELD_VALUE` | текущее значение поля (пусто, если нет) |
+| `KANEO_TASK_KEY` | номер задачи (`GA-25`) |
+| `KANEO_TASK_STATUS` | статус задачи до переноса |
+| `KANEO_EVENT` | событие (`push`/`pr`/`merge`/`deploy`) |
+
+Контракт функции: stdout — новое значение целиком (заменить, дописать или оставить как есть решает функция); код возврата не 0 — ошибка в лог и отчёт, значение не пишется, остальные поля продолжаются. Движок не использует `eval`: имя функции проверяется по регулярному выражению и вызывается как обычная команда.
+
+### Как добавить функцию значения
+
+1. Создать `scripts/kaneo/fields/<имя>.sh`, имя — строчные латинские буквы, цифры, `_`.
+2. Определить в нём `kaneo_field_<имя>`; общие форматы брать из `lib/` (версии — [`lib/version.sh`](../lib/version.sh), теги — [`lib/tags.sh`](../lib/tags.sh)), не переписывать их.
+3. Указать `<имя>` в `fields` нужного перехода в `schemes.json`.
+4. Покрыть тестом (пример — [`tests/kaneo-field-release-version.bats`](../tests/kaneo-field-release-version.bats)).
+
+### `release_version`
+
+Файл [`fields/release_version.sh`](../scripts/kaneo/fields/release_version.sh): берёт версию последнего тега (по дате создания, без префикса `v`) и дописывает её в значение через запятую. Пустое поле — только версия; версия уже есть в списке (сравнение по целому элементу после обрезки пробелов: `1.2` не входит в `1.2.3`) — значение без изменений; нет тегов — сообщение в stderr и код 1. В Kaneo поле `Version` нужно завести в проекте вручную (тип `text`).
+
+## Запросы (`requests.sh`)
 
 Bash-библиотека функций поверх REST API Kaneo. Переменные `private_*` читаются из окружения (`KANEO_*`, см. выше) при `source`. Тело запросов строит `jq --arg`; id (задача, проект, поле) проверяет `kaneo_id_valid` ([`lib/kaneo.sh`](../lib/kaneo.sh): буквы, цифры, `_`, `-`), номер задачи — `commit_task_key_valid`: при невалидном значении запрос не строится и не уходит (код 1, сообщение в stderr без самого значения).
 
@@ -97,9 +162,9 @@ Kaneo живёт на самохостинге и периодически мо�
 
 > Шаг workflow при этом **не падает**: недоступность трекера не блокирует деплой, но видна в логе и в отчёте (`ERROR`).
 
-## Отчёт (`kaneo_messages.sh`)
+## Отчёт (`messages.sh`)
 
-Запись в `message.tmpl`, который выводится на шаге «Show result»: `save_message_in_file` (итог переноса), `save_message_in_file_for_add_app_version`, `save_message_in_file_for_get_task_error`, `save_skip_message_in_file` (перенос не нужен) и вспомогательные `save_header_in_file`, `save_task_link_in_file`, `save_separator_in_file`, `save_raw_message_in_file`.
+Запись в `message.tmpl`, который выводится на шаге «Show result»: `save_message_in_file` (итог переноса), `save_message_in_file_for_field` (итог записи поля), `save_message_in_file_for_get_task_error`, `save_skip_message_in_file` (перенос не нужен) и вспомогательные `save_header_in_file`, `save_task_link_in_file`, `save_separator_in_file`, `save_raw_message_in_file`.
 
 Ответ API недоверенный, поэтому в отчёт он попадает очищенным: остаются буквы, цифры и пробел с `._,:{}"/-`, не больше 300 символов (иначе строка `::команда` из ответа стала бы workflow-командой в логе).
 
@@ -113,10 +178,8 @@ jobs:
     uses: moogur/all-workflows/.github/workflows/kaneo.yml@master
     secrets: inherit
     with:
-      project_type: 'multi_branch'
+      kaneo_scheme: 'multi'
       event_type: 'push'
-      kaneo_status_in_progress: 'in-progress'
-      kaneo_status_review: 'in-review'
-      kaneo_status_merged: 'merged'
-      kaneo_status_deploy: 'deployed'
 ```
+
+Пути Kaneo, которые используются (их нужно пропустить через haproxy): `/api/task/by-ticket-id/`, `/api/task/status/`, `/api/custom-field/`.

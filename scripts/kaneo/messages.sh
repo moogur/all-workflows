@@ -1,9 +1,9 @@
 # shellcheck shell=bash disable=SC2154
-# private_* задаёт kaneo_requests.sh, подключаемый раньше: shellcheck не видит этого
+# private_* задаёт requests.sh, подключаемый раньше: shellcheck не видит этого
 # через границу файлов.
 #
 # Человекочитаемый отчёт в $private_file_path (message.tmpl), который workflow kaneo.yml
-# выводит в лог последним шагом. Подключается после kaneo_requests.sh (private_url и
+# выводит в лог последним шагом. Подключается после requests.sh (private_url и
 # id текущей задачи оттуда). Ответ API недоверенный: в отчёт он попадает только очищенным.
 
 private_file_path=./message.tmpl
@@ -65,11 +65,12 @@ save_message_in_file() {
     "An error occurred when moving the task $2 to the '$1' column" "$3"
 }
 
-# save_message_in_file_for_add_app_version <номер задачи> <ответ> <true|false>
-save_message_in_file_for_add_app_version() {
-  save_result_in_file "$3" \
-    "For the task $1, a version has been added" \
-    "An error occurred when adding a version to the task $1" "$2"
+# save_message_in_file_for_field <поле> <номер задачи> <ответ> <true|false> — итог записи
+# поля (ошибка без запроса — ответ пустой).
+save_message_in_file_for_field() {
+  save_result_in_file "$4" \
+    "The field '$1' of the task $2 has been updated" \
+    "An error occurred when updating the field '$1' of the task $2" "$3"
 }
 
 # save_message_in_file_for_get_task_error <номер задачи> — не удалось получить данные задачи.

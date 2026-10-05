@@ -1,0 +1,40 @@
+{
+  "single": {
+    "push": {
+      "task_key": "commit",
+      "rules": [{ "from": ["backlog", "todo", "hold"], "to": "in-progress" }]
+    },
+    "deploy": {
+      "task_key": "tags",
+      "rules": [{ "from": ["in-progress"], "to": "done", "fields": { "Version": "release_version" } }]
+    }
+  },
+  "single_ready": {
+    "push": {
+      "task_key": "commit",
+      "rules": [{ "from": ["backlog", "todo", "hold"], "to": "in-progress" }]
+    },
+    "deploy": {
+      "task_key": "tags",
+      "rules": [{ "from": ["in-progress", "ready"], "to": "done", "fields": { "Version": "release_version" } }]
+    }
+  },
+  "multi": {
+    "push": {
+      "task_key": "branch",
+      "rules": [{ "from": ["backlog", "todo", "hold"], "to": "in-progress" }]
+    },
+    "pr": {
+      "task_key": "branch",
+      "rules": [{ "from": ["in-progress"], "to": "review" }]
+    },
+    "merge": {
+      "task_key": "branch",
+      "rules": [{ "from": ["review"], "to": "merged" }]
+    },
+    "deploy": {
+      "task_key": "tags",
+      "rules": [{ "from": ["merged"], "to": "done", "fields": { "Version": "release_version" } }]
+    }
+  }
+}

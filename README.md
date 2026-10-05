@@ -12,7 +12,7 @@
 | [`.github/actions/`](.github/actions/) | Composite actions — общие шаги (версии Node/Go, настройка Node с кэшем npm, npm-аутентификация, версия приложения, проверка формата тега, тело релиза по PR/коммитам, публикация релиза, единая цепочка публикации GitHub-релиза, сборка docker-образа и релиз по тегу сборки, блок npm install, версия npm-пакета, проверка обновлений внешнего репозитория) |
 | [`lib/`](lib/) | Bash-библиотеки формата "базовых значений" (версия/тег, коммит, docker-ссылка, npm-пакет) — единственное место, где эти форматы разбираются; подключаются через `source` |
 | [`dockerfiles/`](dockerfiles/) | Dockerfile'ы и `.dockerignore`, которые workflow'ы скачивают на лету при сборке образов |
-| [`scripts/kaneo_*.sh`](scripts/) | Интеграция с Kaneo: REST-запросы (`kaneo_requests.sh`), отчёт (`kaneo_messages.sh`), переходы по статусам (`kaneo_flow.sh`, `kaneo_deploy.sh`), откуда `kaneo.yml` берёт номер задачи/версию релиза (`kaneo_task_id.sh`; сам разбор — в `lib/`) |
+| [`scripts/kaneo/`](scripts/kaneo/) | Интеграция с Kaneo: движок по схемам (`engine.sh`, `task.sh`, `fields.sh`), схемы переходов (`schemes.json`), функции значений полей (`fields/`), REST-запросы (`requests.sh`), отчёт (`messages.sh`), откуда `kaneo.yml` берёт номер задачи (`task_key.sh`; сам разбор — в `lib/`) |
 | [`.husky/commit-msg`](.husky/commit-msg) | Git-хук валидации сообщения коммита |
 | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | CI самого репозитория: actionlint, shellcheck, yamllint, bats |
 | [`tests/`](tests/) | Unit-тесты ([bats](https://github.com/bats-core/bats-core)) на bash-логику экшенов, хука и скриптов |
@@ -85,14 +85,14 @@ jobs:
 
 | Workflow | Что делает |
 | --- | --- |
-| [`kaneo.yml`](.github/workflows/kaneo.yml) | Перемещение задач по статусам Kaneo в зависимости от события Git |
+| [`kaneo.yml`](.github/workflows/kaneo.yml) | Перемещение задач по статусам Kaneo и заполнение их полей по схеме в зависимости от события Git |
 
 ## Документация
 
 - [docs/workflows.md](docs/workflows.md) — подробный справочник по каждому workflow: входные параметры, секреты, переменные, шаги.
 - [docs/actions.md](docs/actions.md) — composite actions: общие шаги (версии Node/Go, npm-аутентификация, версия приложения).
 - [docs/dockerfiles.md](docs/dockerfiles.md) — описание Dockerfile'ов и `.dockerignore`.
-- [docs/kaneo.md](docs/kaneo.md) — интеграция с Kaneo и REST-скрипты.
+- [docs/kaneo.md](docs/kaneo.md) — интеграция с Kaneo: схемы, поля, REST-скрипты.
 - [docs/conventions.md](docs/conventions.md) — соглашения: формат коммитов, версионирование, секреты и переменные окружения.
 - [docs/security.md](docs/security.md) — замечания по безопасности.
 - [docs/testing.md](docs/testing.md) — тесты и валидация: что проверяется, как запускать, насколько можно доверять.

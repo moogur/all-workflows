@@ -224,14 +224,14 @@ sh() {
 }
 
 @test "source: все скрипты kaneo в одном shell, в обоих порядках — как в kaneo.yml" {
-  local task_id="$ROOT/scripts/kaneo_task_id.sh" requests="$ROOT/scripts/kaneo_requests.sh"
+  local task_id="$ROOT/scripts/kaneo/task_key.sh" requests="$ROOT/scripts/kaneo/requests.sh"
   # После двойного подключения константы и функции обоих скриптов на месте
   local probe="commit_task_key '[GA-557] feature(api): x'; echo \$COMMIT_SUBJECT_MAX_LENGTH;
-    require_kaneo_id task tid1 && echo valid; kaneo_release_version v2.0.1"
+    require_kaneo_id task tid1 && echo valid; declare -F tags_latest_n >/dev/null && echo tags"
   run bash -e -c "source '$task_id'; source '$requests'; $probe"
   [ "$status" -eq 0 ]
-  [ "$output" = $'GA-557\n125\nvalid\n2.0.1' ]
+  [ "$output" = $'GA-557\n125\nvalid\ntags' ]
   run bash -e -c "source '$requests'; source '$task_id'; $probe"
   [ "$status" -eq 0 ]
-  [ "$output" = $'GA-557\n125\nvalid\n2.0.1' ]
+  [ "$output" = $'GA-557\n125\nvalid\ntags' ]
 }

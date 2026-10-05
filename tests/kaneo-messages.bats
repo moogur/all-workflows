@@ -1,12 +1,12 @@
 #!/usr/bin/env bats
-# Тесты функций отчёта (message.tmpl) в scripts/kaneo_messages.sh.
+# Тесты функций отчёта (message.tmpl) в scripts/kaneo/messages.sh.
 # Проверяется содержимое файла-отчёта.
 
 setup() {
   load helpers
   ROOT="$(repo_root)"
-  LIB="$ROOT/scripts/kaneo_requests.sh"
-  MSG="$ROOT/scripts/kaneo_messages.sh"
+  LIB="$ROOT/scripts/kaneo/requests.sh"
+  MSG="$ROOT/scripts/kaneo/messages.sh"
   TMP="$(mktemp -d)"
 }
 
@@ -98,16 +98,16 @@ msg() {
 
 # ---------- остальные сообщения ----------
 
-@test "add version success" {
-  msg "save_message_in_file_for_add_app_version GA-9 'r' true"
+@test "field success: поле и номер задачи в сообщении" {
+  msg "save_message_in_file_for_field Version GA-9 'r' true"
   [[ "$output" == *"SUCCESS"* ]]
-  [[ "$output" == *"For the task GA-9, a version has been added"* ]]
+  [[ "$output" == *"The field 'Version' of the task GA-9 has been updated"* ]]
 }
 
-@test "add version failure" {
-  msg "save_message_in_file_for_add_app_version GA-9 'oops' false"
+@test "field failure: ERROR, сообщение и очищенный raw" {
+  msg "save_message_in_file_for_field Version GA-9 'oops' false"
   [[ "$output" == *"ERROR"* ]]
-  [[ "$output" == *"An error occurred when adding a version to the task GA-9"* ]]
+  [[ "$output" == *"An error occurred when updating the field 'Version' of the task GA-9"* ]]
   [[ "$output" == *"Raw error - 'oops'"* ]]
 }
 

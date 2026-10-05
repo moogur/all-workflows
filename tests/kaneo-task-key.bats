@@ -1,12 +1,12 @@
 #!/usr/bin/env bats
-# Тесты scripts/kaneo_task_id.sh: откуда kaneo.yml берёт номер задачи и версию.
+# Тесты scripts/kaneo/task_key.sh: откуда engine.sh берёт номер задачи.
 # Сам разбор (номер из текста, последний тег, ...) — в tests/lib-commit.bats и
 # tests/lib-tags.bats.
 
 setup() {
   load helpers
   ROOT="$(repo_root)"
-  LIB="$ROOT/scripts/kaneo_task_id.sh"
+  LIB="$ROOT/scripts/kaneo/task_key.sh"
   TMP="$(mktemp -d)"
   REPO="$TMP/repo"
   mkdir -p "$REPO"
@@ -62,33 +62,40 @@ sh() {
   [ "$output" = "GA-123" ]
 }
 
-# ---------- kaneo_task_key_for_event ----------
+# ---------- kaneo_task_key_by_source ----------
 
-@test "for_event: single_branch берёт номер из последнего коммита" {
+@test "by_source: commit берёт номер из последнего коммита, а не из имени ветки" {
   commit '[GA-7] bugfix(api): x'
-  run env PROJECT_TYPE=single_branch EVENT_TYPE=push GITHUB_REF_NAME=GA-99-other \
-    bash -c "cd '$REPO' && source '$LIB' && kaneo_task_key_for_event"
+  run env GITHUB_REF_NAME=GA-99-other \
+    bash -c "cd '$REPO' && source '$LIB' && kaneo_task_key_by_source commit push"
   [ "$output" = "GA-7" ]
 }
 
-@test "for_event: multi_branch pr и merge берут номер из HEAD_REF" {
+@test "by_source: branch на pr и merge берёт номер из HEAD_REF" {
   local event
   for event in pr merge; do
-    run env PROJECT_TYPE=multi_branch EVENT_TYPE=$event HEAD_REF=GA-5-feature GITHUB_REF_NAME=merge-ref \
-      bash -c "source '$LIB' && kaneo_task_key_for_event"
+    run env HEAD_REF=GA-5-feature GITHUB_REF_NAME=merge-ref \
+      bash -c "source '$LIB' && kaneo_task_key_by_source branch $event"
     [ "$output" = "GA-5" ]
   done
 }
 
-@test "for_event: multi_branch push берёт номер из GITHUB_REF_NAME, а не из HEAD_REF" {
-  run env PROJECT_TYPE=multi_branch EVENT_TYPE=push HEAD_REF=GA-5-feature GITHUB_REF_NAME=GA-6_branch \
-    bash -c "source '$LIB' && kaneo_task_key_for_event"
+@test "by_source: branch на push берёт номер из GITHUB_REF_NAME, а не из HEAD_REF" {
+  run env HEAD_REF=GA-5-feature GITHUB_REF_NAME=GA-6_branch \
+    bash -c "source '$LIB' && kaneo_task_key_by_source branch push"
   [ "$output" = "GA-6" ]
 }
 
-@test "for_event: ветка без номера — пусто, код 0" {
-  run env PROJECT_TYPE=multi_branch EVENT_TYPE=push GITHUB_REF_NAME=master \
-    bash -c "source '$LIB' && kaneo_task_key_for_event"
+@test "by_source: ветка без номера — пусто, код 0" {
+  run env GITHUB_REF_NAME=master \
+    bash -c "source '$LIB' && kaneo_task_key_by_source branch push"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "by_source: неизвестный источник — пусто, код 0" {
+  run env GITHUB_REF_NAME=GA-1-x \
+    bash -c "source '$LIB' && kaneo_task_key_by_source other push"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
@@ -124,18 +131,6 @@ sh() {
   sh "kaneo_task_key_from_ref 'GA-\$(touch\${IFS}$marker)-x'"
   [ -z "$output" ]
   [ ! -e "$marker" ]
-}
-
-# ---------- kaneo_release_version ----------
-
-@test "release_version: снимает префикс v" {
-  sh "kaneo_release_version v1.2.3"
-  [ "$output" = "1.2.3" ]
-}
-
-@test "release_version: датный тег остаётся без изменений" {
-  sh "kaneo_release_version 14.03.2026"
-  [ "$output" = "14.03.2026" ]
 }
 
 # ---------- kaneo_deploy_tags ----------

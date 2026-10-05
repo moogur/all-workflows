@@ -14,7 +14,7 @@ docker-ссылка, npm-пакет) живёт ровно в одном фай�
 - [`lib/version.sh`](../lib/version.sh) — версия/тег: дата `dd.mm.yyyy`, semver `vX.Y.Z`, метка авто-сборки;
 - [`lib/tags.sh`](../lib/tags.sh) — «последний тег» и N последних тегов по дате создания;
 - [`lib/commit.sh`](../lib/commit.sh) — заголовок коммита, типы, PR в git-истории, полный номер задачи `GA-25` (`commit_task_key`, `commit_task_key_valid`);
-- [`lib/kaneo.sh`](../lib/kaneo.sh) — формат id сущностей Kaneo (`kaneo_id_valid`);
+- [`lib/kaneo.sh`](../lib/kaneo.sh) — формат id сущностей Kaneo (`kaneo_id_valid`) и имя функции значения поля (`kaneo_func_name_valid`);
 - [`lib/docker.sh`](../lib/docker.sh) — имя docker-образа и ссылка `<образ>:<тег>`;
 - [`lib/npm.sh`](../lib/npm.sh) — `имя@версия` опубликованного npm-пакета.
 

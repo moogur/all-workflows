@@ -1,26 +1,27 @@
 # shellcheck shell=bash disable=SC2034
-# Часть private_* читает только kaneo_messages.sh, подключаемый следом: shellcheck не видит
+# Часть private_* читает только messages.sh, подключаемый следом: shellcheck не видит
 # этого через границу файлов.
 #
 # Библиотека запросов к Kaneo REST API (<host>/api/...).
-# Подключается workflow'ом kaneo.yml через `source` прямо из чекаута all-workflows
+# Подключается из scripts/kaneo/engine.sh (workflow kaneo.yml) через `source` прямо из чекаута all-workflows
 # (поэтому здесь нет shebang, а указана директива shellcheck shell=bash).
 # Значения private_* читаются из переменных окружения, которые задаёт шаг workflow
 # (`env:`). Подставлять их в файл через sed нельзя: файл потом исполняется, и значение
 # вида $(cmd) выполнилось бы на раннере вместе с секретами (docs/security.md, п. 8).
 
 # shellcheck source=lib/commit.sh
-source "$(dirname "${BASH_SOURCE[0]}")/../lib/commit.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../../lib/commit.sh"
 # shellcheck source=lib/kaneo.sh
-source "$(dirname "${BASH_SOURCE[0]}")/../lib/kaneo.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../../lib/kaneo.sh"
 
 private_url=${KANEO_URL:-}
 private_url=${private_url%/}                  # базовый URL Kaneo, запросы идут на <url>/api/...
 private_token=${KANEO_TOKEN:-}                # API-ключ, уходит в curl через stdin-конфиг
-private_task_key=${KANEO_TASK_KEY:-}          # номер текущей задачи (GA-25)
-private_task_id=${KANEO_TASK_ID:-}            # id текущей задачи
-private_project_id=${KANEO_PROJECT_ID:-}      # id проекта
-private_workspace_id=${KANEO_WORKSPACE_ID:-}  # id рабочего пространства (для ссылки на задачу)
+# Текущая задача: заполняет engine (kaneo_use_task), читает messages.sh; из env не берётся.
+private_task_key=''
+private_task_id=''
+private_project_id=''
+private_workspace_id=''  # id рабочего пространства (для ссылки на задачу)
 
 # require_kaneo_id <имя поля> <значение> — отказ (код 1, сообщение в stderr), если значение
 # не id Kaneo. Само значение не печатаем: оно может быть недоверенным.

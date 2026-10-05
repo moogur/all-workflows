@@ -45,7 +45,7 @@ jobs:
       # -x: скрипты подключают lib/*.sh динамическим путём (dirname "${BASH_SOURCE[0]}"),
       # без -x shellcheck не следует за source (см. директивы source= в файлах).
       - name: Lint scripts
-        run: shellcheck -x lib/*.sh .github/actions/*/*.sh scripts/*.sh .husky/commit-msg tests/*.bash
+        run: shellcheck -x lib/*.sh .github/actions/*/*.sh scripts/kaneo/*.sh scripts/kaneo/fields/*.sh .husky/commit-msg tests/*.bash
 
   yamllint:
     name: yamllint (структура YAML)
