@@ -12,7 +12,7 @@
 # PR в git-истории (--first-parent): смёрженный кнопкой Merge — заголовок коммита
 # "Merge pull request #N from ..."; сквошенный — subject коммита с суффиксом " (#N)".
 
-# Файл подключают оба скрипта kanboard, а kanboard.yml — оба в одном shell: повторное
+# Файл подключают несколько скриптов kaneo, а kaneo.yml — в одном shell: повторное
 # присвоение readonly упало бы под bash -e. Без return: на нём shellcheck -x теряет
 # значения переменных в подключающем скрипте
 if [[ -z "${LIB_COMMIT_LOADED:-}" ]]; then
@@ -21,6 +21,7 @@ if [[ -z "${LIB_COMMIT_LOADED:-}" ]]; then
   readonly COMMIT_MERGE_PR_REGEX='^Merge pull request #([0-9]+) from '
   readonly COMMIT_SQUASH_PR_REGEX='^(.*) \(#([0-9]+)\)$'
   readonly COMMIT_SUBJECT_MAX_LENGTH=125
+  readonly COMMIT_TASK_KEY_REGEX='^[A-Z][A-Z0-9]*-[0-9]+$'
   readonly COMMIT_TYPES=(feature bugfix ci config refactor test docs)
 fi
 
@@ -51,30 +52,22 @@ commit_is_lowercase() {
   [[ "$lowered" == "$value" ]]
 }
 
-# commit_task_id_token <текст> — «второе слово» первой строки текста после разбиения
-# по '-', ']' и '_': номер задачи из заголовка коммита ("[GA-557] ..." -> 557) или из
-# имени ветки/тега ("GA-557-..." / "GA-557_..." -> 557). Многострочный вход (тело
-# коммита) не мешает: смотрим только первую строку. Используется kanboard.yml.
-commit_task_id_token() {
-  local text="$1"
-  tr -- '-]_' '   ' <<< "$text" | awk '{print $2; exit}'
+# commit_task_key_valid <значение> — значение целиком вида PREFIX-N (GA-25). Единый формат
+# полного номера задачи: только такие значения идут в URL запросов и в вывод шагов workflow.
+commit_task_key_valid() {
+  [[ "$1" =~ $COMMIT_TASK_KEY_REGEX ]]
 }
 
-# commit_task_id_valid <значение> — значение целиком состоит из цифр (непустое). Это
-# единый формат числового id Kanboard (задача, проект, колонка, дорожка): только такие
-# значения допускаются в JSON-запросы и в вывод шагов workflow.
-commit_task_id_valid() {
-  [[ "$1" =~ ^[0-9]+$ ]]
-}
-
-# commit_task_id <текст> — как commit_task_id_token, но печатает номер только если он
-# числовой; иначе ничего (всегда код 0). Заголовок коммита и имя ветки задаёт автор,
-# поэтому недоверенный «номер» вроде '$(cmd)' или '1;id' дальше не пропускается.
-commit_task_id() {
-  local token
-  token=$(commit_task_id_token "$1")
-  if commit_task_id_valid "$token"; then
-    echo "$token"
+# commit_task_key <текст> — полный номер задачи из первой строки текста: из заголовка
+# коммита ("[GA-25] ..." -> GA-25) или из имени ветки/тега ("GA-25-..." / "GA-25_..." -> GA-25).
+# Печатает номер только если он валиден, иначе ничего (код всегда 0): заголовок коммита
+# и имя ветки задаёт автор, поэтому «номер» вроде 'GA-$(cmd)' или 'GA-1;id' не пропускается.
+commit_task_key() {
+  local line="${1%%$'\n'*}" prefix number
+  line=${line//[-[\]_]/ }
+  read -r prefix number _ <<< "$line"
+  if commit_task_key_valid "${prefix}-${number}"; then
+    echo "${prefix}-${number}"
   fi
   return 0
 }

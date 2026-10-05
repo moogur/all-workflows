@@ -1,6 +1,6 @@
 # all-workflows
 
-Библиотека **переиспользуемых GitHub Actions workflow'ов** (reusable workflows) для проектов на Node.js и Go. Репозиторий содержит готовые пайплайны CI, релизов, сборки и публикации Docker-образов и npm-пакетов, а также вспомогательные Dockerfile'ы, скрипт интеграции с [Kanboard](https://kanboard.org/) и git-хук проверки сообщений коммитов.
+Библиотека **переиспользуемых GitHub Actions workflow'ов** (reusable workflows) для проектов на Node.js и Go. Репозиторий содержит готовые пайплайны CI, релизов, сборки и публикации Docker-образов и npm-пакетов, а также вспомогательные Dockerfile'ы, скрипты интеграции с [Kaneo](https://github.com/usekaneo/kaneo) и git-хук проверки сообщений коммитов.
 
 Все workflow'ы вызываются из других репозиториев через [`workflow_call`](https://docs.github.com/en/actions/using-workflows/reusing-workflows) — их не запускают напрямую, а подключают в пайплайне вашего проекта.
 
@@ -12,8 +12,7 @@
 | [`.github/actions/`](.github/actions/) | Composite actions — общие шаги (версии Node/Go, настройка Node с кэшем npm, npm-аутентификация, версия приложения, проверка формата тега, тело релиза по PR/коммитам, публикация релиза, единая цепочка публикации GitHub-релиза, сборка docker-образа и релиз по тегу сборки, блок npm install, версия npm-пакета, проверка обновлений внешнего репозитория) |
 | [`lib/`](lib/) | Bash-библиотеки формата "базовых значений" (версия/тег, коммит, docker-ссылка, npm-пакет) — единственное место, где эти форматы разбираются; подключаются через `source` |
 | [`dockerfiles/`](dockerfiles/) | Dockerfile'ы и `.dockerignore`, которые workflow'ы скачивают на лету при сборке образов |
-| [`scripts/kanboard_requests.sh`](scripts/kanboard_requests.sh) | Bash-библиотека JSON-RPC запросов к Kanboard |
-| [`scripts/kanboard_task_id.sh`](scripts/kanboard_task_id.sh) | Откуда `kanboard.yml` берёт task_id/версию релиза (сам разбор — в `lib/`) |
+| [`scripts/kaneo_*.sh`](scripts/) | Интеграция с Kaneo: REST-запросы (`kaneo_requests.sh`), отчёт (`kaneo_messages.sh`), переходы по статусам (`kaneo_flow.sh`, `kaneo_deploy.sh`), откуда `kaneo.yml` берёт номер задачи/версию релиза (`kaneo_task_id.sh`; сам разбор — в `lib/`) |
 | [`.husky/commit-msg`](.husky/commit-msg) | Git-хук валидации сообщения коммита |
 | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | CI самого репозитория: actionlint, shellcheck, yamllint, bats |
 | [`tests/`](tests/) | Unit-тесты ([bats](https://github.com/bats-core/bats-core)) на bash-логику экшенов, хука и скриптов |
@@ -86,14 +85,14 @@ jobs:
 
 | Workflow | Что делает |
 | --- | --- |
-| [`kanboard.yml`](.github/workflows/kanboard.yml) | Перемещение задач по колонкам Kanboard в зависимости от события Git |
+| [`kaneo.yml`](.github/workflows/kaneo.yml) | Перемещение задач по статусам Kaneo в зависимости от события Git |
 
 ## Документация
 
 - [docs/workflows.md](docs/workflows.md) — подробный справочник по каждому workflow: входные параметры, секреты, переменные, шаги.
 - [docs/actions.md](docs/actions.md) — composite actions: общие шаги (версии Node/Go, npm-аутентификация, версия приложения).
 - [docs/dockerfiles.md](docs/dockerfiles.md) — описание Dockerfile'ов и `.dockerignore`.
-- [docs/kanboard.md](docs/kanboard.md) — интеграция с Kanboard и JSON-RPC скрипт.
+- [docs/kaneo.md](docs/kaneo.md) — интеграция с Kaneo и REST-скрипты.
 - [docs/conventions.md](docs/conventions.md) — соглашения: формат коммитов, версионирование, секреты и переменные окружения.
 - [docs/security.md](docs/security.md) — замечания по безопасности.
 - [docs/testing.md](docs/testing.md) — тесты и валидация: что проверяется, как запускать, насколько можно доверять.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Тесты для lib/commit.sh: формат заголовка коммита, PR-заголовки, тип, task_id.
+# Тесты для lib/commit.sh: формат заголовка коммита, PR-заголовки, тип, номер задачи.
 # Поведение хука .husky/commit-msg (сообщения, требование префикса GA) — в
 # tests/commit-msg.bats; категории тела релиза по типу — в tests/release-notes*.bats.
 
@@ -123,83 +123,96 @@ sh() {
   [ "$status" -ne 0 ]
 }
 
-# ---------- commit_task_id_token ----------
+# ---------- commit_task_key_valid ----------
 
-@test "task_id_token: заголовок коммита '[GA-557] ...' -> 557" {
-  sh "commit_task_id_token '[GA-557] feature(frontend): add endpoint'"
-  [ "$output" = "557" ]
-}
-
-@test "task_id_token: имя ветки с дефисами 'GA-123-fix-thing' -> 123" {
-  sh "commit_task_id_token GA-123-fix-thing"
-  [ "$output" = "123" ]
-}
-
-@test "task_id_token: имя ветки с подчёркиваниями 'GA-123_fix_thing' -> 123" {
-  sh "commit_task_id_token GA-123_fix_thing"
-  [ "$output" = "123" ]
-}
-
-@test "task_id_token: многострочный текст — смотрит только первую строку" {
-  sh $'commit_task_id_token "[GA-9] feature(api): x\\n\\nGA-999 in the body"'
-  [ "$output" = "9" ]
-}
-
-@test "task_id_token: текст без разделителей отдаёт пустую строку" {
-  sh "commit_task_id_token onewordonly"
-  [ -z "$output" ]
-}
-
-# ---------- commit_task_id_valid / commit_task_id ----------
-
-@test "task_id_valid: цифры проходят, включая ведущие нули" {
-  sh "commit_task_id_valid 557"
+@test "task_key_valid: PREFIX-N с любым префиксом проходит, включая ведущие нули" {
+  sh "commit_task_key_valid GA-557"
   [ "$status" -eq 0 ]
-  sh "commit_task_id_valid 007"
+  sh "commit_task_key_valid IPB-007"
+  [ "$status" -eq 0 ]
+  sh "commit_task_key_valid A1-1"
   [ "$status" -eq 0 ]
 }
 
-@test "task_id_valid: пустое, с буквой, пробелом, ';', '\$(...)' и переводом строки отвергаются" {
+@test "task_key_valid: пустое, без номера, строчный префикс, пробел, ';', '\$(...)' и перевод строки отвергаются" {
   local bad
-  for bad in '' 12a ' 12' '1;id' '1 2' '$(id)' '-1'; do
-    run bash -c "source '$LIB'; commit_task_id_valid \"\$1\"" _ "$bad"
+  for bad in '' GA GA- GA-12a ga-12 1A-12 ' GA-12' 'GA-12 ' 'GA-1;id' 'GA-$(id)' 'GA--1' '-12'; do
+    run bash -c "source '$LIB'; commit_task_key_valid \"\$1\"" _ "$bad"
     [ "$status" -ne 0 ]
   done
-  run bash -c "source '$LIB'; commit_task_id_valid \$'12\\nid'"
+  run bash -c "source '$LIB'; commit_task_key_valid \$'GA-12\\nid'"
   [ "$status" -ne 0 ]
 }
 
-@test "task_id: валидный заголовок и ветки дают номер" {
-  sh "commit_task_id '[GA-557] feature(frontend): add endpoint'"
-  [ "$output" = "557" ]
-  sh "commit_task_id GA-123-fix-thing"
-  [ "$output" = "123" ]
-  sh "commit_task_id GA-123_fix_thing"
-  [ "$output" = "123" ]
+# ---------- commit_task_key ----------
+
+@test "task_key: заголовок коммита '[GA-557] ...' -> GA-557" {
+  sh "commit_task_key '[GA-557] feature(frontend): add endpoint'"
+  [ "$output" = "GA-557" ]
 }
 
-@test "task_id: подстановка команды в заголовке не выполняется и номера нет" {
+@test "task_key: префикс другого проекта сохраняется" {
+  sh "commit_task_key '[IPB-456] bugfix(api): x'"
+  [ "$output" = "IPB-456" ]
+}
+
+@test "task_key: имя ветки с дефисами 'GA-123-fix-thing' -> GA-123" {
+  sh "commit_task_key GA-123-fix-thing"
+  [ "$output" = "GA-123" ]
+}
+
+@test "task_key: имя ветки с подчёркиваниями 'GA-123_fix_thing' -> GA-123" {
+  sh "commit_task_key GA-123_fix_thing"
+  [ "$output" = "GA-123" ]
+}
+
+@test "task_key: имя без суффикса 'GA-123' -> GA-123" {
+  sh "commit_task_key GA-123"
+  [ "$output" = "GA-123" ]
+}
+
+@test "task_key: многострочный текст — смотрит только первую строку" {
+  sh $'commit_task_key "[GA-9] feature(api): x\\n\\nGA-999 in the body"'
+  [ "$output" = "GA-9" ]
+}
+
+@test "task_key: номер только в теле, первая строка без номера — пусто" {
+  sh $'commit_task_key "no key here\\n[GA-9] feature(api): x"'
+  [ -z "$output" ]
+}
+
+@test "task_key: строчный префикс не принимается" {
+  sh "commit_task_key ga-123-fix"
+  [ -z "$output" ]
+}
+
+@test "task_key: подстановка команды в заголовке не выполняется и номера нет" {
   local marker="$BATS_TEST_TMPDIR/pwned"
-  run bash -c "source '$LIB'; commit_task_id '[GA-\$(touch\${IFS}$marker)] x'"
+  run bash -c "source '$LIB'; commit_task_key '[GA-\$(touch\${IFS}$marker)] x'"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
   [ ! -e "$marker" ]
 }
 
-@test "task_id: 'GA-\$(id)-x' и 'GA-1;id' не дают номера" {
-  sh "commit_task_id 'GA-\$(id)-x'"
+@test "task_key: 'GA-\$(id)-x' и 'GA-1;id' не дают номера" {
+  sh "commit_task_key 'GA-\$(id)-x'"
   [ -z "$output" ]
-  sh "commit_task_id 'GA-1;id'"
+  sh "commit_task_key 'GA-1;id'"
   [ -z "$output" ]
 }
 
-@test "task_id: без номера (одно слово, пустой ввод) — пусто и код 0" {
-  sh "commit_task_id onewordonly"
+@test "task_key: без номера (одно слово, пустой ввод) — пусто и код 0" {
+  sh "commit_task_key onewordonly"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
-  sh "commit_task_id ''"
+  sh "commit_task_key ''"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
+}
+
+@test "task_key: старые числовые функции удалены" {
+  sh "type commit_task_id commit_task_id_token commit_task_id_valid"
+  [ "$status" -ne 0 ]
 }
 
 # ---------- повторное подключение ----------
@@ -210,15 +223,15 @@ sh() {
   [ "$output" = "ok" ]
 }
 
-@test "source: оба скрипта kanboard в одном shell, в обоих порядках — как в kanboard.yml" {
-  local task_id="$ROOT/scripts/kanboard_task_id.sh" requests="$ROOT/scripts/kanboard_requests.sh"
+@test "source: все скрипты kaneo в одном shell, в обоих порядках — как в kaneo.yml" {
+  local task_id="$ROOT/scripts/kaneo_task_id.sh" requests="$ROOT/scripts/kaneo_requests.sh"
   # После двойного подключения константы и функции обоих скриптов на месте
-  local probe="commit_task_id '[GA-557] feature(api): x'; echo \$COMMIT_SUBJECT_MAX_LENGTH;
-    require_numeric_id task 42 && echo valid; kanboard_release_version v2.0.1"
+  local probe="commit_task_key '[GA-557] feature(api): x'; echo \$COMMIT_SUBJECT_MAX_LENGTH;
+    require_kaneo_id task tid1 && echo valid; kaneo_release_version v2.0.1"
   run bash -e -c "source '$task_id'; source '$requests'; $probe"
   [ "$status" -eq 0 ]
-  [ "$output" = $'557\n125\nvalid\n2.0.1' ]
+  [ "$output" = $'GA-557\n125\nvalid\n2.0.1' ]
   run bash -e -c "source '$requests'; source '$task_id'; $probe"
   [ "$status" -eq 0 ]
-  [ "$output" = $'557\n125\nvalid\n2.0.1' ]
+  [ "$output" = $'GA-557\n125\nvalid\n2.0.1' ]
 }

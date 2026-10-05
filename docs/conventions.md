@@ -13,7 +13,8 @@ docker-ссылка, npm-пакет) живёт ровно в одном фай�
 
 - [`lib/version.sh`](../lib/version.sh) — версия/тег: дата `dd.mm.yyyy`, semver `vX.Y.Z`, метка авто-сборки;
 - [`lib/tags.sh`](../lib/tags.sh) — «последний тег» и N последних тегов по дате создания;
-- [`lib/commit.sh`](../lib/commit.sh) — заголовок коммита, типы, PR в git-истории, `task_id` (только числовой: `commit_task_id_valid`);
+- [`lib/commit.sh`](../lib/commit.sh) — заголовок коммита, типы, PR в git-истории, полный номер задачи `GA-25` (`commit_task_key`, `commit_task_key_valid`);
+- [`lib/kaneo.sh`](../lib/kaneo.sh) — формат id сущностей Kaneo (`kaneo_id_valid`);
 - [`lib/docker.sh`](../lib/docker.sh) — имя docker-образа и ссылка `<образ>:<тег>`;
 - [`lib/npm.sh`](../lib/npm.sh) — `имя@версия` опубликованного npm-пакета.
 
@@ -47,7 +48,7 @@ Git-хук [`.husky/commit-msg`](../.husky/commit-msg) валидирует ка
 
 Хук подключается через [husky](https://typicode.github.io/husky/) (`npm run prepare` → `husky install`, см. `package.json`).
 
-> Префикс `GA-` и номер задачи используются также интеграцией с Kanboard для определения `task_id` (см. [kanboard.md](kanboard.md)).
+> Префикс `GA-` и номер задачи используются также интеграцией с Kaneo для поиска задачи по номеру (см. [kaneo.md](kaneo.md)).
 
 ## Версионирование
 
@@ -87,9 +88,8 @@ request) `--first-parent` уже схлопывает в одну запись �
 | Секрет | Где используется | Назначение |
 | --- | --- | --- |
 | `GITHUB_TOKEN` | большинство workflow'ов | Доступ к приватному npm-реестру `@moogur`, GitHub Packages, релизам |
-| `KANBOARD_HOST` | `kanboard.yml` | URL инстанса Kanboard |
-| `KANBOARD_USER` | `kanboard.yml` | Логин JSON-RPC API |
-| `KANBOARD_TOKEN` | `kanboard.yml` | Токен JSON-RPC API |
+| `KANEO_HOST` | `kaneo.yml` | URL инстанса Kaneo (API — `<host>/api/...`) |
+| `KANEO_TOKEN` | `kaneo.yml` | API-ключ Kaneo |
 | `UPDATE_VARIABLES_CLI_TOKEN` | `auto_deploy_*` | PAT для обновления переменной окружения через GitHub API |
 
 Передавайте секреты в reusable workflow через `secrets: inherit` или явным списком `secrets:`.
@@ -101,7 +101,7 @@ request) `--first-parent` уже схлопывает в одну запись �
 | Workflow | Права |
 | --- | --- |
 | `actions_for_push` | `contents: read`, `packages: read` |
-| `actions_for_push_go`, `kanboard` | `contents: read` |
+| `actions_for_push_go`, `kaneo` | `contents: read` |
 | `pr_annotation` | `contents: read`, `packages: read`, `pull-requests: write`, `checks: write` |
 | `deploy_for_frontend` | `contents: write`, `packages: read` |
 | `deploy_for_backend`, `deploy_for_go_backend`, `deploy_for_full_app`, `deploy_for_docker_container` | `contents: write`, `packages: write` — по тегу релизит `docker-image` (`docker-release` → `github-release`) |

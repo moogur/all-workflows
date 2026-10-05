@@ -1,0 +1,150 @@
+# Перемещает задачи Kaneo по статусам (колонкам) в зависимости от события Git
+# (push/pr/merge/deploy). Логика — в scripts/kaneo_flow.sh и scripts/kaneo_deploy.sh,
+# запросы к API — в scripts/kaneo_requests.sh, откуда брать номер задачи/версию — в
+# scripts/kaneo_task_id.sh (сама форма номера и тегов — в lib/commit.sh, lib/tags.sh, lib/version.sh).
+# Переиспользуемый workflow (workflow_call). Секреты: KANEO_HOST (базовый URL, API на
+# <host>/api/...), KANEO_TOKEN (API-ключ).
+# Секреты и вычисленные значения доходят до скриптов только через env:
+# ни в тело скрипта, ни в исполняемый файл ничего не подставляется (docs/security.md, п. 8).
+name: Kaneo
+
+on:
+  workflow_call:
+    inputs:
+      project_type:
+        description: "Type of project used"  # single_branch | multi_branch
+        type: string # single_branch, multi_branch
+        required: true
+      event_type:
+        description: "Event type"  # push | pr | merge | deploy
+        type: string # push, pr, merge, deploy
+        required: true
+      kaneo_status_in_progress:
+        description: "Slug of the in progress column"
+        type: string
+        required: true
+      kaneo_status_review:
+        description: "Slug of the in review column (multi_branch)"
+        type: string
+        required: false
+        default: ''
+      kaneo_status_merged:
+        description: "Slug of the merged column (multi_branch)"
+        type: string
+        required: false
+        default: ''
+      kaneo_status_deploy:
+        description: "Slug of the deploy column (multi_branch)"
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kaneo:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Репозиторий-потребитель (его задачи двигаем; нужна история для шага deploy).
+      - name: 'Checkout'
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Этот репозиторий (all-workflows), запиненный к версии вызванного workflow,
+      # чтобы взять скрипты kaneo без wget с master. Кладём в подпапку.
+      - name: 'Checkout all-workflows'
+        uses: actions/checkout@v7
+        with:
+          repository: moogur/all-workflows
+          ref: ${{ github.job_workflow_sha }}
+          path: .all-workflows
+
+      # Скрипты берём прямо из чекаута all-workflows (копировать и подставлять в них
+      # значения нельзя — см. docs/security.md, п. 8); значения читают они сами из env.
+      - name: 'Set variables'
+        if: "inputs.event_type != 'deploy'"
+        id: variables
+        env:
+          # Имя ветки задаёт автор PR, а заголовок коммита — любой его автор, поэтому
+          # всё недоверенное приходит переменной окружения, а не интерполяцией в скрипт.
+          HEAD_REF: ${{ github.head_ref }}
+          PROJECT_TYPE: ${{ inputs.project_type }}
+          EVENT_TYPE: ${{ inputs.event_type }}
+          KANEO_URL: ${{ secrets.KANEO_HOST }}
+          KANEO_TOKEN: ${{ secrets.KANEO_TOKEN }}
+        run: |
+          source .all-workflows/scripts/kaneo_flow.sh
+          kaneo_prepare
+
+      - name: "Transferring the task to the in progress status"
+        if: "inputs.event_type == 'push' && steps.variables.outputs.task_key != ''"
+        env:
+          PROJECT_TYPE: ${{ inputs.project_type }}
+          KANEO_STATUS_IN_PROGRESS: ${{ inputs.kaneo_status_in_progress }}
+          KANEO_STATUS_REVIEW: ${{ inputs.kaneo_status_review }}
+          CURRENT_STATUS: ${{ steps.variables.outputs.current_status }}
+          KANEO_URL: ${{ secrets.KANEO_HOST }}
+          KANEO_TOKEN: ${{ secrets.KANEO_TOKEN }}
+          KANEO_TASK_KEY: ${{ steps.variables.outputs.task_key }}
+          KANEO_TASK_ID: ${{ steps.variables.outputs.task_id }}
+          KANEO_PROJECT_ID: ${{ steps.variables.outputs.project_id }}
+          KANEO_WORKSPACE_ID: ${{ steps.variables.outputs.workspace_id }}
+        run: |
+          source .all-workflows/scripts/kaneo_flow.sh
+          kaneo_on_push
+
+      - name: "Transferring the task to the in review status"
+        if: "inputs.event_type == 'pr' && inputs.project_type == 'multi_branch' && steps.variables.outputs.task_key != ''"
+        env:
+          KANEO_STATUS_IN_PROGRESS: ${{ inputs.kaneo_status_in_progress }}
+          KANEO_STATUS_REVIEW: ${{ inputs.kaneo_status_review }}
+          CURRENT_STATUS: ${{ steps.variables.outputs.current_status }}
+          KANEO_URL: ${{ secrets.KANEO_HOST }}
+          KANEO_TOKEN: ${{ secrets.KANEO_TOKEN }}
+          KANEO_TASK_KEY: ${{ steps.variables.outputs.task_key }}
+          KANEO_TASK_ID: ${{ steps.variables.outputs.task_id }}
+          KANEO_PROJECT_ID: ${{ steps.variables.outputs.project_id }}
+          KANEO_WORKSPACE_ID: ${{ steps.variables.outputs.workspace_id }}
+        run: |
+          source .all-workflows/scripts/kaneo_flow.sh
+          kaneo_on_pr
+
+      - name: "Transferring the task to the in merged status"
+        if: "inputs.event_type == 'merge' && inputs.project_type == 'multi_branch' && steps.variables.outputs.task_key != ''"
+        env:
+          KANEO_STATUS_REVIEW: ${{ inputs.kaneo_status_review }}
+          KANEO_STATUS_MERGED: ${{ inputs.kaneo_status_merged }}
+          CURRENT_STATUS: ${{ steps.variables.outputs.current_status }}
+          KANEO_URL: ${{ secrets.KANEO_HOST }}
+          KANEO_TOKEN: ${{ secrets.KANEO_TOKEN }}
+          KANEO_TASK_KEY: ${{ steps.variables.outputs.task_key }}
+          KANEO_TASK_ID: ${{ steps.variables.outputs.task_id }}
+          KANEO_PROJECT_ID: ${{ steps.variables.outputs.project_id }}
+          KANEO_WORKSPACE_ID: ${{ steps.variables.outputs.workspace_id }}
+        run: |
+          source .all-workflows/scripts/kaneo_flow.sh
+          kaneo_on_merge
+
+      - name: "Transferring the tasks to the in deploy status"
+        if: "inputs.event_type == 'deploy' && inputs.project_type == 'multi_branch'"
+        env:
+          KANEO_STATUS_MERGED: ${{ inputs.kaneo_status_merged }}
+          KANEO_STATUS_DEPLOY: ${{ inputs.kaneo_status_deploy }}
+          KANEO_URL: ${{ secrets.KANEO_HOST }}
+          KANEO_TOKEN: ${{ secrets.KANEO_TOKEN }}
+        run: |
+          source .all-workflows/scripts/kaneo_deploy.sh
+          kaneo_on_deploy
+
+      - name: "Show result"
+        run: |
+          if [[ -f ./message.tmpl ]]; then
+            cat ./message.tmpl
+          fi

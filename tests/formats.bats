@@ -62,3 +62,13 @@ assert_no_code_matches() {
   run assert_no_code_matches '^[0-9]+$' "$ROOT/.github" "$ROOT/scripts" "$ROOT/.husky"
   [ "$status" -eq 0 ]
 }
+
+@test "проверка id Kaneo (^[A-Za-z0-9_-]+$) не переизобретается вне lib/kaneo.sh" {
+  run assert_no_code_matches '^[A-Za-z0-9_-]+$' "$ROOT/.github" "$ROOT/scripts" "$ROOT/.husky"
+  [ "$status" -eq 0 ]
+}
+
+@test "формат номера задачи (PREFIX-N) не переизобретается вне lib/commit.sh" {
+  run assert_no_code_matches '^[A-Z][A-Z0-9]*-[0-9]+$' "$ROOT/.github" "$ROOT/scripts" "$ROOT/.husky"
+  [ "$status" -eq 0 ]
+}

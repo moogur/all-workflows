@@ -37,7 +37,7 @@ actionlint: ## Статанализ workflow'ов (actionlint + shellcheck inlin
 
 # -x: скрипты подключают lib/*.sh динамическим путём, без него shellcheck не следует
 # за source и сообщает SC1091 (путь подсказывают строки `# shellcheck source=` в файлах).
-shellcheck: ## Проверка bash-скриптов (lib, экшены, kanboard, хук, хелперы)
+shellcheck: ## Проверка bash-скриптов (lib, экшены, kaneo, хук, хелперы)
 	$(SHELLCHECK) -x $(SH_FILES)
 
 yamllint: ## Проверка YAML (.github)

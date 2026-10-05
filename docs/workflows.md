@@ -280,25 +280,30 @@ jobs:
 
 ## Интеграции
 
-### `kanboard.yml` — Перемещение задач Kanboard
+### `kaneo.yml` — Перемещение задач Kaneo
 
-Автоматически двигает задачи по колонкам канбан-доски [Kanboard](https://kanboard.org/) в зависимости от события Git. Номер задачи извлекается из сообщения коммита или имени ветки (формат `XX-<id>-...`). Подробности и описание JSON-RPC скрипта — в [docs/kanboard.md](kanboard.md).
+Автоматически двигает задачи по статусам (колонкам) доски [Kaneo](https://github.com/usekaneo/kaneo) в зависимости от события Git. Номер задачи (`GA-25`) извлекается из сообщения коммита или имени ветки (формат `XX-<id>-...`). Подробности и описание REST-скриптов — в [docs/kaneo.md](kaneo.md).
 
 **Входные параметры:**
 
 | Параметр | Тип | Обяз. | Описание |
 | --- | --- | --- | --- |
-| `kanboard_columns` | string | да | Список id колонок слева направо через запятую |
 | `project_type` | string | да | Тип проекта: `single_branch` или `multi_branch` |
 | `event_type` | string | да | Тип события: `push`, `pr`, `merge`, `deploy` |
+| `kaneo_status_in_progress` | string | да | Slug колонки «в работе» |
+| `kaneo_status_review` | string | нет (`''`) | Slug колонки «на ревью» (нужен `multi_branch`) |
+| `kaneo_status_merged` | string | нет (`''`) | Slug колонки «смёржено» (нужен `multi_branch`) |
+| `kaneo_status_deploy` | string | нет (`''`) | Slug колонки «задеплоено» (нужен `multi_branch`) |
 
-**Секреты:** `KANBOARD_HOST`, `KANBOARD_USER`, `KANBOARD_TOKEN`.
+Если статус, нужный событию, не задан, шаг пишет строку в лог и пропускается.
 
-**Переходы по колонкам (индексы в `kanboard_columns`):**
+**Секреты:** `KANEO_HOST` (базовый URL, API — `<host>/api/...`), `KANEO_TOKEN` (API-ключ).
+
+**Переходы по статусам:**
 
 | Событие | Условие | Перемещение |
 | --- | --- | --- |
-| `push` | задача в одной из «рабочих» колонок | → колонка `[3]` (in progress) |
-| `pr` | `multi_branch`, задача в `[3]` | → колонка `[4]` (in review) |
-| `merge` | `multi_branch`, задача в `[4]` | → колонка `[5]` (merged) |
-| `deploy` | `multi_branch`, задачи из диапазона тегов в `[5]` | → колонка `[6]` (deploy) + проставление версии в метаданные задачи |
+| `push` | задача не в `in_progress` и (для `multi_branch`) не в `review` | → `kaneo_status_in_progress` |
+| `pr` | `multi_branch`, задача в `in_progress` | → `kaneo_status_review` |
+| `merge` | `multi_branch`, задача в `review` | → `kaneo_status_merged` |
+| `deploy` | `multi_branch`, задачи из диапазона тегов в `merged` | → `kaneo_status_deploy` + дописывание версии в поле `App_version` задачи |

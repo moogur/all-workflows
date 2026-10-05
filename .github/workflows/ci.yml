@@ -34,7 +34,7 @@ jobs:
           # word-splitting (SC2086 и т.п.) — проверяем shellcheck'ом только ошибки.
           SHELLCHECK_OPTS: --severity=error
         # -ignore: github.job_workflow_sha — валидное поле контекста (GitHub docs),
-        #   но отсутствует в схеме actionlint 1.7.12; используется в kanboard.yml.
+        #   но отсутствует в схеме actionlint 1.7.12; используется в kaneo.yml.
         run: ./actionlint -color -ignore 'job_workflow_sha'
 
   shellcheck:
