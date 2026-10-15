@@ -80,6 +80,7 @@ jobs:
 | [`publish_package.yml`](.github/workflows/publish_package.yml) | Публикация npm-пакета в GitHub Packages, по тегу — релиз с командой `npm install` |
 | [`deploy_for_lerna.yml`](.github/workflows/deploy_for_lerna.yml) | Публикация пакетов монорепозитория через Lerna, по тегу — релиз с `npm install` на каждый пакет |
 | [`deploy_for_frontend.yml`](.github/workflows/deploy_for_frontend.yml) | Сборка фронтенда и пуш `dist` в ветку `builds` |
+| [`deploy_for_static_site.yml`](.github/workflows/deploy_for_static_site.yml) | Сборка статического сайта (Docusaurus) в облаке и выкладка в бакет MinIO через self-hosted runner |
 
 ### Интеграции
 

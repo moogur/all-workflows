@@ -276,6 +276,31 @@ jobs:
 
 **Шаги:** checkout → setup-node (с кэшем npm) → npm-auth → `npm ci` → `npm run build` → создание ветки `builds` → очистка репозитория и копирование содержимого `dist` в корень → коммит → `git push origin builds --force`.
 
+### `deploy_for_static_site.yml` — Деплой статического сайта в MinIO
+
+Собирает статический сайт (первый потребитель — Docusaurus) на GitHub-облаке и выкладывает его через self-hosted runner в бакет MinIO; раздачей бакета (nginx) workflow не занимается.
+
+**Входные параметры:**
+
+| Параметр | Тип | Обяз. | Описание |
+| --- | --- | --- | --- |
+| `bucket` | string | да | Бакет MinIO, в который выкладывается сайт |
+| `build_dir` | string | нет (`build`) | Каталог со сборкой (у Docusaurus — `build`) |
+
+**Секреты:** только `GITHUB_TOKEN`. Учётные данные MinIO в секретах GitHub не хранятся: алиас `minio` runner получает из собственной переменной окружения `MC_HOST_minio`.
+
+**Шаги:** job `build` (`ubuntu-latest`): checkout → setup-node (с кэшем npm) → npm-auth → `npm ci` → `npm run build` → артефакт `site` (из `build_dir`, хранится 3 дня). Job `deploy` (`needs: build`, `self-hosted`): скачивание артефакта в `site/` → `mc mirror --overwrite --remove site/ "minio/$BUCKET"` (лишние объекты в бакете удаляются). Шага с тестами нет, поэтому входа `skip_tests` тоже нет.
+
+> **Требования к runner'у.** На нём должны быть `mc` и `MC_HOST_minio`. Регистрировать runner только на приватном репозитории-потребителе, никогда на публичном: PR из форка смог бы исполнить на нём произвольный код.
+
+```yaml
+jobs:
+  deploy:
+    uses: moogur/all-workflows/.github/workflows/deploy_for_static_site.yml@master
+    with:
+      bucket: docs-site
+```
+
 ---
 
 ## Интеграции

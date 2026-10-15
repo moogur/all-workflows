@@ -29,7 +29,7 @@ setup() {
 }
 
 @test "npm-workflow'ы используют общий action setup-node" {
-  for wf in actions_for_push pr_annotation publish_package release_frontend deploy_for_frontend deploy_for_lerna; do
+  for wf in actions_for_push pr_annotation publish_package release_frontend deploy_for_frontend deploy_for_static_site deploy_for_lerna; do
     grep -qF "moogur/all-workflows/.github/actions/setup-node@master" "$WF/$wf.yml" \
       || { echo "В $wf.yml нет setup-node action"; return 1; }
   done

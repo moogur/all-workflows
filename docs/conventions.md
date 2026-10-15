@@ -104,6 +104,7 @@ request) `--first-parent` уже схлопывает в одну запись �
 | `actions_for_push_go`, `kaneo` | `contents: read` |
 | `pr_annotation` | `contents: read`, `packages: read`, `pull-requests: write`, `checks: write` |
 | `deploy_for_frontend` | `contents: write`, `packages: read` |
+| `deploy_for_static_site` | `contents: read`, `packages: read` — checkout и чтение приватных npm-пакетов; в MinIO пишет runner своими учётными данными |
 | `deploy_for_backend`, `deploy_for_go_backend`, `deploy_for_full_app`, `deploy_for_docker_container` | `contents: write`, `packages: write` — по тегу релизит `docker-image` (`docker-release` → `github-release`) |
 | `deploy_for_build_application`, `go_build_with_artifacts` | `contents: write` — по тегу релизят через `github-release` |
 | `release_frontend` | `contents: write`, `packages: read` — по тегу релизит через `github-release` |

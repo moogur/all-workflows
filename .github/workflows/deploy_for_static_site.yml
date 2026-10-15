@@ -1,0 +1,75 @@
+# Собирает статический сайт (например, Docusaurus) в облаке GitHub и выкладывает
+# его через self-hosted runner в бакет MinIO (`mc mirror`).
+# Переиспользуемый workflow (workflow_call). Секрет: GITHUB_TOKEN.
+# Нужен self-hosted runner с `mc` и переменной окружения `MC_HOST_minio` (алиас `minio`).
+# Runner регистрировать только на приватном репозитории-потребителе, никогда на
+# публичном: PR из форка смог бы исполнить код на нём.
+name: Deploy static site to MinIO
+
+on:
+  workflow_call:
+    inputs:
+      bucket:
+        description: 'Бакет MinIO, в который выкладывается сайт'
+        required: true
+        type: string
+      build_dir:
+        description: 'Каталог со сборкой (у Docusaurus — build)'
+        required: false
+        type: string
+        default: 'build'
+
+# contents: read — checkout; packages: read — npm-auth читает приватные пакеты.
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v7
+
+      - name: 'Setup node'
+        uses: moogur/all-workflows/.github/actions/setup-node@master
+
+      - name: 'Configure npm auth'
+        uses: moogur/all-workflows/.github/actions/npm-auth@master
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 'Install'
+        run: npm ci
+
+      - name: 'Build'
+        run: npm run build
+
+      - name: 'Upload site'
+        uses: actions/upload-artifact@v7
+        with:
+          name: site
+          path: ${{ inputs.build_dir }}
+          retention-days: 3
+
+  deploy:
+    needs: build
+    runs-on: self-hosted
+
+    steps:
+      - name: 'Download site'
+        uses: actions/download-artifact@v7
+        with:
+          name: site
+          path: site
+
+      # Учётные данные MinIO берёт сам runner из MC_HOST_minio, не из секретов GitHub.
+      - name: 'Mirror to MinIO'
+        env:
+          BUCKET: ${{ inputs.bucket }}
+        run: mc mirror --overwrite --remove site/ "minio/$BUCKET"
