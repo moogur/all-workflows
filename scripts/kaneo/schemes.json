@@ -19,6 +19,22 @@
       "rules": [{ "from": ["in-progress", "ready"], "to": "done", "fields": { "Version": "release_version" } }]
     }
   },
+  "single_hold": {
+    "push": {
+      "task_key": "commit",
+      "rules": [{ "from": ["backlog", "todo", "hold"], "to": "in-progress" }]
+    },
+    "deploy": {
+      "task_key": "tags",
+      "rules": [{ "from": ["in-progress", "hold", "ready"], "to": "done", "fields": { "Version": "release_version" } }]
+    }
+  },
+  "push_only": {
+    "push": {
+      "task_key": "commit",
+      "rules": [{ "from": ["backlog", "todo", "hold"], "to": "in-progress" }]
+    }
+  },
   "multi": {
     "push": {
       "task_key": "branch",

@@ -12,7 +12,7 @@ on:
   workflow_call:
     inputs:
       kaneo_scheme:
-        description: "Name of the scheme from scripts/kaneo/schemes.json"  # single | single_ready | multi
+        description: "Name of the scheme from scripts/kaneo/schemes.json"  # single | single_ready | single_hold | push_only | multi
         type: string
         required: true
       event_type:

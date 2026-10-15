@@ -32,7 +32,7 @@ Workflow [`kaneo.yml`](../.github/workflows/kaneo.yml) синхронизиру�
 
 | Параметр | Обяз. | Значения | Описание |
 | --- | --- | --- | --- |
-| `kaneo_scheme` | да | имя схемы из `schemes.json` (`single` \| `single_ready` \| `multi`) | Схема переходов |
+| `kaneo_scheme` | да | имя схемы из `schemes.json` (`single` \| `single_ready` \| `single_hold` \| `push_only` \| `multi`) | Схема переходов |
 | `event_type` | да | `push` \| `pr` \| `merge` \| `deploy` | Текущее событие пайплайна |
 
 ## Секреты
@@ -87,6 +87,9 @@ Workflow [`kaneo.yml`](../.github/workflows/kaneo.yml) синхронизиру�
 | `single` | `deploy` | `tags` | `in-progress` | `done` | `Version` |
 | `single_ready` | `push` | `commit` | `backlog`, `todo`, `hold` | `in-progress` | — |
 | `single_ready` | `deploy` | `tags` | `in-progress`, `ready` | `done` | `Version` |
+| `single_hold` | `push` | `commit` | `backlog`, `todo`, `hold` | `in-progress` | — |
+| `single_hold` | `deploy` | `tags` | `in-progress`, `hold`, `ready` | `done` | `Version` |
+| `push_only` | `push` | `commit` | `backlog`, `todo`, `hold` | `in-progress` | — |
 | `multi` | `push` | `branch` | `backlog`, `todo`, `hold` | `in-progress` | — |
 | `multi` | `pr` | `branch` | `in-progress` | `review` | — |
 | `multi` | `merge` | `branch` | `review` | `merged` | — |

@@ -18,8 +18,8 @@ rules() {
   jq -e 'type == "object" and length > 0' "$SCHEMES" > /dev/null
 }
 
-@test "schemes.json: есть схемы single, single_ready и multi" {
-  jq -e 'has("single") and has("single_ready") and has("multi")' "$SCHEMES" > /dev/null
+@test "schemes.json: есть схемы single, single_ready, single_hold, push_only и multi" {
+  jq -e 'has("single") and has("single_ready") and has("single_hold") and has("push_only") and has("multi")' "$SCHEMES" > /dev/null
 }
 
 @test "schemes.json: схема — объект с непустым набором событий, других ключей (вроде task_key) нет" {

@@ -313,7 +313,7 @@ jobs:
 
 | Параметр | Тип | Обяз. | Описание |
 | --- | --- | --- | --- |
-| `kaneo_scheme` | string | да | Имя схемы из `schemes.json`: `single`, `single_ready`, `multi` |
+| `kaneo_scheme` | string | да | Имя схемы из `schemes.json`: `single`, `single_ready`, `single_hold`, `push_only`, `multi` |
 | `event_type` | string | да | Тип события: `push`, `pr`, `merge`, `deploy` |
 
 Неизвестная схема или событие, которого нет в схеме, — строка в лог, шаг не падает.
@@ -329,4 +329,5 @@ jobs:
 | `multi` | `merge` | `review` | `merged` |
 | `single` | `deploy` | `in-progress` | `done` + версия в поле `Version` |
 | `single_ready` | `deploy` | `in-progress`, `ready` | `done` + версия в поле `Version` |
+| `single_hold` | `deploy` | `in-progress`, `hold`, `ready` | `done` + версия в поле `Version` |
 | `multi` | `deploy` | `merged` | `done` + версия в поле `Version` |
