@@ -11,7 +11,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: publish_package-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

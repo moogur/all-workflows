@@ -13,7 +13,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: deploy_for_lerna-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

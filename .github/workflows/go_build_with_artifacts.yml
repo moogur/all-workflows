@@ -34,7 +34,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.folder }}-${{ inputs.goos }}-${{ inputs.goarch }}
+  group: go_build_with_artifacts-${{ github.workflow }}-${{ github.ref }}-${{ inputs.folder }}-${{ inputs.goos }}-${{ inputs.goarch }}
   cancel-in-progress: true
 
 jobs:
