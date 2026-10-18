@@ -34,7 +34,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 'Install'
-        run: npm ci
+        uses: moogur/all-workflows/.github/actions/npm-install@master
 
       - name: 'Build'
         run: npm run build

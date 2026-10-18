@@ -49,7 +49,7 @@ jobs:
           FOLDER: ${{ inputs.folder }}
         run: cp -r "$FOLDER"/. .
 
-      # Версия Node из package.json + setup-node с кэшем npm.
+      # Версия Node из package.json + setup-node.
       - name: 'Setup node'
         uses: moogur/all-workflows/.github/actions/setup-node@master
 
@@ -59,7 +59,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 'Install'
-        run: npm ci
+        uses: moogur/all-workflows/.github/actions/npm-install@master
 
       # Токен нужен только на время установки. Дальше выполняется код проекта,
       # поэтому .npmrc с _authToken рядом с ним не остаётся.

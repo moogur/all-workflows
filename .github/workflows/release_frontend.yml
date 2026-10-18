@@ -48,7 +48,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 'Install'
-        run: npm ci
+        uses: moogur/all-workflows/.github/actions/npm-install@master
 
       # Сборка фронтенда с пробросом версии и упаковка dist в application.zip.
       - name: 'Create assets'

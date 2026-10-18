@@ -24,7 +24,7 @@ line_of() {
 
 @test ".npmrc удаляется после установки зависимостей" {
   local install remove
-  install=$(line_of '^ +run: npm ci$')
+  install=$(line_of '^ +uses: moogur/all-workflows/.github/actions/npm-install@master$')
   remove=$(line_of '^ +run: rm -f \.npmrc$')
   [ -n "$install" ]
   [ -n "$remove" ]

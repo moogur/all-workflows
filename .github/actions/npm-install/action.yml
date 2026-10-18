@@ -1,0 +1,30 @@
+name: 'Install npm dependencies'
+description: 'Кэширует node_modules по ОС, версии Node и хэшу lock-файла; npm ci выполняется только при промахе кэша'
+
+inputs:
+  cache-dependency-path:
+    description: 'Путь к package-lock.json; node_modules лежит рядом с ним'
+    required: false
+    default: 'package-lock.json'
+
+runs:
+  using: 'composite'
+  steps:
+    - id: key
+      shell: bash
+      env:
+        LOCK_FILE: ${{ inputs.cache-dependency-path }}
+      run: bash "$GITHUB_ACTION_PATH/key.sh"
+
+    # Только точное совпадение ключа: частичное попадание подсунуло бы чужой node_modules.
+    - id: modules
+      uses: actions/cache@v5
+      with:
+        path: ${{ steps.key.outputs.path }}
+        key: ${{ steps.key.outputs.key }}
+
+    - if: steps.modules.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        LOCK_DIR: ${{ steps.key.outputs.dir }}
+      run: cd "$LOCK_DIR" && npm ci

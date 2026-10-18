@@ -42,7 +42,7 @@ jobs:
           FOLDER: ${{ inputs.folder }}
         run: cp -r "$FOLDER"/. .
 
-      # Определение версии Node из package.json + setup-node с кэшем npm (~/.npm).
+      # Определение версии Node из package.json + setup-node.
       - name: 'Setup node'
         uses: moogur/all-workflows/.github/actions/setup-node@master
 
@@ -53,7 +53,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 'Install'
-        run: npm ci  # чистая установка строго по package-lock.json
+        uses: moogur/all-workflows/.github/actions/npm-install@master
 
       - name: 'Lint'
         run: npm run lint
