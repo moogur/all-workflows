@@ -108,6 +108,21 @@ called() {
   called "PUT /api/task/status/t1"
 }
 
+@test "single push: задача из backlog Kaneo (статус planned, без колонки) переносится" {
+  commit '[GA-1] feature(api): x'
+  task GA-1 t1 planned
+  engine
+  called "PUT /api/task/status/t1"
+  [ "$(status_bodies)" = '{"status":"in-progress"}' ]
+}
+
+@test "single push: задача из колонки to-do переносится" {
+  commit '[GA-1] feature(api): x'
+  task GA-1 t1 to-do
+  engine
+  called "PUT /api/task/status/t1"
+}
+
 @test "single push: задача уже в in-progress — SKIPPED, перенос не отправляется" {
   commit '[GA-1] feature(api): x'
   task GA-1 t1 in-progress

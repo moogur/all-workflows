@@ -2,7 +2,7 @@
   "single": {
     "push": {
       "task_key": "commit",
-      "rules": [{ "from": ["backlog", "todo", "hold"], "to": "in-progress" }]
+      "rules": [{ "from": ["planned", "backlog", "to-do", "todo", "hold"], "to": "in-progress" }]
     },
     "deploy": {
       "task_key": "tags",
@@ -12,7 +12,7 @@
   "single_ready": {
     "push": {
       "task_key": "commit",
-      "rules": [{ "from": ["backlog", "todo", "hold"], "to": "in-progress" }]
+      "rules": [{ "from": ["planned", "backlog", "to-do", "todo", "hold"], "to": "in-progress" }]
     },
     "deploy": {
       "task_key": "tags",
@@ -22,7 +22,7 @@
   "single_hold": {
     "push": {
       "task_key": "commit",
-      "rules": [{ "from": ["backlog", "todo", "hold"], "to": "in-progress" }]
+      "rules": [{ "from": ["planned", "backlog", "to-do", "todo", "hold"], "to": "in-progress" }]
     },
     "deploy": {
       "task_key": "tags",
@@ -32,13 +32,13 @@
   "push_only": {
     "push": {
       "task_key": "commit",
-      "rules": [{ "from": ["backlog", "todo", "hold"], "to": "in-progress" }]
+      "rules": [{ "from": ["planned", "backlog", "to-do", "todo", "hold"], "to": "in-progress" }]
     }
   },
   "multi": {
     "push": {
       "task_key": "branch",
-      "rules": [{ "from": ["backlog", "todo", "hold"], "to": "in-progress" }]
+      "rules": [{ "from": ["planned", "backlog", "to-do", "todo", "hold"], "to": "in-progress" }]
     },
     "pr": {
       "task_key": "branch",

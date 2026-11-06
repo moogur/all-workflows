@@ -46,6 +46,13 @@ rules() {
   done < <(rules)
 }
 
+# Backlog в Kaneo — встроенный статус planned (не колонка), а колонка TODO бывает to-do и todo:
+# без них задача из backlog или TODO при пуше остаётся на месте.
+@test "schemes.json: push каждой схемы берёт задачу из planned, backlog, to-do, todo и hold" {
+  jq -e 'all(.[] | .push // empty | .rules[0].from; ["planned", "backlog", "to-do", "todo", "hold"] - . == [])' \
+    "$SCHEMES" > /dev/null
+}
+
 @test "schemes.json: fields — объект из непустых имён полей и имён функций" {
   local rule
   while IFS= read -r rule; do
