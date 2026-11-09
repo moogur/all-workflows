@@ -93,7 +93,7 @@ load release-notes-helpers
   [ "$status" -eq 0 ]
   [ "$(output_value change_count)" = "2" ]
   grep -qF -- '- [GA-10] api: via pr (#12)' "$NOTES"
-  grep -q '^- \[GA-2\] api: pushed directly ([0-9a-f]\{7,\})$' "$NOTES"
+  grep -q '^- \[GA-2\] api: pushed directly (\[[0-9a-f]\{7,\}\](https://github\.com/user/repo/commit/[0-9a-f]\{40\}))$' "$NOTES"
 }
 
 @test "слияние без Merge pull request (Merge branch) — запись Other по короткому sha, без содержимого ветки" {
@@ -112,7 +112,7 @@ load release-notes-helpers
   [ "$status" -eq 0 ]
   [ "$(output_value change_count)" = "1" ]
   grep -qF '## 🧩 Other' "$NOTES"
-  grep -q "^- Merge branch 'chore' ([0-9a-f]\\{7,\\})\$" "$NOTES"
+  grep -q "^- Merge branch 'chore' (\\[[0-9a-f]\\{7,\\}\\](https://github\\.com/user/repo/commit/[0-9a-f]\\{40\\}))\$" "$NOTES"
   run grep -cF 'GA-1' "$NOTES"
   [ "$status" -ne 0 ]   # содержимое смёрженной ветки не попадает в тело отдельной записью
 }

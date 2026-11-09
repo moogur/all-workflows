@@ -66,7 +66,7 @@ load release-notes-helpers
   grep -qF '## 📚 Documentation' "$NOTES"
   grep -qF '## 🧰 Maintenance' "$NOTES"
   grep -qF '## 🛠 Configuration' "$NOTES"
-  grep -q '^- \[GA-557\] frontend: add deploy spa and pwa ([0-9a-f]\{7,\})$' "$NOTES"
+  grep -q '^- \[GA-557\] frontend: add deploy spa and pwa (\[[0-9a-f]\{7,\}\](https://github\.com/user/repo/commit/[0-9a-f]\{40\}))$' "$NOTES"
 }
 
 @test "test попадает в New Features, config — в Configuration" {
@@ -97,7 +97,7 @@ load release-notes-helpers
   run_notes v1.1.0
   [ "$status" -eq 0 ]
   grep -qF '## 🧰 Maintenance' "$NOTES"
-  grep -q '^- \[IPB-572\] src: развести ответственности ([0-9a-f]\{7,\})$' "$NOTES"
+  grep -q '^- \[IPB-572\] src: развести ответственности (\[[0-9a-f]\{7,\}\](https://github\.com/user/repo/commit/[0-9a-f]\{40\}))$' "$NOTES"
 }
 
 @test "коммит не по формату попадает в Other как есть" {
@@ -109,7 +109,32 @@ load release-notes-helpers
   run_notes v1.1.0
   [ "$status" -eq 0 ]
   grep -qF '## 🧩 Other' "$NOTES"
-  grep -q '^- Update README.md ([0-9a-f]\{7,\})$' "$NOTES"
+  grep -q '^- Update README.md (\[[0-9a-f]\{7,\}\](https://github\.com/user/repo/commit/[0-9a-f]\{40\}))$' "$NOTES"
+}
+
+@test "хэш коммита — ссылка на этот самый коммит" {
+  commit 'init' 2024-01-01T10:00:00
+  tag v1.0.0 2024-01-01T10:00:00
+  commit '[GA-1] bugfix(api): fix endpoint' 2024-01-02T10:00:00
+  tag v1.1.0 2024-01-02T11:00:00
+  local sha
+  sha="$(git -C "$REPO" rev-parse HEAD)"
+
+  run_notes v1.1.0
+  [ "$status" -eq 0 ]
+  grep -qF -- "- [GA-1] api: fix endpoint ([${sha:0:7}](https://github.com/user/repo/commit/${sha}))" "$NOTES"
+}
+
+@test "без GITHUB_REPOSITORY хэш остаётся текстом" {
+  commit 'init' 2024-01-01T10:00:00
+  tag v1.0.0 2024-01-01T10:00:00
+  commit '[GA-1] bugfix(api): fix endpoint' 2024-01-02T10:00:00
+  tag v1.1.0 2024-01-02T11:00:00
+
+  run env TAG=v1.1.0 NOTES_FILE="$NOTES" GITHUB_OUTPUT="$GITHUB_OUTPUT" \
+    bash -c "cd '$REPO' && env -u GITHUB_REPOSITORY bash '$SCRIPT'"
+  [ "$status" -eq 0 ]
+  grep -q '^- \[GA-1\] api: fix endpoint ([0-9a-f]\{7,\})$' "$NOTES"
 }
 
 @test "число изменений в единственном числе и ссылка на сравнение" {

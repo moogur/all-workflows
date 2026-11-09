@@ -8,7 +8,8 @@
 # Squash-коммит "... (#N)": то же самое, но заголовок — сам subject без суффикса.
 # Любой другой коммит на first-parent линии (прямой пуш, ребейзнутый PR, слияние
 #   без "Merge pull request", напр. "Merge branch ...") — запись по коммиту,
-#   как раньше: заголовок по формату commit-msg или как есть, короткий sha.
+#   как раньше: заголовок по формату commit-msg или как есть, короткий sha — ссылкой на коммит,
+#   если известен GITHUB_REPOSITORY (иначе простым текстом).
 # Вход (env): TAG (по умолчанию тег из GITHUB_REF), PREVIOUS_TAG (пусто — считаем сами),
 #   NOTES_FILE (пусто — $RUNNER_TEMP/release-notes.md), GITHUB_SERVER_URL, GITHUB_REPOSITORY,
 #   GITHUB_OUTPUT.
@@ -96,7 +97,21 @@ pr_entry() {
 declare -A entries=()
 count=0
 
-# Один проход --first-parent по диапазону: короткий sha, subject и body коммита,
+repository_url=''
+if [[ -n "${GITHUB_REPOSITORY:-}" ]]; then
+  repository_url="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY}"
+fi
+
+# commit_ref <короткий sha> <полный sha> — короткий sha ссылкой на коммит; без репозитория — как есть.
+commit_ref() {
+  if [[ -n "$repository_url" ]]; then
+    printf '[%s](%s/commit/%s)' "$1" "$repository_url" "$2"
+  else
+    printf '%s' "$1"
+  fi
+}
+
+# Один проход --first-parent по диапазону: короткий и полный sha, subject и body коммита,
 # записи разделены %x1e (в теле коммита такого байта быть не может). Формат:
 # без "tformat" — терминатор ставим сами через %x1e, иначе git добавит перенос
 # строки между записями поверх нашего терминатора.
@@ -105,6 +120,8 @@ while IFS= read -r -d $'\x1e' record; do
   # Не через read: тело многострочное, а read остановился бы на первом переводе строки.
   short_sha="${record%%$'\x1f'*}"
   rest="${record#*$'\x1f'}"
+  full_sha="${rest%%$'\x1f'*}"
+  rest="${rest#*$'\x1f'}"
   subject="${rest%%$'\x1f'*}"
   body="${rest#*$'\x1f'}"
   [[ -n "$short_sha" ]] || continue
@@ -123,14 +140,14 @@ while IFS= read -r -d $'\x1e' record; do
   else
     parse_subject "$subject"
     if [[ "$matched" -eq 1 ]]; then
-      entry="- [${task}] ${scope}: ${subj} (${short_sha})"
+      entry="- [${task}] ${scope}: ${subj} ($(commit_ref "$short_sha" "$full_sha"))"
     else
-      entry="- ${subject} (${short_sha})"
+      entry="- ${subject} ($(commit_ref "$short_sha" "$full_sha"))"
     fi
   fi
 
   entries[$category]+="${entry}"$'\n'
-done < <(git log --first-parent --pretty=format:'%h%x1f%s%x1f%b%x1e' "$range")
+done < <(git log --first-parent --pretty=format:'%h%x1f%H%x1f%s%x1f%b%x1e' "$range")
 
 notes_file="${NOTES_FILE:-${RUNNER_TEMP:-/tmp}/release-notes.md}"
 mkdir -p "$(dirname "$notes_file")"
@@ -156,8 +173,7 @@ noun='changes'
     printf '%s' "${entries[$category]}"
   done
 
-  if [[ -n "${GITHUB_REPOSITORY:-}" ]]; then
-    repository_url="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY}"
+  if [[ -n "$repository_url" ]]; then
     echo
     if [[ -n "$previous" ]]; then
       echo "**Full Changelog**: ${repository_url}/compare/${previous}...${tag}"
