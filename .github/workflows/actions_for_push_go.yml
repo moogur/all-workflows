@@ -97,6 +97,24 @@ jobs:
         with:
           file_path: ${{ inputs.test_setup_script }}
 
+      # -race: детектор гонок. -json нужен для сводки: лог остаётся читаемым за счёт jq,
+      # отчёт целиком уходит в файл. shell: bash включает pipefail — упавшие тесты роняют шаг,
+      # а не маскируются успешным jq в конце конвейера.
       - name: Run tests
+        id: tests
         if: "inputs.skip_tests != 'true'"
-        run: go test -race -vet=off ./...  # -race: детектор гонок
+        shell: bash
+        env:
+          REPORT: ${{ runner.temp }}/go-test-report.json
+        run: |
+          go test -race -vet=off -json ./... \
+            | tee "$REPORT" \
+            | jq --unbuffered -Rj 'fromjson? | objects | select(.Action == "output" or .Action == "build-output") | .Output'
+
+      # Сводка нужна и при упавших тестах; шаг пропущен — тесты не запускались (skip_tests или упал прошлый шаг).
+      - name: 'Test summary'
+        if: "!cancelled() && steps.tests.outcome != 'skipped'"
+        uses: moogur/all-workflows/.github/actions/test-summary@master
+        with:
+          format: go
+          report: ${{ runner.temp }}/go-test-report.json

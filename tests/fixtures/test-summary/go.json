@@ -1,0 +1,16 @@
+{"ImportPath":"example.com/demo/nobuild [example.com/demo/nobuild.test]","Action":"build-output","Output":"# example.com/demo/nobuild [example.com/demo/nobuild.test]\n"}
+{"ImportPath":"example.com/demo/nobuild [example.com/demo/nobuild.test]","Action":"build-output","Output":"nobuild/nb_test.go:5:28: undefined: undefinedThing\n"}
+{"ImportPath":"example.com/demo/nobuild [example.com/demo/nobuild.test]","Action":"build-fail"}
+{"Action":"fail","Package":"example.com/demo/nobuild","FailedBuild":"example.com/demo/nobuild [example.com/demo/nobuild.test]"}
+{"Action":"skip","Package":"example.com/demo/notests"}
+{"Action":"pass","Package":"example.com/demo/bad","Test":"TestFine"}
+{"Action":"fail","Package":"example.com/demo/bad","Test":"TestBroken"}
+{"Action":"fail","Package":"example.com/demo/bad","Test":"TestParent/child"}
+{"Action":"fail","Package":"example.com/demo/bad","Test":"TestParent"}
+{"Action":"fail","Package":"example.com/demo/bad"}
+{"Action":"pass","Package":"example.com/demo/ok","Test":"TestAdd"}
+{"Action":"skip","Package":"example.com/demo/ok","Test":"TestSkipMe"}
+{"Action":"pass","Package":"example.com/demo/ok","Test":"TestGroup/one"}
+{"Action":"skip","Package":"example.com/demo/ok","Test":"TestGroup/two"}
+{"Action":"pass","Package":"example.com/demo/ok","Test":"TestGroup"}
+{"Action":"pass","Package":"example.com/demo/ok"}

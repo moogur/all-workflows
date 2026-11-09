@@ -76,6 +76,13 @@ jobs:
       - name: 'Drop npm auth'
         run: rm -f .npmrc
 
+      # Обёртка тестового скрипта: оставляет отчёт только первого запуска (головы PR), чтобы сводка
+      # не показала базовую ветку, которой action гоняет тесты вторым заходом.
+      - name: 'Jest wrapper'
+        id: wrapper
+        if: "inputs.skip_tests != 'true'"
+        uses: moogur/all-workflows/.github/actions/jest-head-wrapper@master
+
       # Подготовка к тестам скриптом потребителя; путь считается от рабочей папки (folder уже в корне).
       # В test_setup_cache не кладите секреты: кэш Actions читает любой, у кого есть read-доступ к репозиторию.
       - name: 'Restore setup cache'
@@ -94,10 +101,21 @@ jobs:
       # Сторонний action: гоняет test-script и оставляет аннотации в PR.
       # skip-step: install — зависимости уже стоят, а свой install action
       # сделал бы без .npmrc и без доступа к приватному scope.
+      # test-script идёт через обёртку: action добавляет к команде свои флаги jest, а обёртка передаёт
+      # их проекту и сохраняет отчёт головы PR в jest-head.json (см. wrap.sh).
       - name: 'Test coverage (jest)'
+        id: tests
         if: "inputs.skip_tests != 'true'"
         uses: ArtiomTr/jest-coverage-report-action@v2
         with:
           annotations: failed-tests
-          test-script: npm run test:coverage
+          test-script: bash ${{ steps.wrapper.outputs.script }} ${{ runner.temp }}/jest-head.json
           skip-step: install
+
+      # Сводка нужна и при упавших тестах; шаг пропущен — тесты не запускались (skip_tests или упал прошлый шаг).
+      - name: 'Test summary'
+        if: "!cancelled() && steps.tests.outcome != 'skipped'"
+        uses: moogur/all-workflows/.github/actions/test-summary@master
+        with:
+          format: jest
+          report: ${{ runner.temp }}/jest-head.json

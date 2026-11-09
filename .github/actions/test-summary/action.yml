@@ -1,0 +1,19 @@
+name: 'Test summary'
+description: 'Пишет в сводку запуска (GITHUB_STEP_SUMMARY) итоги тестов из отчёта: пройдено, упало, пропущено, таблица по пакетам или файлам, имена упавших и пропущенных тестов. Отчёта нет или он пуст — сводка так и скажет, шаг не падает.'
+
+inputs:
+  format:
+    description: 'Формат отчёта: go (поток событий `go test -json`) или jest (JSON jest и vitest).'
+    required: true
+  report:
+    description: 'Путь к файлу отчёта.'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - shell: bash
+      env:
+        FORMAT: ${{ inputs.format }}
+        REPORT: ${{ inputs.report }}
+      run: bash "$GITHUB_ACTION_PATH/test-summary.sh"

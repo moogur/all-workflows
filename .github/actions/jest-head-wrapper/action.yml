@@ -1,0 +1,14 @@
+name: 'Jest head wrapper'
+description: 'Отдаёт путь к скрипту-обёртке для test-script action ArtiomTr/jest-coverage-report-action: обёртка запускает тесты проекта и оставляет отчёт только первого запуска (головы PR), а не базовой ветки.'
+
+outputs:
+  script:
+    description: 'Абсолютный путь к wrap.sh. Использование: test-script: bash <script> <куда сохранить отчёт>.'
+    value: ${{ steps.path.outputs.script }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: path
+      shell: bash
+      run: bash "$GITHUB_ACTION_PATH/path.sh"

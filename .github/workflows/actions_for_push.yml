@@ -71,6 +71,13 @@ jobs:
       - name: 'Build'
         run: npm run build
 
+      # Раннер (jest или vitest) и аргументы, с которыми он дополнительно пишет JSON-отчёт для сводки.
+      # Стоит до подготовки к тестам: та должна идти вплотную перед тестовым шагом.
+      - name: 'Detect test runner'
+        id: runner
+        if: "inputs.skip_tests != 'true'"
+        uses: moogur/all-workflows/.github/actions/node-test-runner@master
+
       # Подготовка к тестам скриптом потребителя; путь считается от рабочей папки (folder уже в корне).
       # В test_setup_cache не кладите секреты: кэш Actions читает любой, у кого есть read-доступ к репозиторию.
       - name: 'Restore setup cache'
@@ -86,6 +93,18 @@ jobs:
         with:
           file_path: ${{ inputs.test_setup_script }}
 
+      # Аргументы в TEST_ARGS без кавычек намеренно: это несколько слов, а пути из RUNNER_TEMP без пробелов.
       - name: 'Test'
+        id: tests
         if: "inputs.skip_tests != 'true'"
-        run: npm run test:coverage
+        env:
+          TEST_ARGS: ${{ steps.runner.outputs.args }}
+        run: npm run test:coverage -- $TEST_ARGS
+
+      # Сводка нужна и при упавших тестах; шаг пропущен — тесты не запускались (skip_tests или упал прошлый шаг).
+      - name: 'Test summary'
+        if: "!cancelled() && steps.tests.outcome != 'skipped' && steps.runner.outputs.format != ''"
+        uses: moogur/all-workflows/.github/actions/test-summary@master
+        with:
+          format: ${{ steps.runner.outputs.format }}
+          report: ${{ steps.runner.outputs.report }}

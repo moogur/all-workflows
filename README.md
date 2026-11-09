@@ -9,7 +9,7 @@
 | Каталог / файл | Назначение |
 | --- | --- |
 | [`.github/workflows/`](.github/workflows/) | Переиспользуемые workflow'ы (основное содержимое репозитория) |
-| [`.github/actions/`](.github/actions/) | Composite actions — общие шаги (версии Node/Go, настройка Node с кэшем npm, npm-аутентификация, версия приложения, проверка формата тега, тело релиза по PR/коммитам, публикация релиза, единая цепочка публикации GitHub-релиза, сборка docker-образа и релиз по тегу сборки, блок npm install, версия npm-пакета, проверка обновлений внешнего репозитория) |
+| [`.github/actions/`](.github/actions/) | Composite actions — общие шаги (версии Node/Go, настройка Node с кэшем npm, npm-аутентификация, версия приложения, проверка формата тега, тело релиза по PR/коммитам, публикация релиза, единая цепочка публикации GitHub-релиза, сборка docker-образа и релиз по тегу сборки, блок npm install, версия npm-пакета, проверка обновлений внешнего репозитория, определение раннера тестов Node (jest/vitest), сводка итогов тестов на странице запуска, обёртка тестов Jest для pr_annotation: отчёт головы PR, а не базы) |
 | [`lib/`](lib/) | Bash-библиотеки формата "базовых значений" (версия/тег, коммит, docker-ссылка, npm-пакет) — единственное место, где эти форматы разбираются; подключаются через `source` |
 | [`dockerfiles/`](dockerfiles/) | Dockerfile'ы и `.dockerignore`, которые workflow'ы скачивают на лету при сборке образов |
 | [`scripts/kaneo/`](scripts/kaneo/) | Интеграция с Kaneo: движок по схемам (`engine.sh`, `task.sh`, `fields.sh`), схемы переходов (`schemes.json`), функции значений полей (`fields/`), REST-запросы (`requests.sh`), отчёт (`messages.sh`), откуда `kaneo.yml` берёт номер задачи (`task_key.sh`; сам разбор — в `lib/`) |
@@ -48,9 +48,9 @@ jobs:
 
 | Workflow | Стек | Что делает |
 | --- | --- | --- |
-| [`actions_for_push.yml`](.github/workflows/actions_for_push.yml) | Node.js | Lint → build → test |
-| [`actions_for_push_go.yml`](.github/workflows/actions_for_push_go.yml) | Go | `go vet`, `staticcheck`, `golint`, тесты |
-| [`pr_annotation.yml`](.github/workflows/pr_annotation.yml) | Node.js | Аннотации покрытия Jest в Pull Request |
+| [`actions_for_push.yml`](.github/workflows/actions_for_push.yml) | Node.js | Lint → build → test; сводка тестов (пройдено/упало/пропущено) на странице запуска |
+| [`actions_for_push_go.yml`](.github/workflows/actions_for_push_go.yml) | Go | `go vet`, `staticcheck`, `golint`, тесты; сводка тестов (пройдено/упало/пропущено) на странице запуска |
+| [`pr_annotation.yml`](.github/workflows/pr_annotation.yml) | Node.js | Аннотации покрытия Jest в Pull Request; сводка тестов головы PR на странице запуска |
 
 ### Релизы и артефакты
 

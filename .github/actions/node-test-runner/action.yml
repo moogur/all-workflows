@@ -1,0 +1,20 @@
+name: 'Node test runner'
+description: 'Определяет раннер тестов проекта (jest или vitest) по package.json и отдаёт аргументы, с которыми он дополнительно пишет JSON-отчёт, не меняя обычный вывод в лог.'
+
+outputs:
+  format:
+    description: 'Формат отчёта для test-summary: jest (и для jest, и для vitest) или пусто, если раннер не найден.'
+    value: ${{ steps.detect.outputs.format }}
+  args:
+    description: 'Аргументы после `npm run test:coverage --`, чтобы раннер записал отчёт; пусто, если раннер не найден.'
+    value: ${{ steps.detect.outputs.args }}
+  report:
+    description: 'Путь, куда раннер запишет отчёт (внутри RUNNER_TEMP).'
+    value: ${{ steps.detect.outputs.report }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: detect
+      shell: bash
+      run: bash "$GITHUB_ACTION_PATH/detect.sh"

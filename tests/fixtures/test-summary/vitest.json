@@ -1,0 +1,73 @@
+{
+  "numTotalTests": 5,
+  "numPassedTests": 2,
+  "numFailedTests": 1,
+  "numPendingTests": 1,
+  "numTodoTests": 1,
+  "success": false,
+  "testResults": [
+    {
+      "name": "@ROOT@/t/a.test.js",
+      "status": "failed",
+      "message": "",
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "math"
+          ],
+          "fullName": "math adds",
+          "status": "passed",
+          "title": "adds",
+          "failureMessages": []
+        },
+        {
+          "ancestorTitles": [
+            "math"
+          ],
+          "fullName": "math breaks",
+          "status": "failed",
+          "title": "breaks",
+          "failureMessages": []
+        },
+        {
+          "ancestorTitles": [
+            "math"
+          ],
+          "fullName": "math skipped one",
+          "status": "skipped",
+          "title": "skipped one",
+          "failureMessages": []
+        },
+        {
+          "ancestorTitles": [
+            "math"
+          ],
+          "fullName": "math later",
+          "status": "todo",
+          "title": "later",
+          "failureMessages": []
+        }
+      ]
+    },
+    {
+      "name": "@ROOT@/t/b.test.js",
+      "status": "passed",
+      "message": "",
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "fine",
+          "status": "passed",
+          "title": "fine",
+          "failureMessages": []
+        }
+      ]
+    },
+    {
+      "name": "@ROOT@/t/c.test.js",
+      "status": "failed",
+      "message": "Cannot find module './nope' imported from /private/tmp/claude-501/-Users-moogur-",
+      "assertionResults": []
+    }
+  ]
+}

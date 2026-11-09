@@ -1,0 +1,73 @@
+{
+  "numTotalTests": 5,
+  "numPassedTests": 2,
+  "numFailedTests": 1,
+  "numPendingTests": 1,
+  "numTodoTests": 1,
+  "success": false,
+  "testResults": [
+    {
+      "name": "@ROOT@/t/c.test.js",
+      "status": "failed",
+      "message": "  ● Test suite failed to run\n\n    Jest encountered an unexpected token\n\n    Jest",
+      "assertionResults": []
+    },
+    {
+      "name": "@ROOT@/t/b.test.js",
+      "status": "passed",
+      "message": "",
+      "assertionResults": [
+        {
+          "ancestorTitles": [],
+          "fullName": "fine",
+          "status": "passed",
+          "title": "fine",
+          "failureMessages": []
+        }
+      ]
+    },
+    {
+      "name": "@ROOT@/t/a.test.js",
+      "status": "failed",
+      "message": "  ● math › breaks\n\n    expect(received).toBe(expected) // Object.is equality\n\n  ",
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "math"
+          ],
+          "fullName": "math adds",
+          "status": "passed",
+          "title": "adds",
+          "failureMessages": []
+        },
+        {
+          "ancestorTitles": [
+            "math"
+          ],
+          "fullName": "math breaks",
+          "status": "failed",
+          "title": "breaks",
+          "failureMessages": []
+        },
+        {
+          "ancestorTitles": [
+            "math"
+          ],
+          "fullName": "math skipped one",
+          "status": "pending",
+          "title": "skipped one",
+          "failureMessages": []
+        },
+        {
+          "ancestorTitles": [
+            "math"
+          ],
+          "fullName": "math later",
+          "status": "todo",
+          "title": "later",
+          "failureMessages": []
+        }
+      ]
+    }
+  ]
+}
