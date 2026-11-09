@@ -92,20 +92,38 @@ kaneo_load_transition() {
   done
 }
 
-# kaneo_select_rule <статус задачи> — первое правило, чей `from` содержит статус: кладёт его
-# `to` и поля в kaneo_tr_*. Код 1, если ни одно правило не подошло.
+# kaneo_use_rule <индекс правила> — кладёт `to` и поля правила в kaneo_tr_*.
+kaneo_use_rule() {
+  local i=$1 j
+  kaneo_tr_to=${kaneo_rule_to[i]}
+  kaneo_tr_field_names=() kaneo_tr_field_funcs=()
+  for j in "${!kaneo_rule_field_rule[@]}"; do
+    if [[ "${kaneo_rule_field_rule[j]}" == "$i" ]]; then
+      kaneo_tr_field_names+=("${kaneo_rule_field_names[j]}")
+      kaneo_tr_field_funcs+=("${kaneo_rule_field_funcs[j]}")
+    fi
+  done
+}
+
+# kaneo_select_rule <статус задачи> — первое правило, чей `from` содержит статус, в kaneo_tr_*.
+# Код 1, если ни одно правило не подошло.
 kaneo_select_rule() {
-  local status=$1 i j tab=$'\t'
+  local status=$1 i tab=$'\t'
   for i in "${!kaneo_rule_to[@]}"; do
     [[ -n "${kaneo_rule_from[$i$tab$status]+set}" ]] || continue
-    kaneo_tr_to=${kaneo_rule_to[i]}
-    kaneo_tr_field_names=() kaneo_tr_field_funcs=()
-    for j in "${!kaneo_rule_field_rule[@]}"; do
-      if [[ "${kaneo_rule_field_rule[j]}" == "$i" ]]; then
-        kaneo_tr_field_names+=("${kaneo_rule_field_names[j]}")
-        kaneo_tr_field_funcs+=("${kaneo_rule_field_funcs[j]}")
-      fi
-    done
+    kaneo_use_rule "$i"
+    return 0
+  done
+  return 1
+}
+
+# kaneo_select_rule_by_target <статус задачи> — первое правило, чей `to` равен статусу, в kaneo_tr_*:
+# задача уже там, куда её перенёс бы прогон. Код 1, если такого правила нет.
+kaneo_select_rule_by_target() {
+  local status=$1 i
+  for i in "${!kaneo_rule_to[@]}"; do
+    [[ "${kaneo_rule_to[i]}" == "$status" ]] || continue
+    kaneo_use_rule "$i"
     return 0
   done
   return 1

@@ -3,7 +3,8 @@
 # отсюда читают fields.sh и messages.sh: shellcheck не видит этого через границу файлов.
 #
 # Обработка одной задачи: данные из Kaneo -> первое правило с подходящим `from` -> перенос в `to` ->
-# поля (fields.sh) только после успешного переноса. Подключается из engine.sh.
+# поля (fields.sh) только после успешного переноса. Задача уже в `to` правила (повтор прогона,
+# перенос руками) не переносится, но поля этого правила дописываются. Подключается из engine.sh.
 
 # kaneo_parse_task <ответ GET task> — кладёт id, проект, пространство и статус задачи в
 # kaneo_task_*; код 1, если ответ не JSON, любой из id не проходит kaneo_id_valid или статус
@@ -55,6 +56,10 @@ kaneo_process_task() {
 
   if ! kaneo_select_rule "$kaneo_task_status"; then
     save_skip_message_in_file "$(kaneo_rules_targets)" "$key"
+    # Повторы не страшны: функции полей сами не дописывают уже стоящее значение.
+    if kaneo_select_rule_by_target "$kaneo_task_status"; then
+      kaneo_fields_apply
+    fi
     return 0
   fi
   if kaneo_move; then

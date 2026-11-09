@@ -152,6 +152,31 @@ called() {
   [[ "$(report)" == *"The field 'Version' of the task GA-1 has been updated"* ]]
 }
 
+@test "single deploy: задача уже в done — перенос не отправляется, Version дописывается" {
+  EVENT_TYPE=deploy
+  release_with_ga1
+  task GA-1 t1 done
+  version_field
+  task_values t1 '[]'
+  engine
+  [ "$status" -eq 0 ]
+  ! called "PUT /api/task/status/t1"
+  [ "$(sent_values)" = "1.1.0" ]
+  [[ "$(report)" == *"The field 'Version' of the task GA-1 has been updated"* ]]
+}
+
+@test "повтор релиза: задача в done с этой версией — значение не отправляется" {
+  EVENT_TYPE=deploy
+  release_with_ga1
+  task GA-1 t1 done
+  version_field
+  task_values t1 '[{"fieldId":"fid1","value":"1.1.0"}]'
+  engine
+  [ "$status" -eq 0 ]
+  ! called "PUT /api/task/status/t1"
+  ! called "PUT /api/custom-field/value"
+}
+
 @test "single deploy: задача в ready не двигается (в single её нет в from) и поля не трогаются" {
   EVENT_TYPE=deploy
   release_with_ga1
