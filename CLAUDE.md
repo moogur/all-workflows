@@ -56,8 +56,10 @@ deployed from this repo itself — it only lints and unit-tests its own bash.
 ## Docs
 
 - README, docs and code comments are in Russian; this file is English.
-- A change is not finished until the matching doc is updated: `docs/workflows.md` (inputs/steps),
-  `docs/conventions.md` (permissions and secrets tables), `docs/actions.md`, `docs/testing.md`
-  (test table), README tables.
-- `docs/modernization.md` lists legacy left in place on purpose (`docker.pkg.github.com`, archived
+- The live documentation is on the docs site, folder `docs/projects/github-workflows/` of the site repo
+  (`/Users/moogur/IT/HOME/OTHER/docs`), commits `[SD-20] docs(github-workflows): …`. The repo's own `docs/` folder
+  is outdated: never edit it. A change is not finished until the matching site page is updated: `workflows/`
+  (inputs/steps), `conventions/` (permissions, secrets, workflow rules), `actions/`, `testing.md` (test table),
+  plus README tables here.
+- The site's `modernization/` pages list legacy left in place on purpose (`docker.pkg.github.com`, archived
   release actions, `golint`, `@master` pins). Do not silently modernise those.

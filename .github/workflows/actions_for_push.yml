@@ -15,6 +15,16 @@ on:
         type: string
         required: false
         default: '.'
+      test_setup_script:
+        description: "Подготовка к тестам: путь к скрипту относительно корня репозитория"  # выполняется перед шагом тестов
+        type: string
+        required: false
+        default: ''
+      test_setup_cache:
+        description: "Подготовка к тестам: путь (или пути по одному на строку), кэшируемый между запусками"  # только вместе с test_setup_script
+        type: string
+        required: false
+        default: ''
 
 # Новый запуск для той же ветки/папки отменяет предыдущий незавершённый.
 permissions:
@@ -60,6 +70,21 @@ jobs:
 
       - name: 'Build'
         run: npm run build
+
+      # Подготовка к тестам скриптом потребителя; путь считается от рабочей папки (folder уже в корне).
+      # В test_setup_cache не кладите секреты: кэш Actions читает любой, у кого есть read-доступ к репозиторию.
+      - name: 'Restore setup cache'
+        if: "inputs.skip_tests != 'true' && inputs.test_setup_script != '' && inputs.test_setup_cache != ''"
+        uses: actions/cache@v5
+        with:
+          path: ${{ inputs.test_setup_cache }}
+          key: setup-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles(inputs.test_setup_script) }}
+
+      - name: 'Run setup script'
+        if: "inputs.skip_tests != 'true' && inputs.test_setup_script != ''"
+        uses: moogur/all-workflows/.github/actions/run-build-script@master
+        with:
+          file_path: ${{ inputs.test_setup_script }}
 
       - name: 'Test'
         if: "inputs.skip_tests != 'true'"

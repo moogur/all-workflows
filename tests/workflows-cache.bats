@@ -13,9 +13,19 @@ setup() {
   NPM_WORKFLOWS="actions_for_push pr_annotation publish_package release_frontend deploy_for_frontend deploy_for_static_site deploy_for_lerna"
 }
 
-@test "ни один workflow не использует actions/cache напрямую" {
-  run grep -rlF "uses: actions/cache@" "$WF"
-  [ "$status" -ne 0 ]   # grep -l: статус !=0 означает «совпадений нет»
+@test "workflow'ы используют actions/cache напрямую только в шаге кэша подготовки раннера" {
+  # Единственное исключение — кэш к test_setup_script потребителя (не node_modules), см. skip-tests.bats.
+  run awk '
+    /^ +- name:/ { step = $0 }
+    /uses: actions\/cache@/ && step !~ /Restore setup cache/ { print FILENAME ": " step }
+  ' "$WF"/*.yml
+  [ -z "$output" ]
+}
+
+@test "шаг кэша подготовки раннера есть только в workflow'ах с тестами" {
+  # Обратная сторона исключения: оно не должно расползаться на остальные workflow'ы.
+  run grep -lF "name: 'Restore setup cache'" "$WF"/*.yml
+  [ "$(echo "$output" | xargs -n1 basename | sort | tr '\n' ' ')" = "actions_for_push.yml actions_for_push_go.yml pr_annotation.yml " ]
 }
 
 @test "ни один workflow не пропускает шаги по cache-hit" {
