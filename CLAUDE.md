@@ -19,7 +19,7 @@ deployed from this repo itself — it only lints and unit-tests its own bash.
   scripts are checked (inside actionlint) only at `--severity=error` — docker commands rely on
   intentional word-splitting.
 - The single actionlint `-ignore` (`job_workflow_sha`) is deliberate; do not "fix" that finding.
-  Any new ignore needs a line in `docs/testing.md`.
+  Any new ignore needs a line in the site's `testing.md`.
 
 ## Where logic goes
 
@@ -57,8 +57,8 @@ deployed from this repo itself — it only lints and unit-tests its own bash.
 
 - README, docs and code comments are in Russian; this file is English.
 - The live documentation is on the docs site, folder `docs/projects/github-workflows/` of the site repo
-  (`/Users/moogur/IT/HOME/OTHER/docs`), commits `[SD-20] docs(github-workflows): …`. The repo's own `docs/` folder
-  is outdated: never edit it. A change is not finished until the matching site page is updated: `workflows/`
+  (`/Users/moogur/IT/HOME/OTHER/docs`), commits `[SD-20] docs(github-workflows): …`. The repo has no `docs/` folder:
+  don't recreate it. A change is not finished until the matching site page is updated: `workflows/`
   (inputs/steps), `conventions/` (permissions, secrets, workflow rules), `actions/`, `testing.md` (test table),
   plus README tables here.
 - The site's `modernization/` pages list legacy left in place on purpose (`docker.pkg.github.com`, archived

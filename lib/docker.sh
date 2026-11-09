@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 #
-# Имя docker-образа в этом (устаревшем, см. docs/modernization.md) реестре GitHub
+# Имя docker-образа в этом (устаревшем, см. сайт документации, modernization/legacy.md, п. 1) реестре GitHub
 # Packages: docker.pkg.github.com/<user>/<repo>/<repo>. Ссылка на конкретный тег —
 # "<образ>:<тег>"; сам путь образа двоеточий не содержит, поэтому тег — это всё
 # после последнего ':'.

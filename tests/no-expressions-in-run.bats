@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Guard-тест: во всех workflow'ах и composite actions в теле `run:` нет `${{ }}`.
 # Значения (inputs, github.*, outputs шагов, secrets) передаются через `env:` шага
-# и используются в скрипте как "$VAR" (docs/security.md, п. 8). `if:`, `with:` и `env:`
+# и используются в скрипте как "$VAR" (сайт документации, security/injections.md, п. 8). `if:`, `with:` и `env:`
 # выражения не трогаются — проверяются только тела run.
 
 setup() {

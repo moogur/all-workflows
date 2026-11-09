@@ -57,7 +57,7 @@ jobs:
 
       # Нет обновлений → намеренный `exit 1`: job падает, и зависящие от него
       # jobs не запускаются (так пропускаются ВСЕ последующие шаги).
-      # Подробнее о выборе — docs/modernization.md.
+      # Подробнее о выборе — сайт документации, modernization/other.md.
       - name: 'Cancel job'
         if: steps.check.outputs.value == vars.LAST_UPDATE_VALUE
         run: exit 1

@@ -7,7 +7,7 @@
 # (поэтому здесь нет shebang, а указана директива shellcheck shell=bash).
 # Значения private_* читаются из переменных окружения, которые задаёт шаг workflow
 # (`env:`). Подставлять их в файл через sed нельзя: файл потом исполняется, и значение
-# вида $(cmd) выполнилось бы на раннере вместе с секретами (docs/security.md, п. 8).
+# вида $(cmd) выполнилось бы на раннере вместе с секретами (сайт документации, security/injections.md, п. 8).
 
 # shellcheck source=lib/commit.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../../lib/commit.sh"

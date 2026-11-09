@@ -14,7 +14,7 @@ BATS       ?= bats
 SH_FILES := lib/*.sh .github/actions/*/*.sh scripts/kaneo/*.sh scripts/kaneo/fields/*.sh .husky/commit-msg tests/*.bash
 
 # Игнор actionlint: 'job_workflow_sha' — валидное поле, отсутствует в схеме
-# actionlint (см. docs/testing.md).
+# actionlint (см. сайт документации, testing.md).
 ACTIONLINT_IGNORES := -ignore 'job_workflow_sha'
 # Для inline-скриптов workflow'ов shellcheck внутри actionlint — только ошибки
 # (в docker-командах есть намеренный word-splitting). Только для цели actionlint:

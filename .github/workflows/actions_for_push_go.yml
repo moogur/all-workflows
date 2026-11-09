@@ -76,7 +76,7 @@ jobs:
           go install honnef.co/go/tools/cmd/staticcheck@latest
           staticcheck ./...
 
-      # ВНИМАНИЕ: golint заархивирован; см. docs/modernization.md (замена — golangci-lint).
+      # ВНИМАНИЕ: golint заархивирован; см. сайт документации, modernization/legacy.md, п. 2 (замена — golangci-lint).
       - name: Run golint
         run: |
           go install golang.org/x/lint/golint@latest

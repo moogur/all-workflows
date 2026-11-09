@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 #
 # Функция поля release_version (схема: "Version": "release_version"): дописывает
-# версию последнего релиза в список через запятую. Контракт функций полей — docs/kaneo.md.
+# версию последнего релиза в список через запятую. Контракт функций полей — сайт документации, kaneo/fields.md.
 
 # shellcheck source=lib/tags.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../../../lib/tags.sh"

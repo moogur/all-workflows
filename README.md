@@ -42,7 +42,7 @@ jobs:
 
 ## Обзор workflow'ов
 
-Полный справочник со всеми входными параметрами и секретами — в [docs/workflows.md](docs/workflows.md).
+Полный справочник со всеми входными параметрами и секретами — на [сайте документации](https://docusaurus.site.moogur.su/projects/github-workflows/workflows/).
 
 ### Проверки кода (CI)
 
@@ -54,7 +54,7 @@ jobs:
 
 ### Релизы и артефакты
 
-Отдельного «релизного» workflow больше нет: каждая сборка, у которой есть что опубликовать, по тегу (`github.ref_type == 'tag'`) сама публикует GitHub-релиз через общую цепочку [`github-release`](docs/actions.md#github-release).
+Отдельного «релизного» workflow больше нет: каждая сборка, у которой есть что опубликовать, по тегу (`github.ref_type == 'tag'`) сама публикует GitHub-релиз через общую цепочку [`github-release`](https://docusaurus.site.moogur.su/projects/github-workflows/actions/github-release#github-release).
 
 | Workflow | Что делает |
 | --- | --- |
@@ -90,14 +90,16 @@ jobs:
 
 ## Документация
 
-- [docs/workflows.md](docs/workflows.md) — подробный справочник по каждому workflow: входные параметры, секреты, переменные, шаги.
-- [docs/actions.md](docs/actions.md) — composite actions: общие шаги (версии Node/Go, npm-аутентификация, версия приложения).
-- [docs/dockerfiles.md](docs/dockerfiles.md) — описание Dockerfile'ов и `.dockerignore`.
-- [docs/kaneo.md](docs/kaneo.md) — интеграция с Kaneo: схемы, поля, REST-скрипты.
-- [docs/conventions.md](docs/conventions.md) — соглашения: формат коммитов, версионирование, секреты и переменные окружения.
-- [docs/security.md](docs/security.md) — замечания по безопасности.
-- [docs/testing.md](docs/testing.md) — тесты и валидация: что проверяется, как запускать, насколько можно доверять.
-- [docs/modernization.md](docs/modernization.md) — отложенная модернизация (устаревшая инфраструктура, что стоит обновить).
+Документация — на сайте документации, раздел [GitHub workflows](https://docusaurus.site.moogur.su/projects/github-workflows/):
+
+- [Workflow'ы](https://docusaurus.site.moogur.su/projects/github-workflows/workflows/) — подробный справочник по каждому workflow: входные параметры, секреты, переменные, шаги.
+- [Composite actions](https://docusaurus.site.moogur.su/projects/github-workflows/actions/) — общие шаги (версии Node/Go, npm-аутентификация, версия приложения, сводка тестов).
+- [Dockerfile'ы](https://docusaurus.site.moogur.su/projects/github-workflows/dockerfiles) — описание Dockerfile'ов и `.dockerignore`.
+- [Kaneo](https://docusaurus.site.moogur.su/projects/github-workflows/kaneo/) — интеграция с Kaneo: схемы, поля, REST-скрипты.
+- [Соглашения](https://docusaurus.site.moogur.su/projects/github-workflows/conventions/) — формат коммитов, версионирование, секреты и переменные окружения.
+- [Безопасность](https://docusaurus.site.moogur.su/projects/github-workflows/security/) — замечания по безопасности.
+- [Тесты и валидация](https://docusaurus.site.moogur.su/projects/github-workflows/testing) — что проверяется, как запускать, насколько можно доверять.
+- [Модернизация](https://docusaurus.site.moogur.su/projects/github-workflows/modernization/) — отложенная модернизация (устаревшая инфраструктура, что стоит обновить).
 
 ## Соглашения (кратко)
 
@@ -108,6 +110,6 @@ jobs:
 - **Docker-образы** публикуются в GitHub Packages (`docker.pkg.github.com`) с тегами `<версия>` и `latest`; для semver-тега — `vX.Y.Z`, `vX.Y`, `vX`, `latest`. Сборка по тегу дополнительно публикует GitHub-релиз со ссылкой на образ.
 - **npm-пакеты** области `@moogur` ставятся из приватного реестра GitHub Packages.
 - **Сообщения коммитов** проверяются хуком и должны иметь вид `[GA-123] type(scope): subject`.
-- **Тело релиза** собирается автоматически из локальной git-истории (без обращений к GitHub API): PR, смёрженный кнопкой Merge или сквошенный, даёт запись по заголовку PR; коммит, запушенный напрямую, — по формату сообщения коммита. Отдельного «релизного» workflow нет — публикует каждая сборка сама, по тегу, через общую цепочку [`github-release`](docs/actions.md#github-release).
+- **Тело релиза** собирается автоматически из локальной git-истории (без обращений к GitHub API): PR, смёрженный кнопкой Merge или сквошенный, даёт запись по заголовку PR; коммит, запушенный напрямую, — по формату сообщения коммита. Отдельного «релизного» workflow нет — публикует каждая сборка сама, по тегу, через общую цепочку [`github-release`](https://docusaurus.site.moogur.su/projects/github-workflows/actions/github-release#github-release).
 
-Подробнее — в [docs/conventions.md](docs/conventions.md).
+Подробнее — в [соглашениях](https://docusaurus.site.moogur.su/projects/github-workflows/conventions/).

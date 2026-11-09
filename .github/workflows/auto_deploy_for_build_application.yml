@@ -52,7 +52,7 @@ jobs:
           type: ${{ inputs.type }}
           repository_branch: ${{ inputs.repository_branch }}
 
-      # Нет обновлений → намеренный `exit 1` (см. docs/modernization.md).
+      # Нет обновлений → намеренный `exit 1` (см. сайт документации, modernization/other.md).
       - name: 'Cancel job'
         if: steps.check.outputs.value == vars.LAST_UPDATE_VALUE
         run: exit 1

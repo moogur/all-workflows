@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # Guard-тест kaneo.yml: значения не подставляются в исполняемый файл, секреты и входы
-# доходят до скриптов kaneo только через env (docs/security.md, п. 8).
+# доходят до скриптов kaneo только через env (сайт документации, security/injections.md, п. 8).
 
 setup() {
   load helpers
