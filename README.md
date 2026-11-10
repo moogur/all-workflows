@@ -107,7 +107,7 @@ jobs:
 - **Версия Go** берётся из директивы `go` в `go.mod`.
 - **Версия приложения** определяется по git-тегу (`git describe --tags`).
 - **Права `GITHUB_TOKEN`** объявлены явно в каждом workflow (минимально необходимые).
-- **Docker-образы** публикуются в GitHub Packages (`docker.pkg.github.com`) с тегами `<версия>` и `latest`; для semver-тега — `vX.Y.Z`, `vX.Y`, `vX`, `latest`. Сборка по тегу дополнительно публикует GitHub-релиз со ссылкой на образ.
+- **Docker-образы** публикуются в GitHub Container Registry (`ghcr.io`) с тегами `<версия>` и `latest`; для semver-тега — `vX.Y.Z`, `vX.Y`, `vX`, `latest`. Сборка по тегу дополнительно публикует GitHub-релиз со ссылкой на образ.
 - **npm-пакеты** области `@moogur` ставятся из приватного реестра GitHub Packages.
 - **Сообщения коммитов** проверяются хуком и должны иметь вид `[GA-123] type(scope): subject`.
 - **Тело релиза** собирается автоматически из локальной git-истории (без обращений к GitHub API): PR, смёрженный кнопкой Merge или сквошенный, даёт запись по заголовку PR; коммит, запушенный напрямую, — по формату сообщения коммита. Отдельного «релизного» workflow нет — публикует каждая сборка сама, по тегу, через общую цепочку [`github-release`](https://docusaurus.site.moogur.su/projects/github-workflows/actions/github-release#github-release).

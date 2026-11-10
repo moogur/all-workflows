@@ -37,7 +37,7 @@ make_stub() {
     REF_TYPE=tag REF_NAME=v1.2.3 GITHUB_OUTPUT="$GITHUB_OUTPUT" bash "$ACTION/resolve.sh"
   [ "$status" -eq 0 ]
   [ "$(output_value version)" = "v1.2.3" ]
-  [ "$(output_value image)" = "docker.pkg.github.com/moogur/adminer/adminer" ]
+  [ "$(output_value image)" = "ghcr.io/moogur/adminer/adminer" ]
 }
 
 @test "resolve: сборка без тега идёт датной меткой" {
@@ -52,7 +52,7 @@ make_stub() {
   run env REPOSITORY_OWNER=rtdlab REPOSITORY_NAME=adminer \
     REF_TYPE=tag REF_NAME=v1 GITHUB_OUTPUT="$GITHUB_OUTPUT" bash "$ACTION/resolve.sh"
   [ "$status" -eq 0 ]
-  [ "$(output_value image)" = "docker.pkg.github.com/rtdlab/adminer/adminer" ]
+  [ "$(output_value image)" = "ghcr.io/rtdlab/adminer/adminer" ]
   [ "$(output_value user)" = "rtdlab" ]
 }
 
@@ -69,7 +69,7 @@ make_stub() {
     REF_TYPE=tag REF_NAME=v1 GITHUB_OUTPUT="$GITHUB_OUTPUT" bash "$ACTION/resolve.sh"
   [ "$status" -eq 0 ]
   [ "$(output_value user)" = "moogur" ]
-  [ "$(output_value image)" = "docker.pkg.github.com/moogur/adminer/adminer" ]
+  [ "$(output_value image)" = "ghcr.io/moogur/adminer/adminer" ]
 }
 
 @test "resolve: без GITHUB_USER и владельца завершается с ошибкой" {
@@ -153,7 +153,7 @@ make_stub() {
   run env PATH="$TMP/bin:$PATH" GITHUB_USER=moogur TOKEN=secret \
     TAGS='image:v1.2.3 image:latest' bash "$ACTION/publish.sh"
   [ "$status" -eq 0 ]
-  grep -qF -- "login docker.pkg.github.com -u moogur --password-stdin" "$LOG"
+  grep -qF -- "login ghcr.io -u moogur --password-stdin" "$LOG"
   # Токен не должен попадать в аргументы процесса.
   run grep -cF "secret" "$LOG"
   [ "$status" -ne 0 ]

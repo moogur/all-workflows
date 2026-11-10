@@ -23,7 +23,6 @@ else
   version=$(version_auto_label)
 fi
 
-# ПРИМЕЧАНИЕ: docker.pkg.github.com устарел; см. сайт документации, modernization/legacy.md, п. 1.
 image=$(docker_image_name "$github_user" "$repository_name")
 
 {

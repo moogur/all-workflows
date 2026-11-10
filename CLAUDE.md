@@ -61,5 +61,5 @@ deployed from this repo itself — it only lints and unit-tests its own bash.
   don't recreate it. A change is not finished until the matching site page is updated: `workflows/`
   (inputs/steps), `conventions/` (permissions, secrets, workflow rules), `actions/`, `testing.md` (test table),
   plus README tables here.
-- The site's `modernization/` pages list legacy left in place on purpose (`docker.pkg.github.com`, archived
+- The site's `modernization/` pages list legacy left in place on purpose (archived
   release actions, `golint`, `@master` pins). Do not silently modernise those.

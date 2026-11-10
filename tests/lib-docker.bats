@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Тесты для lib/docker.sh: имя образа в устаревшем реестре, склейка и разбор ссылок.
+# Тесты для lib/docker.sh: имя образа в реестре ghcr.io, склейка и разбор ссылок.
 
 setup() {
   load helpers
@@ -11,23 +11,23 @@ sh() {
   run bash -c "source '$LIB'; $*"
 }
 
-@test "image_name: собирает docker.pkg.github.com/<user>/<repo>/<repo>" {
+@test "image_name: собирает ghcr.io/<user>/<repo>/<repo>" {
   sh "docker_image_name moogur adminer"
-  [ "$output" = "docker.pkg.github.com/moogur/adminer/adminer" ]
+  [ "$output" = "ghcr.io/moogur/adminer/adminer" ]
 }
 
 @test "ref: склеивает образ и тег через ':'" {
-  sh "docker_ref docker.pkg.github.com/user/repo/repo v1.2.3"
-  [ "$output" = "docker.pkg.github.com/user/repo/repo:v1.2.3" ]
+  sh "docker_ref ghcr.io/user/repo/repo v1.2.3"
+  [ "$output" = "ghcr.io/user/repo/repo:v1.2.3" ]
 }
 
 @test "ref_image: часть до последнего ':'" {
-  sh "docker_ref_image docker.pkg.github.com/user/repo/repo:v1.2.3"
-  [ "$output" = "docker.pkg.github.com/user/repo/repo" ]
+  sh "docker_ref_image ghcr.io/user/repo/repo:v1.2.3"
+  [ "$output" = "ghcr.io/user/repo/repo" ]
 }
 
 @test "ref_tag: часть после последнего ':'" {
-  sh "docker_ref_tag docker.pkg.github.com/user/repo/repo:v1.2.3"
+  sh "docker_ref_tag ghcr.io/user/repo/repo:v1.2.3"
   [ "$output" = "v1.2.3" ]
 }
 

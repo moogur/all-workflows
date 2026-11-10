@@ -7,7 +7,7 @@ setup() {
   load helpers
   ROOT="$(repo_root)"
   SCRIPT="$ROOT/.github/actions/docker-tags/tags.sh"
-  IMAGE="docker.pkg.github.com/user/repo/repo"
+  IMAGE="ghcr.io/user/repo/repo"
   TMP="$(mktemp -d)"
   export GITHUB_OUTPUT="$TMP/output"
   : > "$GITHUB_OUTPUT"

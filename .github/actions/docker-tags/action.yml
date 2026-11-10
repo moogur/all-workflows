@@ -3,7 +3,7 @@ description: 'Формирует полный список тегов docker-о�
 
 inputs:
   image:
-    description: 'Полное имя образа без тега (например, docker.pkg.github.com/user/repo/repo).'
+    description: 'Полное имя образа без тега (например, ghcr.io/user/repo/repo).'
     required: true
   version:
     description: 'Версия сборки: git-тег (dd.mm.yyyy или vX.Y.Z) либо метка авто-сборки dd.mm.yyyy-HHMM-auto.'
