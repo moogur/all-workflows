@@ -25,6 +25,11 @@ on:
         type: string
         required: false
         default: ''
+      check_target:
+        description: "Проверки проекта: цель make, выполняемая после статанализа, до тестов"  # например ci-check; пусто — шаг пропускается
+        type: string
+        required: false
+        default: ''
 
 # Новый запуск для той же ветки/папки отменяет предыдущий незавершённый.
 permissions:
@@ -81,6 +86,19 @@ jobs:
         run: |
           go install golang.org/x/lint/golint@latest
           golint ./...
+
+      # Проверки, которых нет выше (golangci-lint, editorconfig, кодогенерация), — целью make потребителя.
+      # Принимается только имя цели: произвольную команду сюда не передать, набор проверок живёт в его Makefile.
+      - name: 'Run project checks'
+        if: "inputs.check_target != ''"
+        env:
+          CHECK_TARGET: ${{ inputs.check_target }}
+        run: |
+          if [[ ! "$CHECK_TARGET" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
+            echo "::error::check_target — имя цели make (a-z, 0-9, _ и -), получено: $CHECK_TARGET"
+            exit 1
+          fi
+          make "$CHECK_TARGET"
 
       # Подготовка к тестам скриптом потребителя; путь считается от рабочей папки (folder уже в корне).
       # В test_setup_cache не кладите секреты: кэш Actions читает любой, у кого есть read-доступ к репозиторию.

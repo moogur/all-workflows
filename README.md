@@ -49,7 +49,7 @@ jobs:
 | Workflow | Стек | Что делает |
 | --- | --- | --- |
 | [`actions_for_push.yml`](.github/workflows/actions_for_push.yml) | Node.js | Lint → build → test; сводка тестов (пройдено/упало/пропущено) на странице запуска |
-| [`actions_for_push_go.yml`](.github/workflows/actions_for_push_go.yml) | Go | `go vet`, `staticcheck`, `golint`, тесты; сводка тестов (пройдено/упало/пропущено) на странице запуска |
+| [`actions_for_push_go.yml`](.github/workflows/actions_for_push_go.yml) | Go | `go vet`, `staticcheck`, `golint`, проверки проекта целью make (`check_target`), тесты; сводка тестов (пройдено/упало/пропущено) на странице запуска |
 | [`pr_annotation.yml`](.github/workflows/pr_annotation.yml) | Node.js | Аннотации покрытия Jest в Pull Request; сводка тестов головы PR на странице запуска |
 
 ### Релизы и артефакты
